@@ -1,0 +1,3 @@
+/Users/andrewferguson/Event_Based_Navigation/Software/build/CMakeFiles/Event_Based_Navigation.dir
+/Users/andrewferguson/Event_Based_Navigation/Software/build/CMakeFiles/edit_cache.dir
+/Users/andrewferguson/Event_Based_Navigation/Software/build/CMakeFiles/rebuild_cache.dir

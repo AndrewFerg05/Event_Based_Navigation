@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "C++ Debug with LLDB",
+            "name": "C++ Debug with LLDB (macOS)",
             "type": "cppdbg", // Use the C++ debugging extension
             "request": "launch",
             "program": "${command:cmake.launchTargetPath}", // Path to the executable
@@ -11,14 +11,40 @@
             "cwd": "${workspaceFolder}", // Current working directory
             "environment": [],
             "externalConsole": false, // Use an external console for output
-            "MIMode": "lldb", // Set LLDB as the debugger backend
+            "MIMode": "lldb", // Set LLDB as the debugger backend for macOS
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for LLDB",
                     "text": "settings set target.pretty-printing on",
                     "ignoreFailures": true
                 }
-            ]
+            ],
+            "osx": { // Limit this configuration to macOS
+                "MIMode": "lldb"
+            }
+        },
+        {
+            "name": "C++ Debug with GDB (Windows)",
+            "type": "cppdbg", // Use the C++ debugging extension
+            "request": "launch",
+            "program": "${command:cmake.launchTargetPath}", // Path to the executable
+            "args": [], // Any arguments for your program
+            "stopAtEntry": true, // Set to true if you want to stop at the program entry point
+            "cwd": "${workspaceFolder}", // Current working directory
+            "environment": [],
+            "externalConsole": false, // Use an external console for output
+            "MIMode": "gdb", // Set GDB as the debugger backend for Windows
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for GDB",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "windows": { // Limit this configuration to Windows
+                "MIMode": "gdb",
+                "miDebuggerPath": "C:\\msys64\\mingw64\\bin\\gdb.exe" // Path to GDB; update based on your system setup
+            }
         }
     ]
 }

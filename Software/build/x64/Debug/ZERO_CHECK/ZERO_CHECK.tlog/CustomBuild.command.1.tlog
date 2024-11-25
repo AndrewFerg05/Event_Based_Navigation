@@ -1,0 +1,10 @@
+^C:\USERS\POKEW\DOCUMENTS\YEAR5\PROJECT\EVENT_BASED_NAVIGATION\SOFTWARE\BUILD\CMAKEFILES\6C22C953960378B78BB7791DEB6CA577\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/pokew/Documents/Year5/Project/Event_Based_Navigation/Software -BC:/Users/pokew/Documents/Year5/Project/Event_Based_Navigation/Software/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file C:/Users/pokew/Documents/Year5/Project/Event_Based_Navigation/Software/build/Event_Based_Navigation.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

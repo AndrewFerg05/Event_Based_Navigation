@@ -1,0 +1,9 @@
+{
+    "cmake.generator": "MinGW Makefiles",
+    "cmake.configureOnOpen": true,
+    "cmake.buildDirectory": "${workspaceFolder}/build",
+    "cmake.cmakePath": "C:\\msys64\\mingw64\\bin\\cmake.exe",
+    "cmake.environment": {
+        "PATH": "${env:PATH};C:\\msys64\\mingw64\\bin"
+    }
+}

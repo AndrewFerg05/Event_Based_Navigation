@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
+message("${CMAKE_SYSTEM_NAME}")
+
 # Project name
 project(Event_Based_Navigation)
 

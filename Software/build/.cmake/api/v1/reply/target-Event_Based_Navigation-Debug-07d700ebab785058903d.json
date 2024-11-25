@@ -2,7 +2,10 @@
 	"artifacts" : 
 	[
 		{
-			"path" : "Event_Based_Navigation"
+			"path" : "Event_Based_Navigation.exe"
+		},
+		{
+			"path" : "Event_Based_Navigation.pdb"
 		}
 	],
 	"backtrace" : 1,
@@ -25,13 +28,13 @@
 			{
 				"command" : 0,
 				"file" : 0,
-				"line" : 41,
+				"line" : 43,
 				"parent" : 0
 			},
 			{
 				"command" : 1,
 				"file" : 0,
-				"line" : 11,
+				"line" : 13,
 				"parent" : 0
 			}
 		]
@@ -42,14 +45,14 @@
 			"compileCommandFragments" : 
 			[
 				{
-					"fragment" : " -Wall -Wextra -g -std=gnu++17 -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX13.3.sdk"
+					"fragment" : " -Wall -Wextra -g -std=gnu++17"
 				}
 			],
 			"includes" : 
 			[
 				{
 					"backtrace" : 2,
-					"path" : "/Users/andrewferguson/Event_Based_Navigation/Software/include"
+					"path" : "C:/Users/pokew/Documents/Year5/Project/Event_Based_Navigation/Software/include"
 				}
 			],
 			"language" : "CXX",
@@ -79,12 +82,16 @@
 			{
 				"fragment" : "",
 				"role" : "flags"
+			},
+			{
+				"fragment" : "-lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32",
+				"role" : "libraries"
 			}
 		],
 		"language" : "CXX"
 	},
 	"name" : "Event_Based_Navigation",
-	"nameOnDisk" : "Event_Based_Navigation",
+	"nameOnDisk" : "Event_Based_Navigation.exe",
 	"paths" : 
 	{
 		"build" : ".",

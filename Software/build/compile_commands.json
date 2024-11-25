@@ -1,7 +1,7 @@
 [
 {
   "directory": "/Users/andrewferguson/Event_Based_Navigation/Software/build",
-  "command": "/opt/homebrew/bin/aarch64-apple-darwin23-g++-14  -I/Users/andrewferguson/Event_Based_Navigation/Software/include -g -std=gnu++17 -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX13.3.sdk -o CMakeFiles/Event_Based_Navigation.dir/src/main.cpp.o -c /Users/andrewferguson/Event_Based_Navigation/Software/src/main.cpp",
+  "command": "/opt/homebrew/bin/aarch64-apple-darwin23-g++-14  -I/Users/andrewferguson/Event_Based_Navigation/Software/include  -Wall -Wextra -g -std=gnu++17 -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX13.3.sdk -o CMakeFiles/Event_Based_Navigation.dir/src/main.cpp.o -c /Users/andrewferguson/Event_Based_Navigation/Software/src/main.cpp",
   "file": "/Users/andrewferguson/Event_Based_Navigation/Software/src/main.cpp",
   "output": "CMakeFiles/Event_Based_Navigation.dir/src/main.cpp.o"
 }

@@ -1,0 +1,6 @@
+# Ignore build directories
+
+Software/build/
+
+# Ignore VSCode settings file in Software subfolder
+Software/.vscode/settings.json

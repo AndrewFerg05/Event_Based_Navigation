@@ -1,8 +1,0 @@
-[
-{
-  "directory": "C:/Users/pokew/Documents/Year5/Project/Event_Based_Navigation/Software/build",
-  "command": "C:\\msys64\\ucrt64\\bin\\g++.exe  @CMakeFiles/Event_Based_Navigation.dir/includes_CXX.rsp  -Wall -Wextra -g -std=gnu++17 -o CMakeFiles\\Event_Based_Navigation.dir\\src\\main.cpp.obj -c C:\\Users\\pokew\\Documents\\Year5\\Project\\Event_Based_Navigation\\Software\\src\\main.cpp",
-  "file": "C:/Users/pokew/Documents/Year5/Project/Event_Based_Navigation/Software/src/main.cpp",
-  "output": "CMakeFiles/Event_Based_Navigation.dir/src/main.cpp.obj"
-}
-]

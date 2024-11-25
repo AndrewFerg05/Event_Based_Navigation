@@ -1,4 +1,5 @@
 # Ignore build directories
+/build/
 Software/build/
 
 # Ignore VSCode settings file in Software subfolder

@@ -1,9 +1,9 @@
 /*
-Filename    : Software/src/main.cpp
+Filename    : Software/src/threads.cpp
 Author      : Samuel Kliskey
 Project     : Event Based Navigation
 Date        : 10/1/25
-Description : Main file of the project
+Description : Multithreading in the project
 --------------------------------------------------------------------------------
 Change History
 --------------------------------------------------------------------------------
@@ -14,45 +14,51 @@ Change History
 //==============================================================================
 // External Files
 //------------------------------------------------------------------------------
-// External
-#include <iostream>
-#include <mutex>
-#include <thread>
-#include <vector>
 
 // Local
-#include  "../include/threads.hpp"
+#include "../include/threads.hpp"
 
 //==============================================================================
 // Function Prototypes
 //------------------------------------------------------------------------------
-int main();
 
 
 //==============================================================================
 // MACROs
 //------------------------------------------------------------------------------
-#define THIS_IS_MACRO_EXAMPLE   15
+#define INCREMENT_AMOUNT   15
 
 //==============================================================================
 // Global Variable Initialisation
 //------------------------------------------------------------------------------
-protectedData myData;
 
 using namespace std;
 
 //==============================================================================
 // Functions
 //------------------------------------------------------------------------------
-int main() {
+void protectedData::incrementCounter()
+{
+    for (int i = 0; i < 100; i++) 
+    {
+        std::unique_lock<std::shared_mutex> ul(mtx);
+        counter += INCREMENT_AMOUNT;
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
 
-    std::thread incrementer(&protectedData::incrementCounter, &myData);
-    std::thread reader(&protectedData::readCounter, &myData);
+    return;
+}
 
-    reader.join();
-    incrementer.join();
-     cout << "Test Output!" << endl;
-    return 0;
+void protectedData::readCounter()
+{
+    for (int i = 0; i < 100; i++) 
+    {
+        std::shared_lock<std::shared_mutex> sl(mtx);
+        std::cout << "Counter value: " << counter << std::endl;
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
+
+    return;
 }
 
 //==============================================================================

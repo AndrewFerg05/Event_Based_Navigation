@@ -1,9 +1,9 @@
 /*
-Filename    : Software/src/main.cpp
+Filename    : Software/include/threads.hpp
 Author      : Samuel Kliskey
 Project     : Event Based Navigation
 Date        : 10/1/25
-Description : Main file of the project
+Description : Header file for thread functions and shared data structures
 --------------------------------------------------------------------------------
 Change History
 --------------------------------------------------------------------------------
@@ -11,49 +11,44 @@ Change History
 --------------------------------------------------------------------------------
 */
 
+#ifndef THREADS_HPP
+#define THREADS_HPP
+
 //==============================================================================
 // External Files
 //------------------------------------------------------------------------------
-// External
 #include <iostream>
 #include <mutex>
 #include <thread>
 #include <vector>
-
-// Local
-#include  "../include/threads.hpp"
+#include <shared_mutex>
 
 //==============================================================================
-// Function Prototypes
+//      Classes
+// Classes defined here are the shared data structures between threads to ensure
+// race condition issues.
 //------------------------------------------------------------------------------
-int main();
 
+class protectedData {
+    public:
+        std::shared_mutex mtx;
+        int counter;
+
+        void readCounter();
+        void incrementCounter();
+};
 
 //==============================================================================
-// MACROs
+//      Function Prototypes
 //------------------------------------------------------------------------------
-#define THIS_IS_MACRO_EXAMPLE   15
 
+
+
+
+
+
+
+
+#endif  // THREADS_HPP
 //==============================================================================
-// Global Variable Initialisation
-//------------------------------------------------------------------------------
-protectedData myData;
-
-using namespace std;
-
-//==============================================================================
-// Functions
-//------------------------------------------------------------------------------
-int main() {
-
-    std::thread incrementer(&protectedData::incrementCounter, &myData);
-    std::thread reader(&protectedData::readCounter, &myData);
-
-    reader.join();
-    incrementer.join();
-     cout << "Test Output!" << endl;
-    return 0;
-}
-
-//==============================================================================
-// End of File : Software/src/main.cpp
+// End of File :  Software/include/threads.hpp

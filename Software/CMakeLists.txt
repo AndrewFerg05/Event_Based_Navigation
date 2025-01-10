@@ -10,10 +10,15 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Include directories
-include_directories(include)
+include_directories(
+    include
+    src
+    lib
+)
 
 # Source files
-file(GLOB SOURCES "src/*.cpp")
+file(GLOB_RECURSE SOURCES "src/*.cpp" "lib/*.cpp")
+file(GLOB_RECURSE HEADERS "include/*.hpp" "lib/*.hpp")
 
 # Detect platform and apply settings accordingly
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
@@ -40,4 +45,4 @@ else()
 endif()
 
 # Add executable
-add_executable(${PROJECT_NAME} ${SOURCES})
+add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})

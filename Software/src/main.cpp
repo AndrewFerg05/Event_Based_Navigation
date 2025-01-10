@@ -21,7 +21,7 @@ Change History
 #include <vector>
 
 // Local
-#include  "../include/threads.hpp"
+#include  "threads.hpp"
 
 //==============================================================================
 // Function Prototypes
@@ -37,7 +37,6 @@ Change History
 //------------------------------------------------------------------------------
 protectedData myData;
 
-using namespace std;
 
 //==============================================================================
 // Functions
@@ -49,7 +48,7 @@ int main() {
 
     reader.join();
     incrementer.join();
-     cout << "Test Output!" << endl;
+    std::cout << "Test Output!" << std::endl;
     return 0;
 }
 

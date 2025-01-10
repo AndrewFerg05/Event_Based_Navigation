@@ -1,43 +1,11 @@
 cmake_minimum_required(VERSION 3.10)
 
-message("${CMAKE_SYSTEM_NAME}")
-
 # Project name
-project(Event_Based_Navigation)
+project(NonGPSNav)
 
-# C++ Standard
+# Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-# Include directories
-include_directories(include)
-
-# Source files
-file(GLOB SOURCES "src/*.cpp")
-
-# Detect platform and apply settings accordingly
-if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-    message(STATUS "Configuring for macOS")
-    # macOS specific configurations
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
-    # Add any macOS specific libraries if needed here
-
-elseif(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-    message(STATUS "Configuring for Windows")
-    # Windows specific configurations
-    if(MSVC)
-        # Using Microsoft Visual Studio Compiler
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4")
-    else()
-        # Using GCC or Clang on Windows (e.g., MinGW)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
-    endif()
-    # Add any Windows specific libraries if needed here
-
-else()
-    message(STATUS "Unknown platform: ${CMAKE_SYSTEM_NAME}")
-    # Add any generic or platform-independent settings here if needed
-endif()
-
-# Add executable
-add_executable(${PROJECT_NAME} ${SOURCES})
+# Add the executable
+add_executable(NonGPSNav src/main.cpp)

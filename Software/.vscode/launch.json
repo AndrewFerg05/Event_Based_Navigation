@@ -3,15 +3,15 @@
     "configurations": [
         {
             "name": "C++ Debug with LLDB (macOS)",
-            "type": "cppdbg", // Use the C++ debugging extension
+            "type": "cppdbg",
             "request": "launch",
-            "program": "${command:cmake.launchTargetPath}", // Path to the executable
-            "args": [], // Any arguments for your program
-            "stopAtEntry": true, // Set to true if you want to stop at the program entry point
-            "cwd": "${workspaceFolder}", // Current working directory
+            "program": "${command:cmake.launchTargetPath}",
+            "args": [],
+            "stopAtEntry": true,
+            "cwd": "${workspaceFolder}",
             "environment": [],
-            "externalConsole": false, // Use an external console for output
-            "MIMode": "lldb", // Set LLDB as the debugger backend for macOS
+            "externalConsole": false,
+            "MIMode": "lldb",
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for LLDB",
@@ -19,21 +19,21 @@
                     "ignoreFailures": true
                 }
             ],
-            "osx": { // Limit this configuration to macOS
+            "osx": {
                 "MIMode": "lldb"
             }
         },
         {
             "name": "C++ Debug with GDB (Windows)",
-            "type": "cppdbg", // Use the C++ debugging extension
+            "type": "cppdbg",
             "request": "launch",
-            "program": "${command:cmake.launchTargetPath}", // Path to the executable
-            "args": [], // Any arguments for your program
-            "stopAtEntry": true, // Set to true if you want to stop at the program entry point
-            "cwd": "${workspaceFolder}", // Current working directory
+            "program": "${command:cmake.launchTargetPath}",
+            "args": [],
+            "stopAtEntry": true,
+            "cwd": "${workspaceFolder}",
             "environment": [],
-            "externalConsole": false, // Use an external console for output
-            "MIMode": "gdb", // Set GDB as the debugger backend for Windows
+            "externalConsole": false,
+            "MIMode": "gdb",
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for GDB",
@@ -41,10 +41,36 @@
                     "ignoreFailures": true
                 }
             ],
-            "windows": { // Limit this configuration to Windows
+            "windows": {
                 "MIMode": "gdb",
-                "miDebuggerPath": "C:\\msys64\\mingw64\\bin\\gdb.exe" // Path to GDB; update based on your system setup
+                "miDebuggerPath": "C:\\msys64\\mingw64\\bin\\gdb.exe"
             }
+        },
+        {
+            "name": "C/C++: g++.exe build and debug active file",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${fileDirname}\\${fileBasenameNoExtension}.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "C:\\msys64\\ucrt64\\bin",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "gdb.exe",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "C/C++: g++.exe build active file"
         }
     ]
 }

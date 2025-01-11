@@ -19,7 +19,8 @@ Change History
 #include <mutex>
 #include <thread>
 #include <vector>
-
+#include <libcaer/libcaer.h>
+#include <libcaer/devices/device_discover.h>
 // Local
 #include  "threads.hpp"
 
@@ -49,6 +50,20 @@ int main() {
     reader.join();
     incrementer.join();
     std::cout << "Test Output!" << std::endl;
+    
+
+    caerDeviceDiscoveryResult discovered;
+    ssize_t result = caerDeviceDiscover(CAER_DEVICE_DISCOVER_ALL, &discovered);
+
+    if (result < 1) {
+        std::cerr << "No device found" << std::endl;
+    }
+    else{
+        std::cout << "Device found" << std::endl;
+    }
+
+    free(discovered);
+
     return 0;
 }
 

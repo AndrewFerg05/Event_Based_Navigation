@@ -16,7 +16,7 @@ Change History
 //------------------------------------------------------------------------------
 
 // Local
-#include "../include/threads.hpp"
+#include "threads.hpp"
 
 //==============================================================================
 // Function Prototypes
@@ -32,14 +32,12 @@ Change History
 // Global Variable Initialisation
 //------------------------------------------------------------------------------
 
-using namespace std;
-
 //==============================================================================
 // Functions
 //------------------------------------------------------------------------------
 void protectedData::incrementCounter()
 {
-    for (int i = 0; i < 100; i++) 
+    for (int i = 0; i < 20; i++) 
     {
         std::unique_lock<std::shared_mutex> ul(mtx);
         counter += INCREMENT_AMOUNT;
@@ -51,7 +49,7 @@ void protectedData::incrementCounter()
 
 void protectedData::readCounter()
 {
-    for (int i = 0; i < 100; i++) 
+    for (int i = 0; i < 20; i++) 
     {
         std::shared_lock<std::shared_mutex> sl(mtx);
         std::cout << "Counter value: " << counter << std::endl;

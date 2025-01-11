@@ -7,7 +7,8 @@ Description : Main file of the project
 --------------------------------------------------------------------------------
 Change History
 --------------------------------------------------------------------------------
-10-JAN-2025 SARK created to design code structure
+10-JAN-2025     SARK    created to design code structure
+10-JAN-2025     AF      Added Libcaer test
 --------------------------------------------------------------------------------
 */
 

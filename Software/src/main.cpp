@@ -49,9 +49,9 @@ Change History
 int main() 
 {
     // Create atomic control flags
-    std::atomic<ThreadState> data_aquire_state(ThreadState::Stopped);
-    std::atomic<ThreadState> frontend_state(ThreadState::Stopped);
-    std::atomic<ThreadState> backend_state(ThreadState::Stopped);
+    std::atomic<ThreadState> data_aquire_state(ThreadState::Paused);
+    std::atomic<ThreadState> frontend_state(ThreadState::Paused);
+    std::atomic<ThreadState> backend_state(ThreadState::Paused);
 
     // Start threads
     std::thread data_aquire_thread(thread_DataAcquistion, std::ref(data_aquire_state));

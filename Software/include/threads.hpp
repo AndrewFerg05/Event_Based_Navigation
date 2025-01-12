@@ -41,16 +41,6 @@ Change History
 // Classes defined here are the shared data structures between threads to ensure
 // race condition issues.
 //------------------------------------------------------------------------------
-class run_control
-{
-    private:
-        std::shared_mutex mtx;
-        int run = true;
-
-    public:
-        bool run_check();
-        void run_end();
-};
 
 enum class ThreadState {
     Running,

@@ -38,11 +38,13 @@ int valueToAdd = 0;
 void thread_DataAcquistion(std::atomic<ThreadState>& state) {
     while (true) {
         if (state == ThreadState::Stopped) {
+            std::cout << "Data Aquisition Stopping" << std::endl;
             break;
         }
 
         if (state == ThreadState::Paused) {
             //TODO - Wait while some condition
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
         }
 
@@ -53,6 +55,11 @@ void thread_DataAcquistion(std::atomic<ThreadState>& state) {
 
         if (state == ThreadState::Running) {
             //TODO - Get data from camera
+        }
+
+        if (state == ThreadState::Test) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            std::cout << "Data Aquisition Testing" << std::endl; 
         }
     }
 }

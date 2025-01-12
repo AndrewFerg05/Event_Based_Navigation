@@ -40,17 +40,39 @@ void thread_Communication(
     std::atomic<ThreadState>& frontend_state,
     std::atomic<ThreadState>& backend_state) {
 
+    auto start_time = std::chrono::steady_clock::now();   
+
+    std::uint8_t command = 100; //Get this from external source
+
     while (true) {
-        std::uint8_t command = 0; //Get this from external source
+
+        auto now = std::chrono::steady_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - start_time).count();
+
+        // AF - Test Schedule
+        if (elapsed > 1)
+        {
+            if (elapsed > 2)
+            {
+                command = 1;
+            }
+            else 
+            {
+                command = 4;
+            }
+        }
+
 
         if (command == 0) {
             data_sync_state = ThreadState::Running;
             frontend_state = ThreadState::Running;
             backend_state = ThreadState::Running;
         } else if (command == 1) {
+            std::cout << "Comms Stopping" << std::endl;
             data_sync_state = ThreadState::Stopped;
             frontend_state = ThreadState::Stopped;
             backend_state = ThreadState::Stopped;
+            break;
         } else if (command == 2) {
             data_sync_state = ThreadState::Paused;
             frontend_state = ThreadState::Paused;
@@ -59,7 +81,19 @@ void thread_Communication(
             data_sync_state = ThreadState::Reset;
             frontend_state = ThreadState::Reset;
             backend_state = ThreadState::Reset;
+        } else if (command == 4) {
+            std::cout << "Comms Testing" << std::endl;
+            data_sync_state = ThreadState::Test;
+            frontend_state = ThreadState::Test;
+            backend_state = ThreadState::Test;
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
+        else if (command == 100){
+            std::cout << "Unknown state" << std::endl;
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+
+            
 
     }
 }

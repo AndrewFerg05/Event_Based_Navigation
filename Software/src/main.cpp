@@ -9,6 +9,7 @@ Change History
 --------------------------------------------------------------------------------
 10-JAN-2025     SARK    created to design code structure
 10-JAN-2025     AF      Added Libcaer test
+12-Jan-2025     AF      Changed to Atomics
 --------------------------------------------------------------------------------
 */
 
@@ -60,10 +61,10 @@ int main()
     std::thread comms_thread(thread_Communication,
                              std::ref(data_aquire_state), std::ref(frontend_state), std::ref(backend_state));
 
-    // Set Threads States to Run
-    data_aquire_state = ThreadState::Running;
-    frontend_state = ThreadState::Running;
-    backend_state = ThreadState::Running;
+    // Set Threads States to Run - Can come from comms thread
+    // data_aquire_state = ThreadState::Test;
+    // frontend_state = ThreadState::Test;
+    // backend_state = ThreadState::Test;
 
     // Stop command in comms thread => wait for comms thread to exit
     comms_thread.join();
@@ -72,6 +73,8 @@ int main()
     data_aquire_thread.join();
     frontend_thread.join();
     backend_thread.join();
+
+    std::cout << "Test Ended" << std::endl;
 
     return 0;
 }

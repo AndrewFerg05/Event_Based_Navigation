@@ -46,7 +46,8 @@ enum class ThreadState {
     Running,
     Paused,
     Stopped,
-    Reset
+    Reset,
+    Test
 };
 
 class interface_DA_to_FE_and_C

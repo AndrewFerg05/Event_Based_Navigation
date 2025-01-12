@@ -36,11 +36,13 @@ Change History
 void thread_FrontEnd(std::atomic<ThreadState>& state) {
     while (true) {
         if (state == ThreadState::Stopped) {
+            std::cout << "Frontend Stopping" << std::endl;
             break;
         }
 
         if (state == ThreadState::Paused) {
             //TODO - Wait while some condition
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
         }
 
@@ -51,6 +53,11 @@ void thread_FrontEnd(std::atomic<ThreadState>& state) {
 
         if (state == ThreadState::Running) {
             //TODO - Get data from frontend
+        }
+
+        if (state == ThreadState::Test) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            std::cout << "Frontend Testing" << std::endl; 
         }
     }
 }

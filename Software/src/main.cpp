@@ -22,8 +22,13 @@ Change History
 #include <vector>
 #include <libcaer/libcaer.h>
 #include <libcaer/devices/device_discover.h>
+
 // Local
 #include  "threads.hpp"
+#include  "BackEnd.hpp"
+#include  "Communication.hpp"
+#include  "DataAcquisition.hpp"
+#include  "FrontEnd.hpp"
 
 //==============================================================================
 // Function Prototypes
@@ -37,33 +42,41 @@ Change History
 //==============================================================================
 // Global Variable Initialisation
 //------------------------------------------------------------------------------
-protectedData myData;
-
 
 //==============================================================================
 // Functions
 //------------------------------------------------------------------------------
-int main() {
+int main() 
+{
+    run_control go;
+    interface_DA_to_FE_and_C sharedData_DA_FE_C;
 
-    std::thread incrementer(&protectedData::incrementCounter, &myData);
-    std::thread reader(&protectedData::readCounter, &myData);
-
-    reader.join();
-    incrementer.join();
-    std::cout << "Test Output!" << std::endl;
-    
-
+    //Check Device Connected
     caerDeviceDiscoveryResult discovered;
     ssize_t result = caerDeviceDiscover(CAER_DEVICE_DISCOVER_ALL, &discovered);
-
-    if (result < 1) {
+    if (result < 1) 
+    {
         std::cerr << "No device found" << std::endl;
     }
-    else{
+    else
+    {
         std::cout << "Device found" << std::endl;
     }
-
     free(discovered);
+
+
+    std::thread DA(thread_DataAcquistion, &go, &sharedData_DA_FE_C);
+    std::thread C(thread_Communication, &go, &sharedData_DA_FE_C);
+    std::thread FE(thread_FrontEnd, &go, &sharedData_DA_FE_C);
+    std::thread BE(thread_BackEnd, &go);
+
+    C.join();   // Communications thread will finish first
+    DA.join();
+    FE.join();
+    BE.join();
+
+    std::cout << "Test Output!" << std::endl;
+    
 
     return 0;
 }

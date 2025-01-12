@@ -1,48 +1,42 @@
+#Prerequisites
 cmake_minimum_required(VERSION 3.10)
-
-message("${CMAKE_SYSTEM_NAME}")
 
 # Project name
 project(Event_Based_Navigation)
 
 # C++ Standard
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED True)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Include directories
-include_directories(
-    include
-    src
-    lib
-)
+# Use all cpp files in src
+file(GLOB SOURCES "src/*.cpp")
 
-# Source files
-file(GLOB_RECURSE SOURCES "src/*.cpp" "lib/*.cpp")
-file(GLOB_RECURSE HEADERS "include/*.hpp" "lib/*.hpp")
+if (WIN32)
+    message("Windows Device")
 
-# Detect platform and apply settings accordingly
-if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-    message(STATUS "Configuring for macOS")
-    # macOS specific configurations
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
-    # Add any macOS specific libraries if needed here
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_TIMESPEC_DEFINED")
 
-elseif(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-    message(STATUS "Configuring for Windows")
-    # Windows specific configurations
-    if(MSVC)
-        # Using Microsoft Visual Studio Compiler
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4")
-    else()
-        # Using GCC or Clang on Windows (e.g., MinGW)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
-    endif()
-    # Add any Windows specific libraries if needed here
-
+    # Adjust the paths to your MSYS installation
+    set(LIBCAER_INCLUDE_DIRS "C:/msys64/mingw64/include")
+    set(LIBCAER_LIBRARY_DIRS "C:/msys64/mingw64/lib")
+    set(LIBCAER_LIBRARIES "libcaer") # Ensure this matches your library name, e.g., "libcaer.a" or "libcaer.so"
 else()
-    message(STATUS "Unknown platform: ${CMAKE_SYSTEM_NAME}")
-    # Add any generic or platform-independent settings here if needed
+    message("Mac or Linux Device")
+    # Use pkg-config to find libcaer
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(LIBCAER REQUIRED libcaer)
 endif()
 
+# Add the library path for linking
+link_directories(${LIBCAER_LIBRARY_DIRS})
+
 # Add executable
-add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
+add_executable(${PROJECT_NAME} ${SOURCES})
+
+# Target Include Directory
+target_include_directories(${PROJECT_NAME} PRIVATE include ${LIBCAER_INCLUDE_DIRS})
+
+# Link Libraries
+target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBCAER_LIBRARIES})
+
+

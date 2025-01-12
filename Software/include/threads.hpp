@@ -8,11 +8,23 @@ Description : Header file for thread functions and shared data structures
 Change History
 --------------------------------------------------------------------------------
 10-JAN-2025 SARK created to design code structure
+11-JAN-2025 SARK added thread interfaces
 --------------------------------------------------------------------------------
 */
 
 #ifndef THREADS_HPP
 #define THREADS_HPP
+
+//==============================================================================
+// Preprocessor Directives
+//------------------------------------------------------------------------------
+#ifdef _WIN32
+    #include <windows.h>
+    #define sleep_ms(x) Sleep(x)  // Sleep a thread in milliseconds on Windows
+#else
+    #include <chrono>
+    #define sleep_ms(x) std::this_thread::sleep_for(std::chrono::milliseconds(x))  // Sleep a thread in other systems
+#endif
 
 //==============================================================================
 // External Files
@@ -22,31 +34,42 @@ Change History
 #include <thread>
 #include <vector>
 #include <shared_mutex>
-
+#include <time.h>
+#include <atomic>
 //==============================================================================
 //      Classes
 // Classes defined here are the shared data structures between threads to ensure
 // race condition issues.
 //------------------------------------------------------------------------------
 
-class protectedData {
-    public:
-        std::shared_mutex mtx;
-        int counter;
+enum class ThreadState {
+    Running,
+    Paused,
+    Stopped,
+    Reset,
+    Test
+};
 
-        void readCounter();
-        void incrementCounter();
+class interface_DA_to_FE_and_C
+{
+    private:
+        std::shared_mutex mtx;
+        std::vector<int> buffer;
+        int indexFE = 0;
+        int indexC = 0;
+        //SYNCHRONISED DATA TO SEND (FRAMES / EVENTS / IMU)
+
+    public:
+        void addToBuffer(int);
+        int checkBuffer();
+        int checkIndex(char);
+        int readBuffer(char);
+        void removeFirstFromBuffer();
 };
 
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------
-
-
-
-
-
-
 
 
 #endif  // THREADS_HPP

@@ -7,7 +7,9 @@ Description : Main file of the project
 --------------------------------------------------------------------------------
 Change History
 --------------------------------------------------------------------------------
-10-JAN-2025 SARK created to design code structure
+10-JAN-2025     SARK    created to design code structure
+10-JAN-2025     AF      Added Libcaer test
+12-Jan-2025     AF      Changed to Atomics
 --------------------------------------------------------------------------------
 */
 
@@ -19,15 +21,20 @@ Change History
 #include <mutex>
 #include <thread>
 #include <vector>
+#include <libcaer/libcaer.h>
+#include <libcaer/devices/device_discover.h>
 
 // Local
-#include  "../include/threads.hpp"
+#include  "threads.hpp"
+#include  "BackEnd.hpp"
+#include  "Communication.hpp"
+#include  "DataAcquisition.hpp"
+#include  "FrontEnd.hpp"
+
 
 //==============================================================================
 // Function Prototypes
 //------------------------------------------------------------------------------
-int main();
-
 
 //==============================================================================
 // MACROs
@@ -37,21 +44,39 @@ int main();
 //==============================================================================
 // Global Variable Initialisation
 //------------------------------------------------------------------------------
-protectedData myData;
-
-using namespace std;
 
 //==============================================================================
 // Functions
 //------------------------------------------------------------------------------
-int main() {
+int main() 
+{
+    // Create atomic control flags
+    std::atomic<ThreadState> data_aquire_state(ThreadState::Paused);
+    std::atomic<ThreadState> frontend_state(ThreadState::Paused);
+    std::atomic<ThreadState> backend_state(ThreadState::Paused);
 
-    std::thread incrementer(&protectedData::incrementCounter, &myData);
-    std::thread reader(&protectedData::readCounter, &myData);
+    // Start threads
+    std::thread data_aquire_thread(thread_DataAcquistion, std::ref(data_aquire_state));
+    std::thread frontend_thread(thread_FrontEnd, std::ref(frontend_state));
+    std::thread backend_thread(thread_BackEnd, std::ref(backend_state));
+    std::thread comms_thread(thread_Communication,
+                             std::ref(data_aquire_state), std::ref(frontend_state), std::ref(backend_state));
 
-    reader.join();
-    incrementer.join();
-     cout << "Test Output!" << endl;
+    // Set Threads States to Run - Can come from comms thread
+    // data_aquire_state = ThreadState::Test;
+    // frontend_state = ThreadState::Test;
+    // backend_state = ThreadState::Test;
+
+    // Stop command in comms thread => wait for comms thread to exit
+    comms_thread.join();
+
+    // Wait for other threads to exit
+    data_aquire_thread.join();
+    frontend_thread.join();
+    backend_thread.join();
+
+    std::cout << "Test Ended" << std::endl;
+
     return 0;
 }
 

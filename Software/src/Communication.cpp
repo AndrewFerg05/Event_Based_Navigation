@@ -86,11 +86,11 @@ void thread_Communication(
             data_sync_state = ThreadState::Test;
             frontend_state = ThreadState::Test;
             backend_state = ThreadState::Test;
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            sleep_ms(100);
         }
         else if (command == 100){
             std::cout << "Unknown state" << std::endl;
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            sleep_ms(100);
             }
 
             

@@ -44,7 +44,7 @@ void thread_DataAcquistion(std::atomic<ThreadState>& state) {
 
         if (state == ThreadState::Paused) {
             //TODO - Wait while some condition
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            sleep_ms(100);
             continue;
         }
 
@@ -58,7 +58,7 @@ void thread_DataAcquistion(std::atomic<ThreadState>& state) {
         }
 
         if (state == ThreadState::Test) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            sleep_ms(100);
             std::cout << "Data Aquisition Testing" << std::endl; 
         }
     }

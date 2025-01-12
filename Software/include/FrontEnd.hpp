@@ -29,7 +29,7 @@ Change History
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------
-void thread_FrontEnd(run_control*, interface_DA_to_FE_and_C*);
+void thread_FrontEnd(std::atomic<ThreadState>& state);
 
 
 

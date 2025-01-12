@@ -27,7 +27,10 @@ Change History
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------
-void thread_Communication(run_control*, interface_DA_to_FE_and_C*);
+void thread_Communication(
+    std::atomic<ThreadState>& data_sync_state,
+    std::atomic<ThreadState>& frontend_state,
+    std::atomic<ThreadState>& backend_state);
 
 
 #endif  // COMMUNICATION_HPP

@@ -35,13 +35,25 @@ int valueToAdd = 0;
 //==============================================================================
 // Functions
 //------------------------------------------------------------------------------
-void thread_DataAcquistion(run_control* run, interface_DA_to_FE_and_C* data_DA)
-{
-    while(run->run_check() == true)
-    {
-        data_DA->addToBuffer(valueToAdd++);
+void thread_DataAcquistion(std::atomic<ThreadState>& state) {
+    while (true) {
+        if (state == ThreadState::Stopped) {
+            break;
+        }
 
-        sleep_ms(20);
+        if (state == ThreadState::Paused) {
+            //TODO - Wait while some condition
+            continue;
+        }
+
+        if (state == ThreadState::Reset) {
+            //TODO call reset function then set running again
+            state = ThreadState::Running; 
+        }
+
+        if (state == ThreadState::Running) {
+            //TODO - Get data from camera
+        }
     }
 }
 //==============================================================================

@@ -35,7 +35,7 @@ Change History
 #include <vector>
 #include <shared_mutex>
 #include <time.h>
-
+#include <atomic>
 //==============================================================================
 //      Classes
 // Classes defined here are the shared data structures between threads to ensure
@@ -50,6 +50,13 @@ class run_control
     public:
         bool run_check();
         void run_end();
+};
+
+enum class ThreadState {
+    Running,
+    Paused,
+    Stopped,
+    Reset
 };
 
 class interface_DA_to_FE_and_C

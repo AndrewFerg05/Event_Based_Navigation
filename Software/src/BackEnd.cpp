@@ -34,11 +34,25 @@ Change History
 // Functions
 //------------------------------------------------------------------------------
 
-void thread_BackEnd(run_control* run)
-{
-    while(run->run_check() == true)
-    {
-        sleep_ms(100);
+void thread_BackEnd(std::atomic<ThreadState>& state) {
+    while (true) {
+        if (state == ThreadState::Stopped) {
+            break;
+        }
+
+        if (state == ThreadState::Paused) {
+            //TODO - Wait while some condition
+            continue;
+        }
+
+        if (state == ThreadState::Reset) {
+            //TODO call reset function then set running again
+            state = ThreadState::Running; 
+        }
+
+        if (state == ThreadState::Running) {
+            //TODO - Get data from frontend
+        }
     }
 }
 

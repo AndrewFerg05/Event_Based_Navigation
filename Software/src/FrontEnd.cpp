@@ -33,11 +33,25 @@ Change History
 //==============================================================================
 // Functions
 //------------------------------------------------------------------------------
-void thread_FrontEnd(run_control* going, interface_DA_to_FE_and_C* data_DA)
-{
-    while(going->run_check() == true)
-    {
-        sleep_ms(20);
+void thread_FrontEnd(std::atomic<ThreadState>& state) {
+    while (true) {
+        if (state == ThreadState::Stopped) {
+            break;
+        }
+
+        if (state == ThreadState::Paused) {
+            //TODO - Wait while some condition
+            continue;
+        }
+
+        if (state == ThreadState::Reset) {
+            //TODO call reset function then set running again
+            state = ThreadState::Running; 
+        }
+
+        if (state == ThreadState::Running) {
+            //TODO - Get data from frontend
+        }
     }
 }
 

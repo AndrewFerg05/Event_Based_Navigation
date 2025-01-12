@@ -30,9 +30,7 @@ Change History
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------
-void thread_BackEnd(run_control*);
-
-
+void thread_BackEnd(std::atomic<ThreadState>& state);
 
 
 

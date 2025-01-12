@@ -114,19 +114,5 @@ void interface_DA_to_FE_and_C::removeFirstFromBuffer()
     indexFE--;
 }
 
-bool run_control::run_check()
-{
-    std::shared_lock<std::shared_mutex> sl(mtx);
-
-    return run;
-}
-
-void run_control::run_end()
-{
-    std::unique_lock<std::shared_mutex> ul(mtx);
-
-    run = false;
-}
-
 //==============================================================================
 // End of File : Software/src/threads.cpp

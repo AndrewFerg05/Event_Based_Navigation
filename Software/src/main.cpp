@@ -9,6 +9,7 @@ Change History
 --------------------------------------------------------------------------------
 10-JAN-2025     SARK    created to design code structure
 10-JAN-2025     AF      Added Libcaer test
+12-Jan-2025     AF      Changed to Atomics
 --------------------------------------------------------------------------------
 */
 
@@ -48,35 +49,32 @@ Change History
 //------------------------------------------------------------------------------
 int main() 
 {
-    run_control go;
-    interface_DA_to_FE_and_C sharedData_DA_FE_C;
+    // Create atomic control flags
+    std::atomic<ThreadState> data_aquire_state(ThreadState::Paused);
+    std::atomic<ThreadState> frontend_state(ThreadState::Paused);
+    std::atomic<ThreadState> backend_state(ThreadState::Paused);
 
-    //Check Device Connected
-    caerDeviceDiscoveryResult discovered;
-    ssize_t result = caerDeviceDiscover(CAER_DEVICE_DISCOVER_ALL, &discovered);
-    if (result < 1) 
-    {
-        std::cerr << "No device found" << std::endl;
-    }
-    else
-    {
-        std::cout << "Device found" << std::endl;
-    }
-    free(discovered);
+    // Start threads
+    std::thread data_aquire_thread(thread_DataAcquistion, std::ref(data_aquire_state));
+    std::thread frontend_thread(thread_FrontEnd, std::ref(frontend_state));
+    std::thread backend_thread(thread_BackEnd, std::ref(backend_state));
+    std::thread comms_thread(thread_Communication,
+                             std::ref(data_aquire_state), std::ref(frontend_state), std::ref(backend_state));
 
+    // Set Threads States to Run - Can come from comms thread
+    // data_aquire_state = ThreadState::Test;
+    // frontend_state = ThreadState::Test;
+    // backend_state = ThreadState::Test;
 
-    std::thread DA(thread_DataAcquistion, &go, &sharedData_DA_FE_C);
-    std::thread C(thread_Communication, &go, &sharedData_DA_FE_C);
-    std::thread FE(thread_FrontEnd, &go, &sharedData_DA_FE_C);
-    std::thread BE(thread_BackEnd, &go);
+    // Stop command in comms thread => wait for comms thread to exit
+    comms_thread.join();
 
-    C.join();   // Communications thread will finish first
-    DA.join();
-    FE.join();
-    BE.join();
+    // Wait for other threads to exit
+    data_aquire_thread.join();
+    frontend_thread.join();
+    backend_thread.join();
 
-    std::cout << "Test Output!" << std::endl;
-    
+    std::cout << "Test Ended" << std::endl;
 
     return 0;
 }

@@ -35,32 +35,100 @@ int iterations = 0;
 //==============================================================================
 // Functions
 //------------------------------------------------------------------------------
-void thread_Communication(run_control* run, interface_DA_to_FE_and_C* data_DA)
-{
-    int bufferSize = 0;
+void thread_Communication(
+    std::atomic<ThreadState>& data_sync_state,
+    std::atomic<ThreadState>& frontend_state,
+    std::atomic<ThreadState>& backend_state) {
 
-    while(run->run_check() == true)
-    {
-        bufferSize = data_DA->checkBuffer();
+    auto start_time = std::chrono::steady_clock::now();   
 
-        if (bufferSize > 0 && data_DA->checkIndex('C') < bufferSize)
+    std::uint8_t command = 100; //Get this from external source
+
+    while (true) {
+
+        auto now = std::chrono::steady_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - start_time).count();
+
+        // AF - Test Schedule
+        if (elapsed > 1)
         {
-            std::cout << "Data Acquired: " << data_DA->readBuffer('C') << std::endl;
-            iterations++;
-        }
-        else
-        {
-            std::cout << "Buffer Empty" << std::endl;
-        }
-
-        if (iterations >= 20)
-        {
-            run->run_end();
+            if (elapsed > 2)
+            {
+                command = 1;
+            }
+            else 
+            {
+                command = 4;
+            }
         }
 
-        sleep_ms(5);
+
+        if (command == 0) {
+            data_sync_state = ThreadState::Running;
+            frontend_state = ThreadState::Running;
+            backend_state = ThreadState::Running;
+        } else if (command == 1) {
+            std::cout << "Comms Stopping" << std::endl;
+            data_sync_state = ThreadState::Stopped;
+            frontend_state = ThreadState::Stopped;
+            backend_state = ThreadState::Stopped;
+            break;
+        } else if (command == 2) {
+            data_sync_state = ThreadState::Paused;
+            frontend_state = ThreadState::Paused;
+            backend_state = ThreadState::Paused;
+        } else if (command == 3) {
+            data_sync_state = ThreadState::Reset;
+            frontend_state = ThreadState::Reset;
+            backend_state = ThreadState::Reset;
+        } else if (command == 4) {
+            std::cout << "Comms Testing" << std::endl;
+            data_sync_state = ThreadState::Test;
+            frontend_state = ThreadState::Test;
+            backend_state = ThreadState::Test;
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        else if (command == 100){
+            std::cout << "Unknown state" << std::endl;
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+
+            
+
     }
 }
+
+
+
+
+
+
+
+
+//     int bufferSize = 0;
+
+//     while(run->run_check() == true)
+//     {
+//         bufferSize = data_DA->checkBuffer();
+
+//         if (bufferSize > 0 && data_DA->checkIndex('C') < bufferSize)
+//         {
+//             std::cout << "Data Acquired: " << data_DA->readBuffer('C') << std::endl;
+//             iterations++;
+//         }
+//         else
+//         {
+//             std::cout << "Buffer Empty" << std::endl;
+//         }
+
+//         if (iterations >= 20)
+//         {
+//             run->run_end();
+//         }
+
+//         sleep_ms(5);
+//     }
+// }
 
 //==============================================================================
 // End of File : Software/src/Communication.cpp

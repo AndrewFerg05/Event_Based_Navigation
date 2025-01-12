@@ -61,7 +61,6 @@ void thread_Communication(
             backend_state = ThreadState::Reset;
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Avoid busy-waiting
     }
 }
 

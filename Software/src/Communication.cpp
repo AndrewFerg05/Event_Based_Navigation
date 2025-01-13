@@ -39,7 +39,8 @@ void thread_Communication(
     std::atomic<ThreadState>& data_sync_state,
     std::atomic<ThreadState>& frontend_state,
     std::atomic<ThreadState>& backend_state,
-    interface_DA_to_FE* data_DA) {
+    interface_DA_to_FE* data_DA,
+    interface_FE_to_BE* data_FE) {
 
     auto start_time = std::chrono::steady_clock::now();   
 
@@ -62,7 +63,7 @@ void thread_Communication(
             }
             else 
             {
-                command = 4;
+                command = 0;
             }
         }
 
@@ -71,6 +72,43 @@ void thread_Communication(
             data_sync_state = ThreadState::Running;
             frontend_state = ThreadState::Running;
             backend_state = ThreadState::Running;
+
+            // Arduino Communication
+            //      Receive from arduino control instructions
+                
+
+            //      Transmit to arduino displacement estimates
+            //          Get pose / displacement from BE
+
+
+
+            // Base Station Communication
+            //      Get frames from DA and transmit on UDP
+            bufferSize = data_DA->checkBuffer();
+            if (bufferSize > 0 && data_DA->checkIndex('C') < bufferSize)
+            {
+                std::cout << "DA: " << data_DA->readBuffer('C') << std::endl;
+                //transmit Frame
+            }
+            else
+            {
+                std::cout << "DA Buffer Empty!" << std::endl;
+            }
+
+            //      Get event frames from FE and transmit on UDP
+            bufferSize = data_FE->checkBuffer();
+            if (bufferSize > 0 && data_FE->checkIndex('C') < bufferSize)
+            {
+                std::cout << "FE: " << data_FE->readBuffer('C') << std::endl;
+                //transmit Frame
+            }
+            else
+            {
+                std::cout << "FE Buffer Empty!" << std::endl;
+            }
+            
+            sleep_ms(5);
+            
         } else if (command == 1) {
             std::cout << "Comms Stopping" << std::endl;
             data_sync_state = ThreadState::Stopped;
@@ -96,68 +134,8 @@ void thread_Communication(
             std::cout << "Unknown state" << std::endl;
             sleep_ms(100);
         }
-
-
-        // Arduino Communication
-        //      Receive from arduino control instructions
-            
-
-        //      Transmit to arduino displacement estimates
-        //          Get pose / displacement from BE
-
-
-
-        // Base Station Communication
-        //      Get frames from DA and transmit on UDP
-        bufferSize = data_DA->checkBuffer();
-
-        if (bufferSize > 0 && data_DA->checkIndex('C') < bufferSize)
-        {
-            std::cout << "Data Acquired: " << data_DA->readBuffer('C') << std::endl;
-            //transmit Frame
-        }
-        else
-        {
-            std::cout << "Data Acquired Buffer Empty!" << std::endl;
-        }
-
-      //      Get event frames from FE and transmit on UDP
-
-        
     }
 }
-
-
-
-
-
-
-
-
-//     int bufferSize = 0;
-
-//     while(run->run_check() == true)
-//     {
-//         bufferSize = data_DA->checkBuffer();
-
-//         if (bufferSize > 0 && data_DA->checkIndex('C') < bufferSize)
-//         {
-//             std::cout << "Data Acquired: " << data_DA->readBuffer('C') << std::endl;
-//             iterations++;
-//         }
-//         else
-//         {
-//             std::cout << "Buffer Empty" << std::endl;
-//         }
-
-//         if (iterations >= 20)
-//         {
-//             run->run_end();
-//         }
-
-//         sleep_ms(5);
-//     }
-// }
 
 //==============================================================================
 // End of File : Software/src/Communication.cpp

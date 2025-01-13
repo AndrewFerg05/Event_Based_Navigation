@@ -29,13 +29,16 @@ Change History
 //==============================================================================
 // Global Variable Initialisation
 //------------------------------------------------------------------------------
-int valueToAdd = 0;
 
 
 //==============================================================================
 // Functions
 //------------------------------------------------------------------------------
-void thread_DataAcquistion(std::atomic<ThreadState>& state) {
+void thread_DataAcquistion(std::atomic<ThreadState>& state,
+                            interface_DA_to_FE* data_DA) {
+    
+    int valueToAdd = 0;
+
     while (true) {
         if (state == ThreadState::Stopped) {
             std::cout << "Data Aquisition Stopping" << std::endl;
@@ -55,6 +58,16 @@ void thread_DataAcquistion(std::atomic<ThreadState>& state) {
 
         if (state == ThreadState::Running) {
             //TODO - Get data from camera
+
+            //Get data
+            valueToAdd++;                       //For Sam architecture testing (replace with actual frames)
+
+            //Synchronise data
+
+            //Put in buffer
+            data_DA->addToBuffer(valueToAdd);   //For Sam architecture testing (replace with actual frames)
+
+            sleep_ms(20);
         }
 
         if (state == ThreadState::Test) {

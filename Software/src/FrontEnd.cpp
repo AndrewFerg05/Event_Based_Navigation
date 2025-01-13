@@ -33,7 +33,14 @@ Change History
 //==============================================================================
 // Functions
 //------------------------------------------------------------------------------
-void thread_FrontEnd(std::atomic<ThreadState>& state) {
+void thread_FrontEnd(std::atomic<ThreadState>& state,
+                    interface_DA_to_FE* data_DA,
+                    interface_FE_to_BE* data_FE) {
+    
+    int bufferSize = 0;
+    int readData = 0;
+    int processedData = 0;
+
     while (true) {
         if (state == ThreadState::Stopped) {
             std::cout << "Frontend Stopping" << std::endl;
@@ -52,7 +59,26 @@ void thread_FrontEnd(std::atomic<ThreadState>& state) {
         }
 
         if (state == ThreadState::Running) {
-            //TODO - Get data from frontend
+            
+            //TODO
+            // Check buffer can be read
+            bufferSize = data_DA->checkBuffer();
+            if (bufferSize > 0 && data_DA->checkIndex('F') < bufferSize)
+            {
+                // Read from buffer
+                readData = data_DA->readBuffer('F');
+                
+                // Data processing
+                processedData = readData << 1;
+
+                // Load into BE
+                data_FE->addToBuffer(processedData);
+            }
+            else
+            {
+                //Short wait until data ready
+                sleep_ms(10);
+            }
         }
 
         if (state == ThreadState::Test) {

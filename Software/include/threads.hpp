@@ -67,6 +67,23 @@ class interface_DA_to_FE
         void removeFirstFromBuffer();
 };
 
+class interface_FE_to_BE
+{
+    private:
+        std::shared_mutex mtx;
+        std::vector<int> buffer;
+        int indexBE = 0;
+        int indexC = 0;
+        //SYNCHRONISED DATA TO SEND (EVENTS / IMU)
+
+    public:
+        void addToBuffer(int);
+        int checkBuffer();
+        int checkIndex(char);
+        int readBuffer(char);
+        void removeFirstFromBuffer();
+};
+
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------

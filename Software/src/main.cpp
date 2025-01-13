@@ -56,17 +56,19 @@ int main()
     std::atomic<ThreadState> backend_state(ThreadState::Paused);
 
     //Create data interfaces
-    interface_DA_to_FE* data_DA_to_FE;
+    interface_DA_to_FE data_DA_to_FE;
+    interface_FE_to_BE data_FE_to_BE;
 
     // Start threads
-    std::thread data_aquire_thread(thread_DataAcquistion, std::ref(data_aquire_state));
-    std::thread frontend_thread(thread_FrontEnd, std::ref(frontend_state));
-    std::thread backend_thread(thread_BackEnd, std::ref(backend_state));
+    std::thread data_aquire_thread(thread_DataAcquistion, std::ref(data_aquire_state), &data_DA_to_FE);
+    std::thread frontend_thread(thread_FrontEnd, std::ref(frontend_state), &data_DA_to_FE, &data_FE_to_BE);
+    std::thread backend_thread(thread_BackEnd, std::ref(backend_state), &data_FE_to_BE);
     std::thread comms_thread(thread_Communication,
                              std::ref(data_aquire_state), 
                              std::ref(frontend_state), 
                              std::ref(backend_state),
-                             data_DA_to_FE);
+                             &data_DA_to_FE,
+                             &data_FE_to_BE);
 
     // Set Threads States to Run - Can come from comms thread
     // data_aquire_state = ThreadState::Test;

@@ -38,18 +38,22 @@ int iterations = 0;
 void thread_Communication(
     std::atomic<ThreadState>& data_sync_state,
     std::atomic<ThreadState>& frontend_state,
-    std::atomic<ThreadState>& backend_state) {
+    std::atomic<ThreadState>& backend_state,
+    interface_DA_to_FE* data_DA) {
 
     auto start_time = std::chrono::steady_clock::now();   
 
     std::uint8_t command = 100; //Get this from external source
+
+
+    int bufferSize = 0;
 
     while (true) {
 
         auto now = std::chrono::steady_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - start_time).count();
 
-        // AF - Test Schedule
+        // AF - Test Thread Control
         if (elapsed > 1)
         {
             if (elapsed > 2)
@@ -62,7 +66,7 @@ void thread_Communication(
             }
         }
 
-
+        // Thread control
         if (command == 0) {
             data_sync_state = ThreadState::Running;
             frontend_state = ThreadState::Running;
@@ -91,10 +95,35 @@ void thread_Communication(
         else if (command == 100){
             std::cout << "Unknown state" << std::endl;
             sleep_ms(100);
-            }
+        }
 
+
+        // Arduino Communication
+        //      Receive from arduino control instructions
             
 
+        //      Transmit to arduino displacement estimates
+        //          Get pose / displacement from BE
+
+
+
+        // Base Station Communication
+        //      Get frames from DA and transmit on UDP
+        bufferSize = data_DA->checkBuffer();
+
+        if (bufferSize > 0 && data_DA->checkIndex('C') < bufferSize)
+        {
+            std::cout << "Data Acquired: " << data_DA->readBuffer('C') << std::endl;
+            //transmit Frame
+        }
+        else
+        {
+            std::cout << "Data Acquired Buffer Empty!" << std::endl;
+        }
+
+      //      Get event frames from FE and transmit on UDP
+
+        
     }
 }
 

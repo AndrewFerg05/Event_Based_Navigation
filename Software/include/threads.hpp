@@ -50,7 +50,7 @@ enum class ThreadState {
     Test
 };
 
-class interface_DA_to_FE_and_C
+class interface_DA_to_FE
 {
     private:
         std::shared_mutex mtx;

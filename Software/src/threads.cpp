@@ -36,19 +36,19 @@ Change History
 //==============================================================================
 // Functions
 //------------------------------------------------------------------------------
-void interface_DA_to_FE_and_C::addToBuffer(int x)
+void interface_DA_to_FE::addToBuffer(int x)
 {
     std::unique_lock<std::shared_mutex> ul(mtx);
     buffer.push_back(x);
 }
 
-int interface_DA_to_FE_and_C::checkBuffer()
+int interface_DA_to_FE::checkBuffer()
 {
     std::shared_lock<std::shared_mutex> sl(mtx);
     return buffer.size();
 }
 
-int interface_DA_to_FE_and_C::checkIndex(char threadID)
+int interface_DA_to_FE::checkIndex(char threadID)
 {
     std::shared_lock<std::shared_mutex> sl(mtx);
     if (threadID == 'C')
@@ -62,7 +62,7 @@ int interface_DA_to_FE_and_C::checkIndex(char threadID)
     return -1;
 }
 
-int interface_DA_to_FE_and_C::readBuffer(char threadID)
+int interface_DA_to_FE::readBuffer(char threadID)
 {
     
     std::unique_lock<std::shared_mutex> ul(mtx);
@@ -104,7 +104,7 @@ int interface_DA_to_FE_and_C::readBuffer(char threadID)
     return value;
 }
 
-void interface_DA_to_FE_and_C::removeFirstFromBuffer()
+void interface_DA_to_FE::removeFirstFromBuffer()
 {
     if (!buffer.empty()) 
     {

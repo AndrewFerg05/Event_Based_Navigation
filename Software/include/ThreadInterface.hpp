@@ -12,8 +12,8 @@ Change History
 --------------------------------------------------------------------------------
 */
 
-#ifndef THREADS_HPP
-#define THREADS_HPP
+#ifndef THREAD_INTERFACE_HPP
+#define THREAD_INTERFACE_HPP
 
 //==============================================================================
 // Preprocessor Directives
@@ -50,7 +50,7 @@ enum class ThreadState {
     Test
 };
 
-class interface_DA_to_FE_and_C
+class interface_DA_to_FE
 {
     private:
         std::shared_mutex mtx;
@@ -67,11 +67,28 @@ class interface_DA_to_FE_and_C
         void removeFirstFromBuffer();
 };
 
+class interface_FE_to_BE
+{
+    private:
+        std::shared_mutex mtx;
+        std::vector<int> buffer;
+        int indexBE = 0;
+        int indexC = 0;
+        //SYNCHRONISED DATA TO SEND (EVENTS / IMU)
+
+    public:
+        void addToBuffer(int);
+        int checkBuffer();
+        int checkIndex(char);
+        int readBuffer(char);
+        void removeFirstFromBuffer();
+};
+
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------
 
 
-#endif  // THREADS_HPP
+#endif  // THREAD_INTERFACE_HPP
 //==============================================================================
-// End of File :  Software/include/threads.hpp
+// End of File :  Software/include/ThreadInterface.hpp

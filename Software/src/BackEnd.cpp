@@ -34,7 +34,8 @@ Change History
 // Functions
 //------------------------------------------------------------------------------
 
-void thread_BackEnd(std::atomic<ThreadState>& state) {
+void thread_BackEnd(std::atomic<ThreadState>& state,
+                    interface_FE_to_BE* data_FE) {
     while (true) {
         if (state == ThreadState::Stopped) {
             std::cout << "Backend Stopping" << std::endl;
@@ -54,6 +55,7 @@ void thread_BackEnd(std::atomic<ThreadState>& state) {
 
         if (state == ThreadState::Running) {
             //TODO - Get data from frontend
+            sleep_ms(100);
         }
 
         if (state == ThreadState::Test) {

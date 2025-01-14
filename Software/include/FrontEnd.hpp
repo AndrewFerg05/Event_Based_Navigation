@@ -17,7 +17,7 @@ Change History
 //==============================================================================
 // External Files
 //------------------------------------------------------------------------------
-#include "threads.hpp"
+#include "ThreadInterface.hpp"
 
 
 
@@ -29,7 +29,9 @@ Change History
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------
-void thread_FrontEnd(std::atomic<ThreadState>& state);
+void thread_FrontEnd(std::atomic<ThreadState>& state,
+                    interface_DA_to_FE* data_DA,
+                    interface_FE_to_BE* data_FE);
 
 
 

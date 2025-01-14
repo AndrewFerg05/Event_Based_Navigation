@@ -84,10 +84,11 @@ void CM_loop(
 
             // Base Station Communication
             //      Get frames from DA and transmit on UDP
+
             auto item_DA = data_DA->peek();
             if (item_DA.has_value()) {
                 if (item_DA != last_output) { // Compare the current value with the last
-                    std::cout << "Read Data: " << item_DA.value() << std::endl;
+                    std::cout << "Read Data: " << static_cast<int>(item_DA.value()) << std::endl;
                     last_output = item_DA; // Update the last value
                     sleep_ms(10);
                 }
@@ -102,6 +103,7 @@ void CM_loop(
             
         } else if (command == 1) {
             // Stop Condition
+            std::cout << "Frames dropped: : " << data_DA->get_frame_drop_count() << std::endl;
             data_DA->stop_queue();  //Wake FE if waiting on data
             data_sync_state = ThreadState::Stopped;
             frontend_state = ThreadState::Stopped;

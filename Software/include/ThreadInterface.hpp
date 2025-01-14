@@ -59,7 +59,7 @@ private:
     std::mutex queue_mutex;                      // Mutex for thread safety
     std::condition_variable data_ready;          // Condition variable for synchronization
     bool stop = false;                           // Stop flag
-    int missed_peeks = 0;                        // Counter for missed peeks
+    int frames_dropped = 0;                        // Counter for missed peeks
 
 public:
     interface_DA_to_FE();  // Constructor
@@ -69,7 +69,7 @@ public:
     std::optional<InputDataSync> pop();
     std::optional<InputDataSync> peek();
     void stop_queue();
-    int get_missed_peek_count();
+    int get_frame_drop_count();
 };
 
 class interface_FE_to_BE

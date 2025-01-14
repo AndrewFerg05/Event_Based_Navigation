@@ -41,7 +41,6 @@ void DA_loop(std::atomic<ThreadState>& state,
 
     while (true) {
         if (state == ThreadState::Stopped) {
-            std::cout << "Data Aquisition Stopping" << std::endl;
             break;
         }
 

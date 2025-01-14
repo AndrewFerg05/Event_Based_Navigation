@@ -38,7 +38,6 @@ void BE_loop(std::atomic<ThreadState>& state,
                     interface_FE_to_BE* data_FE) {
     while (true) {
         if (state == ThreadState::Stopped) {
-            std::cout << "Backend Stopping" << std::endl;
             break;
         }
 

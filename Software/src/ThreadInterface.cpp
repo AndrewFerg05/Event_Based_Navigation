@@ -44,9 +44,10 @@ interface_DA_to_FE::~interface_DA_to_FE() = default;
 void interface_DA_to_FE::push(const InputDataSync& value) {
     {
         std::lock_guard<std::mutex> lock(queue_mutex);
-        queue.push({value, false}); // Add item with `peeked = false`
+        queue.push({value, false}); 
     }
-    data_ready.notify_one(); // Notify waiting consumers
+
+    data_ready.notify_one(); 
 }
 
 std::optional<InputDataSync> interface_DA_to_FE::pop() {
@@ -59,9 +60,8 @@ std::optional<InputDataSync> interface_DA_to_FE::pop() {
 
     auto front = queue.front(); // Copy the front element
     queue.pop();                // Remove it from the queue
-
     if (!front.second) {
-        missed_peeks++; // Increment the counter if it wasn't `peek`'d
+        frames_dropped++; // Increment the counter if it wasn't `peek`'d
     }
 
     return front.first; // Return the data
@@ -85,9 +85,9 @@ void interface_DA_to_FE::stop_queue() {
     data_ready.notify_all(); // Notify all waiting threads
 }
 
-int interface_DA_to_FE::get_missed_peek_count() {
+int interface_DA_to_FE::get_frame_drop_count() {
     std::lock_guard<std::mutex> lock(queue_mutex);
-    return missed_peeks;
+    return frames_dropped;
 }
 
 void interface_FE_to_BE::addToBuffer(int x)

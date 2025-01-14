@@ -1,5 +1,5 @@
 /*
-Filename    : Software/include/threads.hpp
+Filename    : Software/include/ThreadInterface.hpp
 Author      : Samuel Kliskey
 Project     : Event Based Navigation
 Date        : 10/1/25

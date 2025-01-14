@@ -11,6 +11,11 @@ Change History
 10-JAN-2025     AF      Added Libcaer test
 12-Jan-2025     AF      Changed to Atomics
 --------------------------------------------------------------------------------
+Prefix Conventions
+DA - Data Aquisition
+FE - Front End
+BE - Back end
+CM - Communication
 */
 
 //==============================================================================
@@ -60,23 +65,16 @@ int main()
     interface_FE_to_BE data_FE_to_BE;
 
     // Start threads
-    std::thread data_aquire_thread(thread_DataAcquistion, std::ref(data_aquire_state), &data_DA_to_FE);
-    std::thread frontend_thread(thread_FrontEnd, std::ref(frontend_state), &data_DA_to_FE, &data_FE_to_BE);
-    std::thread backend_thread(thread_BackEnd, std::ref(backend_state), &data_FE_to_BE);
-    std::thread comms_thread(thread_Communication,
-                             std::ref(data_aquire_state), 
-                             std::ref(frontend_state), 
-                             std::ref(backend_state),
-                             &data_DA_to_FE,
-                             &data_FE_to_BE);
-
-    // Set Threads States to Run - Can come from comms thread
-    // data_aquire_state = ThreadState::Test;
-    // frontend_state = ThreadState::Test;
-    // backend_state = ThreadState::Test;
-
-    // Stop command in comms thread => wait for comms thread to exit
-    comms_thread.join();
+    std::thread data_aquire_thread(DA_loop, std::ref(data_aquire_state), &data_DA_to_FE);
+    std::thread frontend_thread(FE_loop, std::ref(frontend_state), &data_DA_to_FE, &data_FE_to_BE);
+    std::thread backend_thread(BE_loop, std::ref(backend_state), &data_FE_to_BE);
+    
+    // Start this thread
+    CM_loop(std::ref(data_aquire_state), 
+            std::ref(frontend_state), 
+            std::ref(backend_state),
+            &data_DA_to_FE,
+            &data_FE_to_BE);
 
     // Wait for other threads to exit
     data_aquire_thread.join();

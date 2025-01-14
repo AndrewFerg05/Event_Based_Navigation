@@ -30,7 +30,8 @@ Change History
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------
-void thread_BackEnd(std::atomic<ThreadState>& state);
+void thread_BackEnd(std::atomic<ThreadState>& state,
+                    interface_FE_to_BE* data_FE);
 
 
 

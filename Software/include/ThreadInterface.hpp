@@ -12,8 +12,8 @@ Change History
 --------------------------------------------------------------------------------
 */
 
-#ifndef THREADS_HPP
-#define THREADS_HPP
+#ifndef THREAD_INTERFACE_HPP
+#define THREAD_INTERFACE_HPP
 
 //==============================================================================
 // Preprocessor Directives
@@ -89,6 +89,6 @@ class interface_FE_to_BE
 //------------------------------------------------------------------------------
 
 
-#endif  // THREADS_HPP
+#endif  // THREAD_INTERFACE_HPP
 //==============================================================================
-// End of File :  Software/include/threads.hpp
+// End of File :  Software/include/ThreadInterface.hpp

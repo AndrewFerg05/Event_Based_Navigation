@@ -25,7 +25,7 @@ Change History
 #include <libcaer/devices/device_discover.h>
 
 // Local
-#include  "threads.hpp"
+#include  "ThreadInterface.hpp"
 #include  "BackEnd.hpp"
 #include  "Communication.hpp"
 #include  "DataAcquisition.hpp"

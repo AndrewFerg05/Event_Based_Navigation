@@ -14,12 +14,27 @@ Change History
 #ifndef COMMUNICATION_HPP
 #define COMMUNICATION_HPP
 
+#ifdef _WIN32
+    #include <winsock2.h>
+    #include <ws2tcpip.h>
+    #pragma comment(lib, "ws2_32.lib") // Link with the winsock library
+    #define little_endian(x) htonl(x)  // Convert byte order to little endian on Windows
+#else
+    #include <arpa/inet.h>
+    #include <endian.h>
+    #define little_endian(x) htole32(x)  // Convert byte order to little endian on Mac / Linux
+#endif
+
 //==============================================================================
 // External Files
 //------------------------------------------------------------------------------
-#include <arpa/inet.h>
+//#include <arpa/inet.h>
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgcodecs.hpp>
+
+#include <cstring>
+#include <cstdlib>
+#include <unistd.h>
 
 #include "threads.hpp"
 

@@ -141,7 +141,13 @@ void thread_Communication(
 
 
 void C_transmit_frame(cv::Mat frame, int frame_id) {
-    
+    WSADATA wsaData;   
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) 
+    {
+        std::cerr << "WSAStartup failed" << std::endl;
+        return; 
+    }
+
     // Serialize the frame
     std::vector<uchar> encoded_frame;
     std::vector<int> params = {cv::IMWRITE_JPEG_QUALITY, 80};
@@ -153,8 +159,8 @@ void C_transmit_frame(cv::Mat frame, int frame_id) {
 
     // Prepare header and data
     uint32_t frame_size = encoded_frame.size();
-    uint32_t frame_id_le = htole32(frame_id);  // Ensure little-endian format
-    uint32_t frame_size_le = htole32(frame_size);
+    uint32_t frame_id_le = little_endian(frame_id);  // Ensure little-endian format
+    uint32_t frame_size_le = little_endian(frame_size);
 
     std::cout << "Sending frame ID: " << frame_id << ", size: " << frame_size << " bytes" << std::endl;
 
@@ -192,13 +198,15 @@ void C_transmit_frame(cv::Mat frame, int frame_id) {
     uchar* data_ptr = send_buffer;
 
     for (size_t i = 0; i < total_size; i += MAX_PACKET_SIZE) {
-        size_t chunk_size = (i + MAX_PACKET_SIZE < total_size) ? MAX_PACKET_SIZE : (total_size - i);
-        if (sendto(sockfd, data_ptr + i, chunk_size, 0, (struct sockaddr*)&server_address, sizeof(server_address)) < 0) {
-            perror("Failed to send data chunk");
-            break;
-        }
+    size_t chunk_size = (i + MAX_PACKET_SIZE < total_size) ? MAX_PACKET_SIZE : (total_size - i);
+    
+    // Cast uchar* to const char* explicitly for the sendto function
+    if (sendto(sockfd, reinterpret_cast<const char*>(data_ptr + i), chunk_size, 0, 
+               (struct sockaddr*)&server_address, sizeof(server_address)) < 0) {
+        perror("Failed to send data chunk");
+        break;
     }
-
+}
     // Clean up
     close(sockfd);
     free(send_buffer);

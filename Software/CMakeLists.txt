@@ -42,7 +42,9 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 # Target Include Directory
 target_include_directories(${PROJECT_NAME} PRIVATE include ${LIBCAER_INCLUDE_DIRS} ${OPENCV_INCLUDE_DIRS})
 
-# Link Libraries
-target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBCAER_LIBRARIES} ${OPENCV_LIBRARIES}) 
 
-
+if (WIN32)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBCAER_LIBRARIES} ${OPENCV_LIBRARIES} ws2_32)
+else()
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBCAER_LIBRARIES} ${OPENCV_LIBRARIES})
+endif()

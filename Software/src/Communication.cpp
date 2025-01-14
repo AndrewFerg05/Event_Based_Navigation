@@ -25,7 +25,9 @@ Change History
 //==============================================================================
 // MACROs
 //------------------------------------------------------------------------------
-
+#define MAX_PACKET_SIZE 65507           // Max packet in bytes for UDP
+#define PC_IP           "192.168.0.2"   // Change to base station IP
+#define PC_PORT         5005            // Application address for base station
 //==============================================================================
 // Global Variable Initialisation
 //------------------------------------------------------------------------------
@@ -135,6 +137,71 @@ void thread_Communication(
             sleep_ms(100);
         }
     }
+}
+
+
+void C_transmit_frame(cv::Mat frame, int frame_id) {
+    
+    // Serialize the frame
+    std::vector<uchar> encoded_frame;
+    std::vector<int> params = {cv::IMWRITE_JPEG_QUALITY, 80};
+
+    if (!cv::imencode(".jpg", frame, encoded_frame, params)) {
+        std::cerr << "Failed to encode the frame." << std::endl;
+        return;
+    }
+
+    // Prepare header and data
+    uint32_t frame_size = encoded_frame.size();
+    uint32_t frame_id_le = htole32(frame_id);  // Ensure little-endian format
+    uint32_t frame_size_le = htole32(frame_size);
+
+    std::cout << "Sending frame ID: " << frame_id << ", size: " << frame_size << " bytes" << std::endl;
+
+    // Allocate a buffer for the header and frame data
+    uchar* send_buffer = static_cast<uchar*>(malloc(8 + frame_size));
+    if (!send_buffer) {
+        std::cerr << "Memory allocation failed." << std::endl;
+        return;
+    }
+
+    // Copy the header (frame ID and size) into the buffer
+    memcpy(send_buffer, &frame_id_le, 4);
+    memcpy(send_buffer + 4, &frame_size_le, 4);
+
+    // Copy the encoded frame data into the buffer
+    memcpy(send_buffer + 8, encoded_frame.data(), frame_size);
+
+    // Create a UDP socket
+    int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sockfd < 0) {
+        perror("Socket creation failed");
+        free(send_buffer);
+        return;
+    }
+
+    // Configure the server address
+    struct sockaddr_in server_address;
+    memset(&server_address, 0, sizeof(server_address));
+    server_address.sin_family = AF_INET;
+    server_address.sin_port = htons(PC_PORT);
+    inet_pton(AF_INET, PC_IP, &server_address.sin_addr);
+
+    // Send the data in chunks
+    size_t total_size = 8 + frame_size;  // Header (8 bytes) + frame data
+    uchar* data_ptr = send_buffer;
+
+    for (size_t i = 0; i < total_size; i += MAX_PACKET_SIZE) {
+        size_t chunk_size = (i + MAX_PACKET_SIZE < total_size) ? MAX_PACKET_SIZE : (total_size - i);
+        if (sendto(sockfd, data_ptr + i, chunk_size, 0, (struct sockaddr*)&server_address, sizeof(server_address)) < 0) {
+            perror("Failed to send data chunk");
+            break;
+        }
+    }
+
+    // Clean up
+    close(sockfd);
+    free(send_buffer);
 }
 
 //==============================================================================

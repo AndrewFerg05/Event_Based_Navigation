@@ -60,7 +60,7 @@ int main()
     interface_FE_to_BE data_FE_to_BE;
 
     // Start threads
-    std::thread data_aquire_thread(thread_DataAcquistion, std::ref(data_aquire_state), &data_DA_to_FE);
+    std::thread data_aquire_thread(thread_DataAcquisition, std::ref(data_aquire_state), &data_DA_to_FE);
     std::thread frontend_thread(thread_FrontEnd, std::ref(frontend_state), &data_DA_to_FE, &data_FE_to_BE);
     std::thread backend_thread(thread_BackEnd, std::ref(backend_state), &data_FE_to_BE);
     std::thread comms_thread(thread_Communication,

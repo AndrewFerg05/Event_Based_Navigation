@@ -34,7 +34,7 @@ Change History
 //==============================================================================
 // Functions
 //------------------------------------------------------------------------------
-void thread_DataAcquistion(std::atomic<ThreadState>& state,
+void thread_DataAcquisition(std::atomic<ThreadState>& state,
                             interface_DA_to_FE* data_DA) {
     
     int valueToAdd = 0;

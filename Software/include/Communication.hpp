@@ -17,6 +17,10 @@ Change History
 //==============================================================================
 // External Files
 //------------------------------------------------------------------------------
+#include <arpa/inet.h>
+#include <opencv2/opencv.hpp>
+#include <opencv2/imgcodecs.hpp>
+
 #include "threads.hpp"
 
 //==============================================================================
@@ -34,6 +38,7 @@ void thread_Communication(
     interface_DA_to_FE* data_DA,
     interface_FE_to_BE* data_FE);
 
+void C_transmit_frame(cv::Mat frame, int frame_id);
 
 #endif  // COMMUNICATION_HPP
 //==============================================================================

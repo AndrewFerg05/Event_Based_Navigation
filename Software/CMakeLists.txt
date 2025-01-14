@@ -23,7 +23,7 @@ if (WIN32)
 
     set(OPENCV_INCLUDE_DIRS "C:/msys64/mingw64/include/opencv4")
     set(OPENNCV_LIBRARY_DIRS "C:/msys64/mingw64/lib")
-    set(OPENCV_LIBRARIES opencv_core opencv_imgcodecs)
+    set(OPENCV_LIBRARIES opencv_core opencv_imgcodecs opencv_highgui)
 else()
     message("Mac or Linux Device")
     # Use pkg-config to find libcaer

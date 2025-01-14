@@ -17,8 +17,7 @@ Change History
 //==============================================================================
 // External Files
 //------------------------------------------------------------------------------
-#include "threads.hpp"
-#include "threads.hpp"
+#include "ThreadInterface.hpp"
 
 
 

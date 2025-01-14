@@ -19,10 +19,14 @@ Change History
     #include <ws2tcpip.h>
     #pragma comment(lib, "ws2_32.lib") // Link with the winsock library
     #define little_endian(x) htonl(x)  // Convert byte order to little endian on Windows
+#elif __APPLE__
+    #include <arpa/inet.h>
+    #include <libkern/OSByteOrder.h>
+    #define little_endian(x) OSSwapHostToLittleInt32(x) // Convert byte order to little endian on macOS
 #else
     #include <arpa/inet.h>
     #include <endian.h>
-    #define little_endian(x) htole32(x)  // Convert byte order to little endian on Mac / Linux
+    #define little_endian(x) htole32(x) // Convert byte order to little endian on Linux
 #endif
 
 //==============================================================================
@@ -36,7 +40,7 @@ Change History
 #include <cstdlib>
 #include <unistd.h>
 
-#include "threads.hpp"
+#include "ThreadInterface.hpp"
 
 //==============================================================================
 //      Classes
@@ -46,6 +50,11 @@ Change History
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------
+int initNet();
+
+void cleanupNet();
+
+
 void thread_Communication(
     std::atomic<ThreadState>& data_sync_state,
     std::atomic<ThreadState>& frontend_state,

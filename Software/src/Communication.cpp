@@ -48,6 +48,12 @@ void thread_Communication(
 
     std::uint8_t command = 100; //Get this from external source
 
+    int frame_id = 3;
+    cv::Mat frame = cv::imread("C:/Users/pokew/Documents/Year5/Project/example.jpg");
+    if (frame.empty()) {
+        std::cerr << "Failed to load image." << std::endl;
+        command = 0;
+    }
 
     int bufferSize = 0;
 
@@ -59,7 +65,7 @@ void thread_Communication(
         // AF - Test Thread Control
         if (elapsed > 1)
         {
-            if (elapsed > 2)
+            if (elapsed > 15)
             {
                 command = 1;
             }
@@ -90,7 +96,7 @@ void thread_Communication(
             if (bufferSize > 0 && data_DA->checkIndex('C') < bufferSize)
             {
                 std::cout << "DA: " << data_DA->readBuffer('C') << std::endl;
-                //transmit Frame
+                C_transmit_frame(frame, frame_id);
             }
             else
             {
@@ -102,14 +108,14 @@ void thread_Communication(
             if (bufferSize > 0 && data_FE->checkIndex('C') < bufferSize)
             {
                 std::cout << "FE: " << data_FE->readBuffer('C') << std::endl;
-                //transmit Frame
+                //Transmit event frame
             }
             else
             {
                 std::cout << "FE Buffer Empty!" << std::endl;
             }
             
-            sleep_ms(5);
+            sleep_ms(100);
             
         } else if (command == 1) {
             std::cout << "Comms Stopping" << std::endl;
@@ -141,11 +147,11 @@ void thread_Communication(
 
 
 void C_transmit_frame(cv::Mat frame, int frame_id) {
-    WSADATA wsaData;   
-    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) 
+
+    if (initNet() != 0) 
     {
-        std::cerr << "WSAStartup failed" << std::endl;
-        return; 
+        std::cerr << "WSAStartup failed!" << std::endl;
+        return;
     }
 
     // Serialize the frame
@@ -197,19 +203,38 @@ void C_transmit_frame(cv::Mat frame, int frame_id) {
     size_t total_size = 8 + frame_size;  // Header (8 bytes) + frame data
     uchar* data_ptr = send_buffer;
 
-    for (size_t i = 0; i < total_size; i += MAX_PACKET_SIZE) {
-    size_t chunk_size = (i + MAX_PACKET_SIZE < total_size) ? MAX_PACKET_SIZE : (total_size - i);
-    
-    // Cast uchar* to const char* explicitly for the sendto function
-    if (sendto(sockfd, reinterpret_cast<const char*>(data_ptr + i), chunk_size, 0, 
-               (struct sockaddr*)&server_address, sizeof(server_address)) < 0) {
-        perror("Failed to send data chunk");
-        break;
+    for (size_t i = 0; i < total_size; i += MAX_PACKET_SIZE) 
+    {
+        size_t chunk_size = (i + MAX_PACKET_SIZE < total_size) ? MAX_PACKET_SIZE : (total_size - i);
+        
+        // Cast uchar* to const char* explicitly for the sendto function
+        if (sendto(sockfd, reinterpret_cast<const char*>(data_ptr + i), chunk_size, 0, 
+                (struct sockaddr*)&server_address, sizeof(server_address)) < 0) {
+            perror("Failed to send data chunk");
+            break;
+        }
     }
-}
     // Clean up
     close(sockfd);
     free(send_buffer);
+    cleanupNet();
+}
+
+int initNet() 
+{
+    #ifdef _WIN32
+        WSADATA wsaData;
+        return WSAStartup(MAKEWORD(2, 2), &wsaData);
+    #else
+        return 0;
+    #endif
+}
+
+void cleanupNet() 
+{
+    #ifdef _WIN32
+        WSACleanup();
+    #endif
 }
 
 //==============================================================================

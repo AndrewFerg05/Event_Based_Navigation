@@ -48,7 +48,7 @@ void CM_loop(
 
 
     int bufferSize = 0;
-
+    std::optional<int> last_output;
     while (true) {
 
         auto now = std::chrono::steady_clock::now();
@@ -84,46 +84,41 @@ void CM_loop(
 
             // Base Station Communication
             //      Get frames from DA and transmit on UDP
-            bufferSize = data_DA->checkBuffer();
-            if (bufferSize > 0 && data_DA->checkIndex('C') < bufferSize)
-            {
-                std::cout << "DA: " << data_DA->readBuffer('C') << std::endl;
-                //transmit Frame
-            }
-            else
-            {
-                std::cout << "DA Buffer Empty!" << std::endl;
+            auto item_DA = data_DA->peek();
+            if (item_DA.has_value()) {
+                if (item_DA != last_output) { // Compare the current value with the last
+                    std::cout << "Read Data: " << item_DA.value() << std::endl;
+                    last_output = item_DA; // Update the last value
+                    sleep_ms(10);
+                }
+            } 
+            else {
+            // std::cout << "CM - DA Buffer Empty!" << std::endl;
             }
 
-            //      Get event frames from FE and transmit on UDP
-            bufferSize = data_FE->checkBuffer();
-            if (bufferSize > 0 && data_FE->checkIndex('C') < bufferSize)
-            {
-                std::cout << "FE: " << data_FE->readBuffer('C') << std::endl;
-                //transmit Frame
-            }
-            else
-            {
-                std::cout << "FE Buffer Empty!" << std::endl;
-            }
-            
-            sleep_ms(5);
+
+
+
             
         } else if (command == 1) {
-            std::cout << "Comms Stopping" << std::endl;
+            // Stop Condition
+            data_DA->stop_queue();  //Wake FE if waiting on data
             data_sync_state = ThreadState::Stopped;
             frontend_state = ThreadState::Stopped;
             backend_state = ThreadState::Stopped;
             break;
         } else if (command == 2) {
+            // Pause Condition
             data_sync_state = ThreadState::Paused;
             frontend_state = ThreadState::Paused;
             backend_state = ThreadState::Paused;
         } else if (command == 3) {
+            // Reset Condition
             data_sync_state = ThreadState::Reset;
             frontend_state = ThreadState::Reset;
             backend_state = ThreadState::Reset;
         } else if (command == 4) {
+            // Testing Conditionn
             std::cout << "Comms Testing" << std::endl;
             data_sync_state = ThreadState::Test;
             frontend_state = ThreadState::Test;

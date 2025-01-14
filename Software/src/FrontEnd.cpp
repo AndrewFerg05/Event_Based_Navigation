@@ -62,21 +62,15 @@ void FE_loop(std::atomic<ThreadState>& state,
             
             //TODO
             // Check buffer can be read
-            bufferSize = data_DA->checkBuffer();
-            if (bufferSize > 0 && data_DA->checkIndex('F') < bufferSize)
+            auto item_DA = data_DA->pop(); // Get data from queue
+            if (item_DA.has_value()) 
             {
-                // Read from buffer
-                readData = data_DA->readBuffer('F');
-                
-                // Data processing
-                processedData = readData << 1;
-
-                // Load into BE
-                data_FE->addToBuffer(processedData);
+                std::cout << "Processed Data: " << item_DA.value() << std::endl; // Correctly access and print the value
+                sleep_ms(20);
             }
-            else
+            else 
             {
-                //Short wait until data ready
+                // std::cout << "FE - DA Buffer Empty-----------------------------!" << std::endl;
                 sleep_ms(10);
             }
         }

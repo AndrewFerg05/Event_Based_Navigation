@@ -36,84 +36,59 @@ Change History
 //==============================================================================
 // Functions
 //------------------------------------------------------------------------------
-void interface_DA_to_FE::addToBuffer(int x)
-{
-    std::unique_lock<std::shared_mutex> ul(mtx);
-    buffer.push_back(x);
+
+interface_DA_to_FE::interface_DA_to_FE() = default;
+
+interface_DA_to_FE::~interface_DA_to_FE() = default;
+
+void interface_DA_to_FE::push(const InputDataSync& value) {
+    {
+        std::lock_guard<std::mutex> lock(queue_mutex);
+        queue.push({value, false}); // Add item with `peeked = false`
+    }
+    data_ready.notify_one(); // Notify waiting consumers
 }
 
-int interface_DA_to_FE::checkBuffer()
-{
-    std::shared_lock<std::shared_mutex> sl(mtx);
-    return buffer.size();
+std::optional<InputDataSync> interface_DA_to_FE::pop() {
+    std::unique_lock<std::mutex> lock(queue_mutex);
+
+    // Wait until there is data in the queue or the stop signal is set
+    data_ready.wait(lock, [this]() { return !queue.empty() || stop; });
+
+    if (queue.empty()) return std::nullopt;
+
+    auto front = queue.front(); // Copy the front element
+    queue.pop();                // Remove it from the queue
+
+    if (!front.second) {
+        missed_peeks++; // Increment the counter if it wasn't `peek`'d
+    }
+
+    return front.first; // Return the data
 }
 
-int interface_DA_to_FE::checkIndex(char threadID)
-{
-    std::shared_lock<std::shared_mutex> sl(mtx);
-    if (threadID == 'C')
-    {
-        return indexC;
-    }
-    else if (threadID == 'F')
-    {
-        return indexFE;
-    }
-    return -1;
+std::optional<InputDataSync> interface_DA_to_FE::peek() {
+    std::lock_guard<std::mutex> lock(queue_mutex);
+
+    if (queue.empty()) return std::nullopt;
+
+    auto& front = queue.front(); // Access the front element
+    front.second = true;         // Mark as `peek`'d
+    return front.first;          // Return the data
 }
 
-int interface_DA_to_FE::readBuffer(char threadID)
-{
-    
-    std::unique_lock<std::shared_mutex> ul(mtx);
-
-    int pos = 0;
-
-    // Find value at the oldest unread index of the thread
-    if (threadID == 'C')
+void interface_DA_to_FE::stop_queue() {
     {
-        pos = indexC;
+        std::lock_guard<std::mutex> lock(queue_mutex);
+        stop = true;
     }
-    else if (threadID == 'F')
-    {
-        pos = indexFE;
-    }
-
-    if (pos < 0 || pos >= buffer.size()) 
-    {
-        throw std::out_of_range("Position out of range");
-    }
-    int value = buffer.at(pos);
-
-    // Add to threads read index
-    if (threadID == 'C')
-    {
-        indexC++;
-
-        //Remove all read parts of buffer (done only on communications thread)
-        for (int i = 0; i < std::min(indexC, indexFE); i++)
-        {
-            removeFirstFromBuffer();
-        }
-    }
-    else if (threadID == 'F')
-    {
-        indexFE++;
-    }
-
-    return value;
+    data_ready.notify_all(); // Notify all waiting threads
 }
 
-void interface_DA_to_FE::removeFirstFromBuffer()
-{
-    if (!buffer.empty()) 
-    {
-        buffer.erase(buffer.begin());
-    }
-    indexC--;
-    indexFE--;
+int interface_DA_to_FE::get_missed_peek_count() {
+    std::lock_guard<std::mutex> lock(queue_mutex);
+    return missed_peeks;
 }
-
 
 void interface_FE_to_BE::addToBuffer(int x)
 {

@@ -21,6 +21,7 @@ Change History
 
 
 
+
 //==============================================================================
 //      Classes
 //------------------------------------------------------------------------------
@@ -29,8 +30,8 @@ Change History
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------
-void thread_DataAcquisition(std::atomic<ThreadState>& state,
-                             interface_DA_to_FE* data_DA);
+void DA_loop(std::atomic<ThreadState>& state,
+                            interface_DA_to_FE* data_DA);
 
 
 

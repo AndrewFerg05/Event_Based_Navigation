@@ -1,5 +1,5 @@
 /*
-Filename    : Software/include/threads.hpp
+Filename    : Software/include/ThreadInterface.hpp
 Author      : Samuel Kliskey
 Project     : Event Based Navigation
 Date        : 10/1/25
@@ -91,4 +91,4 @@ class interface_FE_to_BE
 
 #endif  // THREAD_INTERFACE_HPP
 //==============================================================================
-// End of File :  Software/include/threads.hpp
+// End of File :  Software/include/ThreadInterface.hpp

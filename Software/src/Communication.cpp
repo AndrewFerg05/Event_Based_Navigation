@@ -65,7 +65,7 @@ void CM_loop(
         // AF - Test Thread Control
         if (elapsed > 1)
         {
-            if (elapsed > 15)
+            if (elapsed > 5)
             {
                 command = 1;
             }
@@ -198,6 +198,10 @@ void C_transmit_frame(cv::Mat frame, int frame_id) {
     server_address.sin_family = AF_INET;
     server_address.sin_port = htons(PC_PORT);
     inet_pton(AF_INET, PC_IP, &server_address.sin_addr);
+
+    printf("Header bytes: %02x %02x %02x %02x %02x %02x %02x %02x\n", 
+    send_buffer[0], send_buffer[1], send_buffer[2], send_buffer[3], 
+    send_buffer[4], send_buffer[5], send_buffer[6], send_buffer[7]);
 
     // Send the data in chunks
     size_t total_size = 8 + frame_size;  // Header (8 bytes) + frame data

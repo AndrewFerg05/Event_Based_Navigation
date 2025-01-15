@@ -18,7 +18,7 @@ Change History
     #include <winsock2.h>
     #include <ws2tcpip.h>
     #pragma comment(lib, "ws2_32.lib") // Link with the winsock library
-    #define little_endian(x) htonl(x)  // Convert byte order to little endian on Windows
+    #define little_endian(x) (x)  // Convert byte order to little endian on Windows
 #elif __APPLE__
     #include <arpa/inet.h>
     #include <libkern/OSByteOrder.h>

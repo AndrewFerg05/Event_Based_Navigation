@@ -39,4 +39,4 @@ void BE_loop(std::atomic<ThreadState>& state,
 
 #endif  // BACKEND_HPP
 //==============================================================================
-// End of File :  Software/include/Communication.hpp
+// End of File :  Software/include/BackEnd.hpp

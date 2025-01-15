@@ -1,24 +1,24 @@
 /*
-Filename    : Software/include/DataAcquisition.hpp
-Author      : Samuel Kliskey
+Filename    : Software/include/TypeAliases.hpp
+Author      : Andrew Ferguson
 Project     : Event Based Navigation
-Date        : 11/1/25
-Description : Header file for the DataAcquisition (DA) thread
+Date        : 14/1/25
+Description : File to define type aliasing used
 --------------------------------------------------------------------------------
 Change History
 --------------------------------------------------------------------------------
-11-JAN-2025 SARK created to design code structure
+11-JAN-2025 AF created
 --------------------------------------------------------------------------------
 */
 
-#ifndef DATAACQUISITION_HPP
-#define DATAACQUISITION_HPP
+#ifndef TYPE_ALIASES_HPP
+#define TYPE_ALIASES_HPP
 
 //==============================================================================
 // External Files
 //------------------------------------------------------------------------------
-#include "ThreadInterface.hpp"
-#include "TypeAliases.hpp"
+#include <cstdint>
+
 
 
 
@@ -26,16 +26,18 @@ Change History
 //      Classes
 //------------------------------------------------------------------------------
 
+using InputDataSync = uint8_t;
+
 
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------
-void DA_loop(std::atomic<ThreadState>& state,
-                            interface_DA_to_FE* data_DA);
 
 
 
 
-#endif  // DATAACQUISITION_HPP
+
+
+#endif  // TYPE_ALIASES_HPP
 //==============================================================================
-// End of File :  Software/include/Communication.hpp
+// End of File :  Software/include/TYPE_ALIASES_HPP.hpp

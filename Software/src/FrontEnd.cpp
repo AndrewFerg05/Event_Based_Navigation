@@ -43,7 +43,6 @@ void FE_loop(std::atomic<ThreadState>& state,
 
     while (true) {
         if (state == ThreadState::Stopped) {
-            std::cout << "Frontend Stopping" << std::endl;
             break;
         }
 
@@ -62,21 +61,12 @@ void FE_loop(std::atomic<ThreadState>& state,
             
             //TODO
             // Check buffer can be read
-            bufferSize = data_DA->checkBuffer();
-            if (bufferSize > 0 && data_DA->checkIndex('F') < bufferSize)
-            {
-                // Read from buffer
-                readData = data_DA->readBuffer('F');
-                
-                // Data processing
-                processedData = readData << 1;
-
-                // Load into BE
-                data_FE->addToBuffer(processedData);
-            }
-            else
-            {
-                //Short wait until data ready
+            auto item_DA = data_DA->pop(); // Get data from queue
+            if (item_DA.has_value()) {
+                std::cout << "Processed Data: " << static_cast<int>(item_DA.value()) << std::endl; // Correctly process the value
+                sleep_ms(30);
+            } else {
+                std::cout << "Queue returned no value (stopped or empty)." << std::endl;
                 sleep_ms(10);
             }
         }

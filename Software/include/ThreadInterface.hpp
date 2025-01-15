@@ -34,8 +34,11 @@ Change History
 #include <thread>
 #include <vector>
 #include <shared_mutex>
+#include <queue>
 #include <time.h>
 #include <atomic>
+
+#include "TypeAliases.hpp"
 //==============================================================================
 //      Classes
 // Classes defined here are the shared data structures between threads to ensure
@@ -50,21 +53,23 @@ enum class ThreadState {
     Test
 };
 
-class interface_DA_to_FE
-{
-    private:
-        std::shared_mutex mtx;
-        std::vector<int> buffer;
-        int indexFE = 0;
-        int indexC = 0;
-        //SYNCHRONISED DATA TO SEND (FRAMES / EVENTS / IMU)
+class interface_DA_to_FE {
+private:
+    std::queue<std::pair<InputDataSync, bool>> queue; // Queue of items and their peek status
+    std::mutex queue_mutex;                      // Mutex for thread safety
+    std::condition_variable data_ready;          // Condition variable for synchronization
+    bool stop = false;                           // Stop flag
+    int frames_dropped = 0;                        // Counter for missed peeks
 
-    public:
-        void addToBuffer(int);
-        int checkBuffer();
-        int checkIndex(char);
-        int readBuffer(char);
-        void removeFirstFromBuffer();
+public:
+    interface_DA_to_FE();  // Constructor
+    ~interface_DA_to_FE(); // Destructor
+
+    void push(const InputDataSync& value);
+    std::optional<InputDataSync> pop();
+    std::optional<InputDataSync> peek();
+    void stop_queue();
+    int get_frame_drop_count();
 };
 
 class interface_FE_to_BE

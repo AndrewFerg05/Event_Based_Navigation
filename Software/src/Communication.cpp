@@ -26,7 +26,7 @@ Change History
 // MACROs
 //------------------------------------------------------------------------------
 #define MAX_PACKET_SIZE 65507           // Max packet in bytes for UDP
-#define PC_IP           "192.168.0.2"   // Change to base station IP
+#define PC_IP           "192.168.56.1"   // Change to base station IP
 #define PC_PORT         5005            // Application address for base station
 //==============================================================================
 // Global Variable Initialisation
@@ -65,7 +65,7 @@ void CM_loop(
         // AF - Test Thread Control
         if (elapsed > 1)
         {
-            if (elapsed > 5)
+            if (elapsed > 15)
             {
                 command = 1;
             }
@@ -165,8 +165,6 @@ void C_transmit_frame(cv::Mat frame, int frame_id) {
     uint32_t frame_id_le = little_endian(frame_id);  // Ensure little-endian format
     uint32_t frame_size_le = little_endian(frame_size);
 
-    std::cout << "Sending frame ID: " << frame_id << ", size: " << frame_size << " bytes" << std::endl;
-
     // Allocate a buffer for the header and frame data
     uchar* send_buffer = static_cast<uchar*>(malloc(8 + frame_size));
     if (!send_buffer) {
@@ -195,10 +193,6 @@ void C_transmit_frame(cv::Mat frame, int frame_id) {
     server_address.sin_family = AF_INET;
     server_address.sin_port = htons(PC_PORT);
     inet_pton(AF_INET, PC_IP, &server_address.sin_addr);
-
-    printf("Header bytes: %02x %02x %02x %02x %02x %02x %02x %02x\n", 
-    send_buffer[0], send_buffer[1], send_buffer[2], send_buffer[3], 
-    send_buffer[4], send_buffer[5], send_buffer[6], send_buffer[7]);
 
     // Send the data in chunks
     size_t total_size = 8 + frame_size;  // Header (8 bytes) + frame data

@@ -37,6 +37,8 @@ Change History
 #include <queue>
 #include <time.h>
 #include <atomic>
+#include <optional>
+#include <condition_variable>
 
 #include "TypeAliases.hpp"
 //==============================================================================

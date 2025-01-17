@@ -55,13 +55,15 @@ CM - Communication
 //------------------------------------------------------------------------------
 int main() 
 {
+
     // Create atomic control flags
     std::atomic<ThreadState> data_aquire_state(ThreadState::Paused);
     std::atomic<ThreadState> frontend_state(ThreadState::Paused);
     std::atomic<ThreadState> backend_state(ThreadState::Paused);
 
     //Create data interfaces
-    interface_DA_to_FE data_DA_to_FE;
+    size_t input_queue_capacity = 20;
+    ThreadSafeFIFO<InputDataSync> data_DA_to_FE(input_queue_capacity);
     interface_FE_to_BE data_FE_to_BE;
 
     // Start threads

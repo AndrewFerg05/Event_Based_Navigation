@@ -37,6 +37,8 @@ Change History
 #include <queue>
 #include <time.h>
 #include <atomic>
+#include <condition_variable>
+#include <optional>
 
 #include "TypeAliases.hpp"
 //==============================================================================
@@ -53,23 +55,53 @@ enum class ThreadState {
     Test
 };
 
-class interface_DA_to_FE {
+template<typename T>
+class ThreadSafeFIFO {
 private:
-    std::queue<std::pair<InputDataSync, bool>> queue; // Queue of items and their peek status
+    std::queue<T> queue; // Queue of items and their peek status
     std::mutex queue_mutex;                      // Mutex for thread safety
     std::condition_variable data_ready;          // Condition variable for synchronization
+    std::condition_variable space_available;
     bool stop = false;                           // Stop flag
-    int frames_dropped = 0;                        // Counter for missed peeks
+    size_t max_size;
 
 public:
-    interface_DA_to_FE();  // Constructor
-    ~interface_DA_to_FE(); // Destructor
+    explicit ThreadSafeFIFO(size_t capacity) : max_size(capacity) {};  // Constructor
+    ~ThreadSafeFIFO() = default; // Destructor
 
-    void push(const InputDataSync& value);
-    std::optional<InputDataSync> pop();
-    std::optional<InputDataSync> peek();
-    void stop_queue();
-    int get_frame_drop_count();
+    void push(const T& value){
+        std::unique_lock<std::mutex> lock(queue_mutex);
+        space_available.wait(lock, [this]() { return queue.size() < max_size || stop; });
+        if (stop) return;
+        queue.push(value); 
+        data_ready.notify_one(); 
+    }
+    
+    std::optional<T> pop(){
+        std::unique_lock<std::mutex> lock(queue_mutex);
+        data_ready.wait(lock, [this]() { return !queue.empty() || stop; });
+        if (queue.empty()) return std::nullopt;
+        T data = queue.front(); 
+        queue.pop();
+        space_available.notify_one();
+        return data;
+    }
+
+    std::optional<T> peek(){
+        std::lock_guard<std::mutex> lock(queue_mutex);
+        if (queue.empty()) return std::nullopt;
+        return queue.front(); 
+    }
+
+    void stop_queue(){
+        {
+            std::lock_guard<std::mutex> lock(queue_mutex);
+            stop = true;
+        }
+        data_ready.notify_all();
+        space_available.notify_all();
+    }
+
 };
 
 class interface_FE_to_BE

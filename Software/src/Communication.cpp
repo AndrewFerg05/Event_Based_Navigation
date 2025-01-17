@@ -39,7 +39,7 @@ void CM_loop(
     std::atomic<ThreadState>& data_sync_state,
     std::atomic<ThreadState>& frontend_state,
     std::atomic<ThreadState>& backend_state,
-    interface_DA_to_FE* data_DA,
+    ThreadSafeFIFO<InputDataSync>* data_DA,
     interface_FE_to_BE* data_FE) {
 
     auto start_time = std::chrono::steady_clock::now();   
@@ -103,7 +103,6 @@ void CM_loop(
             
         } else if (command == 1) {
             // Stop Condition
-            std::cout << "Frames dropped: : " << data_DA->get_frame_drop_count() << std::endl;
             data_DA->stop_queue();  //Wake FE if waiting on data
             data_sync_state = ThreadState::Stopped;
             frontend_state = ThreadState::Stopped;

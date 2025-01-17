@@ -34,7 +34,7 @@ Change History
 // Functions
 //------------------------------------------------------------------------------
 void FE_loop(std::atomic<ThreadState>& state,
-                    interface_DA_to_FE* data_DA,
+                    ThreadSafeFIFO<InputDataSync>* data_DA,
                     interface_FE_to_BE* data_FE) {
     
     int bufferSize = 0;

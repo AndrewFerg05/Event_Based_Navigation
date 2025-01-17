@@ -31,7 +31,7 @@ void CM_loop(
     std::atomic<ThreadState>& data_sync_state,
     std::atomic<ThreadState>& frontend_state,
     std::atomic<ThreadState>& backend_state,
-    interface_DA_to_FE* data_DA,
+    ThreadSafeFIFO<InputDataSync>* data_DA,
     interface_FE_to_BE* data_FE);
 
 

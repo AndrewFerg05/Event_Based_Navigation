@@ -37,58 +37,6 @@ Change History
 // Functions
 //------------------------------------------------------------------------------
 
-interface_DA_to_FE::interface_DA_to_FE() = default;
-
-interface_DA_to_FE::~interface_DA_to_FE() = default;
-
-void interface_DA_to_FE::push(const InputDataSync& value) {
-    {
-        std::lock_guard<std::mutex> lock(queue_mutex);
-        queue.push({value, false}); 
-    }
-
-    data_ready.notify_one(); 
-}
-
-std::optional<InputDataSync> interface_DA_to_FE::pop() {
-    std::unique_lock<std::mutex> lock(queue_mutex);
-
-    // Wait until there is data in the queue or the stop signal is set
-    data_ready.wait(lock, [this]() { return !queue.empty() || stop; });
-
-    if (queue.empty()) return std::nullopt;
-
-    auto front = queue.front(); // Copy the front element
-    queue.pop();                // Remove it from the queue
-    if (!front.second) {
-        frames_dropped++; // Increment the counter if it wasn't `peek`'d
-    }
-
-    return front.first; // Return the data
-}
-
-std::optional<InputDataSync> interface_DA_to_FE::peek() {
-    std::lock_guard<std::mutex> lock(queue_mutex);
-
-    if (queue.empty()) return std::nullopt;
-
-    auto& front = queue.front(); // Access the front element
-    front.second = true;         // Mark as `peek`'d
-    return front.first;          // Return the data
-}
-
-void interface_DA_to_FE::stop_queue() {
-    {
-        std::lock_guard<std::mutex> lock(queue_mutex);
-        stop = true;
-    }
-    data_ready.notify_all(); // Notify all waiting threads
-}
-
-int interface_DA_to_FE::get_frame_drop_count() {
-    std::lock_guard<std::mutex> lock(queue_mutex);
-    return frames_dropped;
-}
 
 void interface_FE_to_BE::addToBuffer(int x)
 {

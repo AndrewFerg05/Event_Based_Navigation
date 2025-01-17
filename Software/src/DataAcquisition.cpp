@@ -35,7 +35,7 @@ Change History
 // Functions
 //------------------------------------------------------------------------------
 void DA_loop(std::atomic<ThreadState>& state,
-                            interface_DA_to_FE* data_DA) {
+                            ThreadSafeFIFO<InputDataSync>* data_DA) {
     
     InputDataSync valueToAdd = 0;
 

@@ -30,7 +30,8 @@ Change History
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------
-void BE_loop(std::atomic<ThreadState>& state);
+void BE_loop(std::atomic<ThreadState>& state,
+            CommunicationManager* comms);
 
 
 

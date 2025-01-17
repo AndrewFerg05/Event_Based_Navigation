@@ -34,7 +34,8 @@ Change History
 // Functions
 //------------------------------------------------------------------------------
 void FE_loop(std::atomic<ThreadState>& state,
-                    ThreadSafeFIFO<InputDataSync>* data_DA) {
+                    ThreadSafeFIFO<InputDataSync>* data_DA,
+                    CommunicationManager* comms) {
     
     int bufferSize = 0;
     int readData = 0;
@@ -62,7 +63,7 @@ void FE_loop(std::atomic<ThreadState>& state,
             // Check buffer can be read
             auto item_DA = data_DA->pop(); // Get data from queue
             if (item_DA.has_value()) {
-                std::cout << "Processed Data: " << static_cast<int>(item_DA.value()) << std::endl; // Correctly process the value
+                comms->queueTrackedFrameData(item_DA.value());
                 sleep_ms(30);
             } else {
                 std::cout << "Queue returned no value (stopped or empty)." << std::endl;

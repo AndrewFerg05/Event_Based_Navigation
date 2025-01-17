@@ -43,8 +43,6 @@ Change History
 #include "TypeAliases.hpp"
 //==============================================================================
 //      Classes
-// Classes defined here are the shared data structures between threads to ensure
-// race condition issues.
 //------------------------------------------------------------------------------
 
 enum class ThreadState {
@@ -58,41 +56,45 @@ enum class ThreadState {
 template<typename T>
 class ThreadSafeFIFO {
 private:
-    std::queue<T> queue; // Queue of items and their peek status
+    std::queue<T> queue;                         // Queue of items
     std::mutex queue_mutex;                      // Mutex for thread safety
-    std::condition_variable data_ready;          // Condition variable for synchronization
-    std::condition_variable space_available;
+    std::condition_variable data_ready;          // Condition variable when queue is populated
+    std::condition_variable space_available;     // Condition variable space to add to queue
     bool stop = false;                           // Stop flag
-    size_t max_size;
+    size_t max_size;                             //Max queue length
 
 public:
-    explicit ThreadSafeFIFO(size_t capacity) : max_size(capacity) {};  // Constructor
-    ~ThreadSafeFIFO() = default; // Destructor
+    explicit ThreadSafeFIFO(size_t capacity) : max_size(capacity) {}
+    ~ThreadSafeFIFO() = default;
 
+    // Add to queue
     void push(const T& value){
         std::unique_lock<std::mutex> lock(queue_mutex);
-        space_available.wait(lock, [this]() { return queue.size() < max_size || stop; });
+        space_available.wait(lock, [this]() { return queue.size() < max_size || stop; });   //If full wait untill space available
         if (stop) return;
         queue.push(value); 
-        data_ready.notify_one(); 
+        data_ready.notify_one();    //Notify that there is data to process
     }
     
+    // Remove from queue
     std::optional<T> pop(){
         std::unique_lock<std::mutex> lock(queue_mutex);
-        data_ready.wait(lock, [this]() { return !queue.empty() || stop; });
+        data_ready.wait(lock, [this]() { return !queue.empty() || stop; });     //If empty wait untill there is data added
         if (queue.empty()) return std::nullopt;
         T data = queue.front(); 
         queue.pop();
-        space_available.notify_one();
+        space_available.notify_one();   //Notify there is room to add to queue
         return data;
     }
 
+    // Read first element but don't remove
     std::optional<T> peek(){
         std::lock_guard<std::mutex> lock(queue_mutex);
         if (queue.empty()) return std::nullopt;
         return queue.front(); 
     }
 
+    //Wake all waiting threads so they can exit gracefully
     void stop_queue(){
         {
             std::lock_guard<std::mutex> lock(queue_mutex);
@@ -104,6 +106,39 @@ public:
 
 };
 
+
+// Draft class to be editted
+// Need to address queue capacities and blocking - currently if front end cannot send data externally will block the front end
+// Blocking the producer thread kinda works for processing queues but not for comms queues
+class CommunicationManager {
+private:
+    // Queues for different data types
+    ThreadSafeFIFO<InputDataSync> from_camera;
+    ThreadSafeFIFO<TrackedFrames> from_frontend;
+    ThreadSafeFIFO<OtherData> from_backend;
+public:
+    //Constructor sets size of each input queue
+    CommunicationManager(size_t queue_size_1, size_t queue_size_2, size_t queue_size_3)
+        : from_camera(queue_size_1),
+          from_frontend(queue_size_2),
+          from_backend(queue_size_3)
+    {}
+    ~CommunicationManager() = default;
+
+    //Check queues and send data
+    bool processQueues();
+
+    // Add data to send queue
+    void queueInputData(InputDataSync data);
+    void queueTrackedFrameData(TrackedFrames data);
+    void queueOther(OtherData data);
+
+    template<typename T>
+    void sendToExternal(const T& data) {
+        //TODO send them externally - generic with template - templates function definitions have to go in hpp
+        std::cout << "Sending data externally: " << typeid(T).name() << std::endl;
+    }
+};
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------

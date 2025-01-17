@@ -35,7 +35,8 @@ Change History
 // Functions
 //------------------------------------------------------------------------------
 void DA_loop(std::atomic<ThreadState>& state,
-                            ThreadSafeFIFO<InputDataSync>* data_DA) {
+                            ThreadSafeFIFO<InputDataSync>* data_DA,
+                            CommunicationManager* comms) {
     
     InputDataSync valueToAdd = 0;
 
@@ -65,6 +66,7 @@ void DA_loop(std::atomic<ThreadState>& state,
 
             //Put in buffer
             data_DA->push(valueToAdd);   //For Sam architecture testing (replace with actual frames)
+            comms->queueInputData(valueToAdd); 
             sleep_ms(25);
         }
 

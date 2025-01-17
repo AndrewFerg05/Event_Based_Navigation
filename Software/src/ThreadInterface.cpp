@@ -37,5 +37,48 @@ Change History
 // Functions
 //------------------------------------------------------------------------------
 
+void CommunicationManager::queueInputData(InputDataSync data)
+{
+    from_camera.push(data);
+}
+
+
+void CommunicationManager::queueTrackedFrameData(TrackedFrames data){
+    from_frontend.push(data);
+}
+
+
+void CommunicationManager::queueOther(OtherData data){
+    from_backend.push(data);
+}
+
+
+
+
+bool CommunicationManager::processQueues()
+{
+    
+    bool processed = false;
+
+    // Send queue 1 data
+    if (auto data_1 = from_camera.pop()) {
+        sendToExternal(*data_1);
+        processed = true;
+    }
+
+    // Send queue 2 data
+    if (auto data_2 = from_frontend.pop()) {
+        sendToExternal(*data_2);
+        processed = true;
+    }
+
+    // Send queue 3 data
+    if (auto data_3 = from_backend.pop()) {
+        sendToExternal(*data_3);
+        processed = true;
+    }
+    return processed;   //return false if there was no data to send
+}
+
 //==============================================================================
 // End of File : Software/src/threads.cpp

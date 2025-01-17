@@ -34,7 +34,7 @@ Change History
 // Functions
 //------------------------------------------------------------------------------
 
-void BE_loop(std::atomic<ThreadState>& state) {
+void BE_loop(std::atomic<ThreadState>& state, CommunicationManager* comms) {
     while (true) {
         if (state == ThreadState::Stopped) {
             break;
@@ -52,8 +52,8 @@ void BE_loop(std::atomic<ThreadState>& state) {
         }
 
         if (state == ThreadState::Running) {
-            //TODO - Get data from frontend
-            sleep_ms(100);
+            comms->queueOther(69);
+            sleep_ms(30);
         }
 
         if (state == ThreadState::Test) {

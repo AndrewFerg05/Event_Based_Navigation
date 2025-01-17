@@ -34,8 +34,7 @@ Change History
 // Functions
 //------------------------------------------------------------------------------
 
-void BE_loop(std::atomic<ThreadState>& state,
-                    interface_FE_to_BE* data_FE) {
+void BE_loop(std::atomic<ThreadState>& state) {
     while (true) {
         if (state == ThreadState::Stopped) {
             break;

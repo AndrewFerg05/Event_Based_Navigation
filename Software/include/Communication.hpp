@@ -31,8 +31,7 @@ void CM_loop(
     std::atomic<ThreadState>& data_sync_state,
     std::atomic<ThreadState>& frontend_state,
     std::atomic<ThreadState>& backend_state,
-    ThreadSafeFIFO<InputDataSync>* data_DA,
-    interface_FE_to_BE* data_FE);
+    ThreadSafeFIFO<InputDataSync>* data_DA);
 
 
 #endif  // COMMUNICATION_HPP

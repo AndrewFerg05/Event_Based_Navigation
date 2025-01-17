@@ -64,19 +64,18 @@ int main()
     //Create data interfaces
     size_t input_queue_capacity = 20;
     ThreadSafeFIFO<InputDataSync> data_DA_to_FE(input_queue_capacity);
-    interface_FE_to_BE data_FE_to_BE;
 
+ 
     // Start threads
     std::thread data_aquire_thread(DA_loop, std::ref(data_aquire_state), &data_DA_to_FE);
-    std::thread frontend_thread(FE_loop, std::ref(frontend_state), &data_DA_to_FE, &data_FE_to_BE);
-    std::thread backend_thread(BE_loop, std::ref(backend_state), &data_FE_to_BE);
+    std::thread frontend_thread(FE_loop, std::ref(frontend_state), &data_DA_to_FE);
+    std::thread backend_thread(BE_loop, std::ref(backend_state));
     
     // Start this thread
     CM_loop(std::ref(data_aquire_state), 
             std::ref(frontend_state), 
             std::ref(backend_state),
-            &data_DA_to_FE,
-            &data_FE_to_BE);
+            &data_DA_to_FE);
 
     // Wait for other threads to exit
     data_aquire_thread.join();

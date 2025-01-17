@@ -35,13 +35,13 @@ Change History
 // Functions
 //------------------------------------------------------------------------------
 void DA_loop(std::atomic<ThreadState>& state,
-                            interface_DA_to_FE* data_DA) {
+                            ThreadSafeFIFO<InputDataSync>* data_DA,
+                            CommunicationManager* comms) {
     
-    int valueToAdd = 0;
+    InputDataSync valueToAdd = 0;
 
     while (true) {
         if (state == ThreadState::Stopped) {
-            std::cout << "Data Aquisition Stopping" << std::endl;
             break;
         }
 
@@ -65,9 +65,9 @@ void DA_loop(std::atomic<ThreadState>& state,
             //Synchronise data
 
             //Put in buffer
-            data_DA->addToBuffer(valueToAdd);   //For Sam architecture testing (replace with actual frames)
-
-            sleep_ms(20);
+            data_DA->push(valueToAdd);   //For Sam architecture testing (replace with actual frames)
+            comms->queueInputData(valueToAdd); 
+            sleep_ms(25);
         }
 
         if (state == ThreadState::Test) {

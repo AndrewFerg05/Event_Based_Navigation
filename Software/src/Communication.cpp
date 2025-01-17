@@ -39,16 +39,16 @@ void CM_loop(
     std::atomic<ThreadState>& data_sync_state,
     std::atomic<ThreadState>& frontend_state,
     std::atomic<ThreadState>& backend_state,
-    interface_DA_to_FE* data_DA,
-    interface_FE_to_BE* data_FE) {
+    ThreadSafeFIFO<InputDataSync>* data_DA,
+    CommunicationManager* comms) {
 
     auto start_time = std::chrono::steady_clock::now();   
 
     std::uint8_t command = 100; //Get this from external source
 
-
+    bool state_change_called = false; //Used to only set the atomics once
     int bufferSize = 0;
-
+    std::optional<int> last_output;
     while (true) {
 
         auto now = std::chrono::steady_clock::now();
@@ -59,19 +59,26 @@ void CM_loop(
         {
             if (elapsed > 2)
             {
+
                 command = 1;
+                state_change_called = true;
             }
             else 
             {
                 command = 0;
+                state_change_called = true;
             }
         }
 
         // Thread control
         if (command == 0) {
+
+            if(state_change_called){
             data_sync_state = ThreadState::Running;
             frontend_state = ThreadState::Running;
             backend_state = ThreadState::Running;
+            state_change_called = false;
+            }
 
             // Arduino Communication
             //      Receive from arduino control instructions
@@ -84,50 +91,52 @@ void CM_loop(
 
             // Base Station Communication
             //      Get frames from DA and transmit on UDP
-            bufferSize = data_DA->checkBuffer();
-            if (bufferSize > 0 && data_DA->checkIndex('C') < bufferSize)
-            {
-                std::cout << "DA: " << data_DA->readBuffer('C') << std::endl;
-                //transmit Frame
-            }
-            else
-            {
-                std::cout << "DA Buffer Empty!" << std::endl;
-            }
 
-            //      Get event frames from FE and transmit on UDP
-            bufferSize = data_FE->checkBuffer();
-            if (bufferSize > 0 && data_FE->checkIndex('C') < bufferSize)
+            if(!comms->processQueues())
             {
-                std::cout << "FE: " << data_FE->readBuffer('C') << std::endl;
-                //transmit Frame
+                std::cout << "No data To Send" << std::endl;
             }
-            else
-            {
-                std::cout << "FE Buffer Empty!" << std::endl;
-            }
-            
-            sleep_ms(5);
+            sleep_ms(10);
             
         } else if (command == 1) {
-            std::cout << "Comms Stopping" << std::endl;
+            // Stop Condition
+            if(state_change_called){
             data_sync_state = ThreadState::Stopped;
             frontend_state = ThreadState::Stopped;
             backend_state = ThreadState::Stopped;
+            state_change_called = false;
+            }
+
+            data_DA->stop_queue();  //Wake FE if waiting on data
             break;
+
         } else if (command == 2) {
+            // Pause Condition
+           if(state_change_called){
             data_sync_state = ThreadState::Paused;
             frontend_state = ThreadState::Paused;
             backend_state = ThreadState::Paused;
+            state_change_called = false;
+            }
+
         } else if (command == 3) {
+            // Reset Condition
+           if(state_change_called){
             data_sync_state = ThreadState::Reset;
             frontend_state = ThreadState::Reset;
             backend_state = ThreadState::Reset;
+            state_change_called = false;
+            }
+
         } else if (command == 4) {
-            std::cout << "Comms Testing" << std::endl;
+            // Testing Conditionn
+          if(state_change_called){
             data_sync_state = ThreadState::Test;
             frontend_state = ThreadState::Test;
             backend_state = ThreadState::Test;
+            state_change_called = false;
+            }
+            std::cout << "Comms Testing" << std::endl;
             sleep_ms(100);
         }
         else if (command == 100){

@@ -36,161 +36,48 @@ Change History
 //==============================================================================
 // Functions
 //------------------------------------------------------------------------------
-void interface_DA_to_FE::addToBuffer(int x)
+
+void CommunicationManager::queueInputData(InputDataSync data)
 {
-    std::unique_lock<std::shared_mutex> ul(mtx);
-    buffer.push_back(x);
+    from_camera.push(data);
 }
 
-int interface_DA_to_FE::checkBuffer()
-{
-    std::shared_lock<std::shared_mutex> sl(mtx);
-    return buffer.size();
+
+void CommunicationManager::queueTrackedFrameData(TrackedFrames data){
+    from_frontend.push(data);
 }
 
-int interface_DA_to_FE::checkIndex(char threadID)
-{
-    std::shared_lock<std::shared_mutex> sl(mtx);
-    if (threadID == 'C')
-    {
-        return indexC;
-    }
-    else if (threadID == 'F')
-    {
-        return indexFE;
-    }
-    return -1;
+
+void CommunicationManager::queueOther(OtherData data){
+    from_backend.push(data);
 }
 
-int interface_DA_to_FE::readBuffer(char threadID)
+
+
+
+bool CommunicationManager::processQueues()
 {
     
-    std::unique_lock<std::shared_mutex> ul(mtx);
+    bool processed = false;
 
-    int pos = 0;
-
-    // Find value at the oldest unread index of the thread
-    if (threadID == 'C')
-    {
-        pos = indexC;
-    }
-    else if (threadID == 'F')
-    {
-        pos = indexFE;
+    // Send queue 1 data
+    if (auto data_1 = from_camera.pop()) {
+        sendToExternal(*data_1);
+        processed = true;
     }
 
-    if (pos < 0 || pos >= buffer.size()) 
-    {
-        throw std::out_of_range("Position out of range");
-    }
-    int value = buffer.at(pos);
-
-    // Add to threads read index
-    if (threadID == 'C')
-    {
-        indexC++;
-
-        //Remove all read parts of buffer (done only on communications thread)
-        for (int i = 0; i < std::min(indexC, indexFE); i++)
-        {
-            removeFirstFromBuffer();
-        }
-    }
-    else if (threadID == 'F')
-    {
-        indexFE++;
+    // Send queue 2 data
+    if (auto data_2 = from_frontend.pop()) {
+        sendToExternal(*data_2);
+        processed = true;
     }
 
-    return value;
-}
-
-void interface_DA_to_FE::removeFirstFromBuffer()
-{
-    if (!buffer.empty()) 
-    {
-        buffer.erase(buffer.begin());
+    // Send queue 3 data
+    if (auto data_3 = from_backend.pop()) {
+        sendToExternal(*data_3);
+        processed = true;
     }
-    indexC--;
-    indexFE--;
-}
-
-
-void interface_FE_to_BE::addToBuffer(int x)
-{
-    std::unique_lock<std::shared_mutex> ul(mtx);
-    buffer.push_back(x);
-}
-
-int interface_FE_to_BE::checkBuffer()
-{
-    std::shared_lock<std::shared_mutex> sl(mtx);
-    return buffer.size();
-}
-
-int interface_FE_to_BE::checkIndex(char threadID)
-{
-    std::shared_lock<std::shared_mutex> sl(mtx);
-    if (threadID == 'C')
-    {
-        return indexC;
-    }
-    else if (threadID == 'B')
-    {
-        return indexBE;
-    }
-    return -1;
-}
-
-int interface_FE_to_BE::readBuffer(char threadID)
-{
-    
-    std::unique_lock<std::shared_mutex> ul(mtx);
-
-    int pos = 0;
-
-    // Find value at the oldest unread index of the thread
-    if (threadID == 'C')
-    {
-        pos = indexC;
-    }
-    else if (threadID == 'B')
-    {
-        pos = indexBE;
-    }
-
-    if (pos < 0 || pos >= buffer.size()) 
-    {
-        throw std::out_of_range("Position out of range");
-    }
-    int value = buffer.at(pos);
-
-    // Add to threads read index
-    if (threadID == 'C')
-    {
-        indexC++;
-
-        //Remove all read parts of buffer (done only on communications thread)
-        for (int i = 0; i < std::min(indexC, indexBE); i++)
-        {
-            removeFirstFromBuffer();
-        }
-    }
-    else if (threadID == 'B')
-    {
-        indexBE++;
-    }
-
-    return value;
-}
-
-void interface_FE_to_BE::removeFirstFromBuffer()
-{
-    if (!buffer.empty()) 
-    {
-        buffer.erase(buffer.begin());
-    }
-    indexC--;
-    indexBE--;
+    return processed;   //return false if there was no data to send
 }
 
 //==============================================================================

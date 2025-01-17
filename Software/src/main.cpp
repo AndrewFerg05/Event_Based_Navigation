@@ -55,26 +55,29 @@ CM - Communication
 //------------------------------------------------------------------------------
 int main() 
 {
+
     // Create atomic control flags
     std::atomic<ThreadState> data_aquire_state(ThreadState::Paused);
     std::atomic<ThreadState> frontend_state(ThreadState::Paused);
     std::atomic<ThreadState> backend_state(ThreadState::Paused);
 
     //Create data interfaces
-    interface_DA_to_FE data_DA_to_FE;
-    interface_FE_to_BE data_FE_to_BE;
+    size_t test_queue_capacity = 10;
+    ThreadSafeFIFO<InputDataSync> data_DA_to_FE(test_queue_capacity);
+    CommunicationManager comms_interface(test_queue_capacity,test_queue_capacity,test_queue_capacity);
 
+ 
     // Start threads
-    std::thread data_aquire_thread(DA_loop, std::ref(data_aquire_state), &data_DA_to_FE);
-    std::thread frontend_thread(FE_loop, std::ref(frontend_state), &data_DA_to_FE, &data_FE_to_BE);
-    std::thread backend_thread(BE_loop, std::ref(backend_state), &data_FE_to_BE);
+    std::thread data_aquire_thread(DA_loop, std::ref(data_aquire_state), &data_DA_to_FE, &comms_interface);
+    std::thread frontend_thread(FE_loop, std::ref(frontend_state), &data_DA_to_FE, &comms_interface);
+    std::thread backend_thread(BE_loop, std::ref(backend_state), &comms_interface);
     
     // Start this thread
     CM_loop(std::ref(data_aquire_state), 
             std::ref(frontend_state), 
             std::ref(backend_state),
             &data_DA_to_FE,
-            &data_FE_to_BE);
+            &comms_interface);
 
     // Wait for other threads to exit
     data_aquire_thread.join();

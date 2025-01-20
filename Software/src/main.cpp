@@ -1,14 +1,6 @@
 /*
 Filename    : Software/src/main.cpp
 Author      : Samuel Kliskey
-Project     : Event Based Navigation
-Date        : 10/1/25
-Description : Main file of the project
---------------------------------------------------------------------------------
-Change History
---------------------------------------------------------------------------------
-10-JAN-2025     SARK    created to design code structure
-10-JAN-2025     AF      Added Libcaer test
 12-Jan-2025     AF      Changed to Atomics
 --------------------------------------------------------------------------------
 Prefix Conventions

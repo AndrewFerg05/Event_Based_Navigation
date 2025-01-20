@@ -31,7 +31,8 @@ Change History
 //      Function Prototypes
 //------------------------------------------------------------------------------
 void DA_loop(std::atomic<ThreadState>& state,
-                            interface_DA_to_FE* data_DA);
+                            ThreadSafeFIFO<InputDataSync>* data_DA,
+                            CommunicationManager* comms);
 
 
 

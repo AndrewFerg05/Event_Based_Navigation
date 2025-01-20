@@ -26,7 +26,10 @@ Change History
 //      Classes
 //------------------------------------------------------------------------------
 
+// used for testing will be replaced with actual later
 using InputDataSync = uint8_t;
+using TrackedFrames = uint8_t;
+using OtherData = uint8_t;
 
 
 //==============================================================================

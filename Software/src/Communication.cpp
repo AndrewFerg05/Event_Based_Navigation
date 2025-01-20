@@ -41,13 +41,15 @@ void CM_loop(
     std::atomic<ThreadState>& data_sync_state,
     std::atomic<ThreadState>& frontend_state,
     std::atomic<ThreadState>& backend_state,
-    interface_DA_to_FE* data_DA,
-    interface_FE_to_BE* data_FE) {
+    ThreadSafeFIFO<InputDataSync>* data_DA,
+    CommunicationManager* comms) {
 
     auto start_time = std::chrono::steady_clock::now();   
 
     std::uint8_t command = 100; //Get this from external source
 
+    bool state_change_called = false; //Used to only set the atomics once
+	
     int frame_id = 3;
     cv::Mat frame = cv::imread("C:/Users/pokew/Documents/Year5/Project/example.jpg");
     if (frame.empty()) {
@@ -67,19 +69,26 @@ void CM_loop(
         {
             if (elapsed > 15)
             {
+
                 command = 1;
+                state_change_called = true;
             }
             else 
             {
                 command = 0;
+                state_change_called = true;
             }
         }
 
         // Thread control
         if (command == 0) {
+
+            if(state_change_called){
             data_sync_state = ThreadState::Running;
             frontend_state = ThreadState::Running;
             backend_state = ThreadState::Running;
+            state_change_called = false;
+            }
 
             // Arduino Communication
             //      Receive from arduino control instructions
@@ -92,47 +101,52 @@ void CM_loop(
 
             // Base Station Communication
             //      Get frames from DA and transmit on UDP
-            auto item_DA = data_DA->peek();
-            if (item_DA.has_value()) {
-                if (item_DA != last_output) { // Compare the current value with the last
-                    std::cout << "Read Data: " << static_cast<int>(item_DA.value()) << std::endl;
-                    last_output = item_DA; // Update the last value
-                    C_transmit_frame(frame, frame_id);
-                    sleep_ms(10);
-                }
-            } 
-            else {
-            // std::cout << "CM - DA Buffer Empty!" << std::endl;
+            if(!comms->processQueues())
+            {
+                std::cout << "No data To Send" << std::endl;
             }
-
-
-
-			//      Get event frames from FE and transmit on UDP
+            
+            sleep_ms(10);
             
         } else if (command == 1) {
             // Stop Condition
-            std::cout << "Frames dropped: : " << data_DA->get_frame_drop_count() << std::endl;
-            data_DA->stop_queue();  //Wake FE if waiting on data
+            if(state_change_called){
             data_sync_state = ThreadState::Stopped;
             frontend_state = ThreadState::Stopped;
             backend_state = ThreadState::Stopped;
+            state_change_called = false;
+            }
+
+            data_DA->stop_queue();  //Wake FE if waiting on data
             break;
+
         } else if (command == 2) {
             // Pause Condition
+           if(state_change_called){
             data_sync_state = ThreadState::Paused;
             frontend_state = ThreadState::Paused;
             backend_state = ThreadState::Paused;
+            state_change_called = false;
+            }
+
         } else if (command == 3) {
             // Reset Condition
+           if(state_change_called){
             data_sync_state = ThreadState::Reset;
             frontend_state = ThreadState::Reset;
             backend_state = ThreadState::Reset;
+            state_change_called = false;
+            }
+
         } else if (command == 4) {
             // Testing Conditionn
-            std::cout << "Comms Testing" << std::endl;
+          if(state_change_called){
             data_sync_state = ThreadState::Test;
             frontend_state = ThreadState::Test;
             backend_state = ThreadState::Test;
+            state_change_called = false;
+            }
+            std::cout << "Comms Testing" << std::endl;
             sleep_ms(100);
         }
         else if (command == 100){
@@ -231,6 +245,7 @@ void cleanupNet()
         WSACleanup();
     #endif
 }
+
 
 //==============================================================================
 // End of File : Software/src/Communication.cpp

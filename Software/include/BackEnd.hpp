@@ -31,7 +31,7 @@ Change History
 //      Function Prototypes
 //------------------------------------------------------------------------------
 void BE_loop(std::atomic<ThreadState>& state,
-                    interface_FE_to_BE* data_FE);
+            CommunicationManager* comms);
 
 
 

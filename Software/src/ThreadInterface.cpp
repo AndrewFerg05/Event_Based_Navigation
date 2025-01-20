@@ -37,135 +37,47 @@ Change History
 // Functions
 //------------------------------------------------------------------------------
 
-interface_DA_to_FE::interface_DA_to_FE() = default;
-
-interface_DA_to_FE::~interface_DA_to_FE() = default;
-
-void interface_DA_to_FE::push(const InputDataSync& value) {
-    {
-        std::lock_guard<std::mutex> lock(queue_mutex);
-        queue.push({value, false}); 
-    }
-
-    data_ready.notify_one(); 
-}
-
-std::optional<InputDataSync> interface_DA_to_FE::pop() {
-    std::unique_lock<std::mutex> lock(queue_mutex);
-
-    // Wait until there is data in the queue or the stop signal is set
-    data_ready.wait(lock, [this]() { return !queue.empty() || stop; });
-
-    if (queue.empty()) return std::nullopt;
-
-    auto front = queue.front(); // Copy the front element
-    queue.pop();                // Remove it from the queue
-    if (!front.second) {
-        frames_dropped++; // Increment the counter if it wasn't `peek`'d
-    }
-
-    return front.first; // Return the data
-}
-
-std::optional<InputDataSync> interface_DA_to_FE::peek() {
-    std::lock_guard<std::mutex> lock(queue_mutex);
-
-    if (queue.empty()) return std::nullopt;
-
-    auto& front = queue.front(); // Access the front element
-    front.second = true;         // Mark as `peek`'d
-    return front.first;          // Return the data
-}
-
-void interface_DA_to_FE::stop_queue() {
-    {
-        std::lock_guard<std::mutex> lock(queue_mutex);
-        stop = true;
-    }
-    data_ready.notify_all(); // Notify all waiting threads
-}
-
-int interface_DA_to_FE::get_frame_drop_count() {
-    std::lock_guard<std::mutex> lock(queue_mutex);
-    return frames_dropped;
-}
-
-void interface_FE_to_BE::addToBuffer(int x)
+void CommunicationManager::queueInputData(InputDataSync data)
 {
-    std::unique_lock<std::shared_mutex> ul(mtx);
-    buffer.push_back(x);
+    from_camera.push(data);
 }
 
-int interface_FE_to_BE::checkBuffer()
-{
-    std::shared_lock<std::shared_mutex> sl(mtx);
-    return buffer.size();
+
+void CommunicationManager::queueTrackedFrameData(TrackedFrames data){
+    from_frontend.push(data);
 }
 
-int interface_FE_to_BE::checkIndex(char threadID)
-{
-    std::shared_lock<std::shared_mutex> sl(mtx);
-    if (threadID == 'C')
-    {
-        return indexC;
-    }
-    else if (threadID == 'B')
-    {
-        return indexBE;
-    }
-    return -1;
+
+void CommunicationManager::queueOther(OtherData data){
+    from_backend.push(data);
 }
 
-int interface_FE_to_BE::readBuffer(char threadID)
+
+
+
+bool CommunicationManager::processQueues()
 {
     
-    std::unique_lock<std::shared_mutex> ul(mtx);
+    bool processed = false;
 
-    int pos = 0;
-
-    // Find value at the oldest unread index of the thread
-    if (threadID == 'C')
-    {
-        pos = indexC;
-    }
-    else if (threadID == 'B')
-    {
-        pos = indexBE;
+    // Send queue 1 data
+    if (auto data_1 = from_camera.pop()) {
+        sendToExternal(*data_1);
+        processed = true;
     }
 
-    if (pos < 0 || pos >= buffer.size()) 
-    {
-        throw std::out_of_range("Position out of range");
-    }
-    int value = buffer.at(pos);
-
-    // Add to threads read index
-    if (threadID == 'C')
-    {
-        indexC++;
-
-        //Remove all read parts of buffer (done only on communications thread)
-        for (int i = 0; i < std::min(indexC, indexBE); i++)
-        {
-            removeFirstFromBuffer();
-        }
-    }
-    else if (threadID == 'B')
-    {
-        indexBE++;
+    // Send queue 2 data
+    if (auto data_2 = from_frontend.pop()) {
+        sendToExternal(*data_2);
+        processed = true;
     }
 
-    return value;
-}
-
-void interface_FE_to_BE::removeFirstFromBuffer()
-{
-    if (!buffer.empty()) 
-    {
-        buffer.erase(buffer.begin());
+    // Send queue 3 data
+    if (auto data_3 = from_backend.pop()) {
+        sendToExternal(*data_3);
+        processed = true;
     }
-    indexC--;
-    indexBE--;
+    return processed;   //return false if there was no data to send
 }
 
 //==============================================================================

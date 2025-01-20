@@ -31,6 +31,8 @@ Change History
 #define RESET   3
 #define TEST    4
 
+#define TEST_IMAGE  "C:/Users/pokew/Documents/Year5/Project/example.jpg"
+
 #define MAX_PACKET_SIZE 65507            // Max packet in bytes for UDP
 #define PC_IP           "192.168.56.1"   // Change to base station IP
 #define PC_PORT         5005             // Application address for base station
@@ -57,7 +59,7 @@ void CM_loop(
     bool state_change_called = false; //Used to only set the atomics once
 	
     int frame_id = 3;
-    cv::Mat frame = cv::imread("C:/Users/pokew/Documents/Year5/Project/example.jpg");
+    cv::Mat frame = cv::imread(TEST_IMAGE);
     if (frame.empty()) {
         std::cerr << "Failed to load image." << std::endl;
         command = 0;

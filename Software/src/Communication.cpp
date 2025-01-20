@@ -25,9 +25,15 @@ Change History
 //==============================================================================
 // MACROs
 //------------------------------------------------------------------------------
-#define MAX_PACKET_SIZE 65507           // Max packet in bytes for UDP
+#define RUN     0
+#define STOP    1
+#define PAUSE   2
+#define RESET   3
+#define TEST    4
+
+#define MAX_PACKET_SIZE 65507            // Max packet in bytes for UDP
 #define PC_IP           "192.168.56.1"   // Change to base station IP
-#define PC_PORT         5005            // Application address for base station
+#define PC_PORT         5005             // Application address for base station
 //==============================================================================
 // Global Variable Initialisation
 //------------------------------------------------------------------------------
@@ -69,19 +75,18 @@ void CM_loop(
         {
             if (elapsed > 15)
             {
-
-                command = 1;
+                command = STOP;
                 state_change_called = true;
             }
             else 
             {
-                command = 0;
+                command = RUN;
                 state_change_called = true;
             }
         }
 
         // Thread control
-        if (command == 0) {
+        if (command == RUN) {
 
             if(state_change_called){
             data_sync_state = ThreadState::Running;
@@ -105,10 +110,16 @@ void CM_loop(
             {
                 std::cout << "No data To Send" << std::endl;
             }
+            CM_transmitFrame(frame, 2);
+
+            //      Get event frames from FE and transmit on UDP
+
+
+            //      Get position from BE and transmit on UDP
             
             sleep_ms(10);
             
-        } else if (command == 1) {
+        } else if (command == STOP) {
             // Stop Condition
             if(state_change_called){
             data_sync_state = ThreadState::Stopped;
@@ -120,7 +131,7 @@ void CM_loop(
             data_DA->stop_queue();  //Wake FE if waiting on data
             break;
 
-        } else if (command == 2) {
+        } else if (command == PAUSE) {
             // Pause Condition
            if(state_change_called){
             data_sync_state = ThreadState::Paused;
@@ -129,7 +140,7 @@ void CM_loop(
             state_change_called = false;
             }
 
-        } else if (command == 3) {
+        } else if (command == RESET) {
             // Reset Condition
            if(state_change_called){
             data_sync_state = ThreadState::Reset;
@@ -138,7 +149,7 @@ void CM_loop(
             state_change_called = false;
             }
 
-        } else if (command == 4) {
+        } else if (command == TEST) {
             // Testing Conditionn
           if(state_change_called){
             data_sync_state = ThreadState::Test;
@@ -157,9 +168,9 @@ void CM_loop(
 }
 
 
-void C_transmit_frame(cv::Mat frame, int frame_id) {
+void CM_transmitFrame(cv::Mat frame, int frame_id) {
 
-    if (initNet() != 0) 
+    if (CM_initNet() != 0) 
     {
         std::cerr << "WSAStartup failed!" << std::endl;
         return;
@@ -226,10 +237,10 @@ void C_transmit_frame(cv::Mat frame, int frame_id) {
     // Clean up
     close(sockfd);
     free(send_buffer);
-    cleanupNet();
+    CM_cleanupNet();
 }
 
-int initNet() 
+int CM_initNet() 
 {
     #ifdef _WIN32
         WSADATA wsaData;
@@ -239,7 +250,7 @@ int initNet()
     #endif
 }
 
-void cleanupNet() 
+void CM_cleanupNet() 
 {
     #ifdef _WIN32
         WSACleanup();

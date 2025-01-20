@@ -50,9 +50,9 @@ Change History
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------
-int initNet();
+int CM_initNet();
 
-void cleanupNet();
+void CM_cleanupNet();
 
 
 void CM_loop(
@@ -62,7 +62,7 @@ void CM_loop(
     ThreadSafeFIFO<InputDataSync>* data_DA,
     CommunicationManager* comms);
 
-void C_transmit_frame(cv::Mat frame, int frame_id);
+void CM_transmitFrame(cv::Mat frame, int frame_id);
 
 #endif  // COMMUNICATION_HPP
 //==============================================================================

@@ -136,7 +136,7 @@ public:
     template<typename T>
     void sendToExternal(const T& data) {
         //TODO send them externally - generic with template - templates function definitions have to go in hpp
-        std::cout << "Sending data externally: " << typeid(T).name() << std::endl;
+        //std::cout << "Sending data externally: " << typeid(T).name() << std::endl;
     }
 };
 //==============================================================================

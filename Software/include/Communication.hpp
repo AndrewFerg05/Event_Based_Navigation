@@ -40,12 +40,24 @@ Change History
 #include <cstdlib>
 #include <unistd.h>
 
+#include <libserialport.h>
+
 #include "ThreadInterface.hpp"
 #include "TypeAliases.hpp"
 //==============================================================================
 //      Classes
 //------------------------------------------------------------------------------
+class CM_serialInterface{
+    private:
+        struct sp_port *ESPPort = NULL;
+        int timeout = 50;
+    public:
+        bool ESPOpen();
+        void ESPClose();
+        bool ESPWrite(char* message);
+        char* ESPRead();
 
+};
 
 //==============================================================================
 //      Function Prototypes
@@ -54,15 +66,22 @@ int CM_initNet();
 
 void CM_cleanupNet();
 
+std::uint8_t CM_serialReceive(CM_serialInterface* serial);
+
+void CM_serialSendStatus(CM_serialInterface* serial, int32_t x, int32_t y);
+
+void CM_transmitStatus(int32_t x, int32_t y);
 
 void CM_loop(
     std::atomic<ThreadState>& data_sync_state,
     std::atomic<ThreadState>& frontend_state,
     std::atomic<ThreadState>& backend_state,
     ThreadSafeFIFO<InputDataSync>* data_DA,
-    CommunicationManager* comms);
+    CommunicationManager* comms,
+    CM_serialInterface* serial);
 
 void CM_transmitFrame(cv::Mat frame, int frame_id);
+
 
 #endif  // COMMUNICATION_HPP
 //==============================================================================

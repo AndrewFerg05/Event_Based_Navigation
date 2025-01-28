@@ -365,7 +365,6 @@ bool CM_serialInterface::ESPOpen() {
         printf("ESP32 opened in read-write mode.\n");
     }
 
-    sp_close(this->ESPPort);
     sp_free_port_list(ports); // Free the list of ports
     
     return 0;
@@ -378,42 +377,22 @@ void CM_serialInterface::ESPClose(){
 
 bool CM_serialInterface::ESPWrite(char* message){
 
-    // Open ESP32 for write
-    if (sp_open(this->ESPPort, SP_MODE_WRITE) != SP_OK) {
-        printf("Failed to open ESP32 in write mode.\n");
-        return 1;
-    }
-
-    sp_set_baudrate(this->ESPPort, 115200);
-
     // Write the message to the serial port
     int bytes_written = sp_blocking_write(this->ESPPort, message, strlen(message), this->timeout);
     if (bytes_written < 0) {
         std::cerr << "Failed to write to ESP" << std::endl;
-        sp_close(this->ESPPort);
         return 1;   // Failed to write to ESP
     }
-
-    sp_close(this->ESPPort);
 
     return 0;
 }
 
 char* CM_serialInterface::ESPRead(){
-    if (sp_open(this->ESPPort, SP_MODE_READ) != SP_OK) {
-        printf("Failed to open ESP32 in read mode.\n");
-        return 0;
-    }
-
-    // Set serial port parameters (adjust as needed)
-    sp_set_baudrate(this->ESPPort, 115200);
-
     char read_buffer[1];          // Buffer to read one character at a time
     size_t buffer_size = 256;     // Initial buffer size
     char *response = (char*)malloc(buffer_size);
     if (!response) {
         fprintf(stderr, "Memory allocation failed.\n");
-        sp_close(this->ESPPort);
         return NULL;
     }
     size_t total_read = 0;
@@ -426,7 +405,6 @@ char* CM_serialInterface::ESPRead(){
         if (result < 0) {
             fprintf(stderr, "Error reading from serial port.\n");
             free(response);
-            sp_close(this->ESPPort);
             return NULL;
         } else if (result == 0) {
 
@@ -445,7 +423,6 @@ char* CM_serialInterface::ESPRead(){
             if (!new_response) {
                 fprintf(stderr, "Memory reallocation failed.\n");
                 free(response);
-                sp_close(this->ESPPort);
                 return NULL;
             }
             response = new_response;
@@ -455,7 +432,6 @@ char* CM_serialInterface::ESPRead(){
     // Null-terminate the response
     response[total_read] = '\0';
 
-    sp_close(this->ESPPort);
     return response;
 }
 

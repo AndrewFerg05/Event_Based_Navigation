@@ -1,0 +1,12 @@
+serial_number: "UNKNOWN"  
+master: true             
+reset_timestamps_delay: -1.0  
+imu_calibration_sample_size: 1000  
+
+imu_bias:
+  ax: 0.0  
+  ay: 0.0
+  az: 0.0
+  wx: 0.0
+  wy: 0.0
+  wz: 0.0

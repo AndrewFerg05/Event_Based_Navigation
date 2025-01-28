@@ -34,7 +34,7 @@ Change History
 #include <thread>
 #include <vector>
 #include <shared_mutex>
-#include <queue>
+#include <deque>
 #include <time.h>
 #include <atomic>
 #include <condition_variable>
@@ -56,54 +56,63 @@ enum class ThreadState {
 template<typename T>
 class ThreadSafeFIFO {
 private:
-    std::queue<T> queue;                         // Queue of items
-    std::mutex queue_mutex;                      // Mutex for thread safety
-    std::condition_variable data_ready;          // Condition variable when queue is populated
-    std::condition_variable space_available;     // Condition variable space to add to queue
-    bool stop = false;                           // Stop flag
-    size_t max_size;                             //Max queue length
+    std::deque<T> queue;               // Using deque for efficient removal from front
+    std::mutex queue_mutex;            // Mutex for thread safety
+    std::condition_variable data_ready; // Condition variable to notify data availability
+    bool stop = false;                  // Stop flag
+    size_t max_size;                     // Max queue length
 
 public:
     explicit ThreadSafeFIFO(size_t capacity) : max_size(capacity) {}
     ~ThreadSafeFIFO() = default;
 
-    // Add to queue
-    void push(const T& value){
-        std::unique_lock<std::mutex> lock(queue_mutex);
-        space_available.wait(lock, [this]() { return queue.size() < max_size || stop; });   //If full wait untill space available
-        if (stop) return;
-        queue.push(value); 
-        data_ready.notify_one();    //Notify that there is data to process
+    // Add to queue (replace oldest if full)
+    void push(const T& value) {
+        std::lock_guard<std::mutex> lock(queue_mutex);
+        if (queue.size() >= max_size) {
+            queue.pop_front();  // Remove oldest element
+        }
+        queue.push_back(value);
+        data_ready.notify_one(); // Notify that data is available
     }
     
     // Remove from queue
-    std::optional<T> pop(){
+    std::optional<T> pop() {
         std::unique_lock<std::mutex> lock(queue_mutex);
-        data_ready.wait(lock, [this]() { return !queue.empty() || stop; });     //If empty wait untill there is data added
-        if (queue.empty()) return std::nullopt;
-        T data = queue.front(); 
-        queue.pop();
-        space_available.notify_one();   //Notify there is room to add to queue
+        data_ready.wait(lock, [this]() { return !queue.empty() || stop; });  // Wait if empty
+        if (queue.empty()) return std::nullopt;  // If stopped, return nothing
+        T data = queue.front();
+        queue.pop_front();
         return data;
     }
 
     // Read first element but don't remove
-    std::optional<T> peek(){
+    std::optional<T> peek() {
         std::lock_guard<std::mutex> lock(queue_mutex);
         if (queue.empty()) return std::nullopt;
-        return queue.front(); 
+        return queue.front();
     }
 
-    //Wake all waiting threads so they can exit gracefully
-    void stop_queue(){
+    // Stop the queue gracefully
+    void stop_queue() {
         {
             std::lock_guard<std::mutex> lock(queue_mutex);
             stop = true;
         }
         data_ready.notify_all();
-        space_available.notify_all();
     }
 
+    // Check if queue is empty
+    bool empty() {
+        std::lock_guard<std::mutex> lock(queue_mutex);
+        return queue.empty();
+    }
+
+    // Get the current queue size
+    size_t size() {
+        std::lock_guard<std::mutex> lock(queue_mutex);
+        return queue.size();
+    }
 };
 
 

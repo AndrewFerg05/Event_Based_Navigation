@@ -35,6 +35,7 @@ CM - Communication
 #include  "Communication.hpp"
 #include  "DataAcquisition.hpp"
 #include  "FrontEnd.hpp"
+#include "DavisDriver.hpp"
 
 
 //==============================================================================
@@ -55,6 +56,8 @@ CM - Communication
 //------------------------------------------------------------------------------
 int main() 
 {
+    DavisDriver driver("../config/blank_config.yaml");
+    
     // Create atomic control flags
     std::atomic<ThreadState> data_aquire_state(ThreadState::Paused);
     std::atomic<ThreadState> frontend_state(ThreadState::Paused);
@@ -65,28 +68,28 @@ int main()
     ThreadSafeFIFO<InputDataSync> data_DA_to_FE(test_queue_capacity);
     CommunicationManager comms_interface(test_queue_capacity,test_queue_capacity,test_queue_capacity);
 
-    // Perform initial setup
-    std::cout << "Setting up..." << std::endl;
+    // // Perform initial setup
+    // std::cout << "Setting up..." << std::endl;
 
-    // Initialise camera
+    // // Initialise camera
 
-    // Initialise WiFi
-    if (CM_initNet() != 0) 
-    {
-        std::cerr << "Internet initialisation failed!" << std::endl;
-        return 0;
-    }
-    std::cout << "WiFi Initialised" << std::endl;
+    // // Initialise WiFi
+    // if (CM_initNet() != 0) 
+    // {
+    //     std::cerr << "Internet initialisation failed!" << std::endl;
+    //     return 0;
+    // }
+    // std::cout << "WiFi Initialised" << std::endl;
     
 
-    // Initialise serial
+    // // Initialise serial
     CM_serialInterface serial;
-    // Prepare ESP for connection
-    if (serial.ESPOpen() != 0){
-        std::cerr << "Failed to open ESP" << std::endl;
-        return 0;
-    }
-    std::cout << "ESP Connection Initialised" << std::endl;
+    // // Prepare ESP for connection
+    // if (serial.ESPOpen() != 0){
+    //     std::cerr << "Failed to open ESP" << std::endl;
+    //     return 0;
+    // }
+    // std::cout << "ESP Connection Initialised" << std::endl;
  
     // Start threads
     std::thread data_aquire_thread(DA_loop, std::ref(data_aquire_state), &data_DA_to_FE, &comms_interface);
@@ -106,18 +109,18 @@ int main()
     frontend_thread.join();
     backend_thread.join();
 
-    // Perform cleanup
-    std::cout << "Cleaning up..." << std::endl;
+    // // Perform cleanup
+    // std::cout << "Cleaning up..." << std::endl;
     
-    // Close WiFi
-    CM_cleanupNet();
-    std::cout << "Wifi closed" << std::endl;
+    // // Close WiFi
+    // CM_cleanupNet();
+    // std::cout << "Wifi closed" << std::endl;
 
-    // Close ESP connection
-    serial.ESPClose();
-    std::cout << "Serial closed" << std::endl;
+    // // Close ESP connection
+    // serial.ESPClose();
+    // std::cout << "Serial closed" << std::endl;
 
-    std::cout << "Program ended" << std::endl;
+    // std::cout << "Program ended" << std::endl;
 
     return 0;
 }

@@ -37,6 +37,7 @@ else()
     pkg_check_modules(LIBCAER REQUIRED libcaer)
     pkg_check_modules(LIBUSB REQUIRED libusb-1.0)
     pkg_check_modules(LIBSERIAL REQUIRED libserialport)
+    find_package(yaml-cpp REQUIRED)
 
     # Find OpenCV the correct way
     find_package(OpenCV REQUIRED)
@@ -64,10 +65,11 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 if (WIN32)
     target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBCAER_LIBRARIES} ${OPENCV_LIBRARIES} ${LIBSERIAL_LIBRARIES} ws2_32)
 else()
-    target_link_libraries(${PROJECT_NAME} PRIVATE 
-        ${LIBCAER_LIBRARIES} 
-        ${LIBUSB_LIBRARIES}
-        ${LIBSERIAL_LIBRARIES} 
-        ${OpenCV_LIBS}  # Correctly links OpenCV components
-    )
+target_link_libraries(${PROJECT_NAME} PRIVATE 
+    ${LIBCAER_LIBRARIES} 
+    ${LIBUSB_LIBRARIES}
+    ${LIBSERIAL_LIBRARIES} 
+    ${OpenCV_LIBS}  # Correctly links OpenCV components
+    yaml-cpp        # Add YAML support
+)
 endif()

@@ -52,6 +52,8 @@ class CM_serialInterface{
         struct sp_port *ESPPort = NULL;
         int timeout = 50;
     public:
+    CM_serialInterface() = default;
+    ~CM_serialInterface() = default;
         bool ESPOpen();
         void ESPClose();
         bool ESPWrite(char* message);

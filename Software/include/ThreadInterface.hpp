@@ -153,8 +153,6 @@ public:
 };
 
 // Draft class to be editted
-// Need to address queue capacities and blocking - currently if front end cannot send data externally will block the front end
-// Blocking the producer thread kinda works for processing queues but not for comms queues
 class CommunicationManager {
 private:
     // Queues for different data types

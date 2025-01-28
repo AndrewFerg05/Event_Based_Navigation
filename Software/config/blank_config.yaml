@@ -1,12 +1,47 @@
-serial_number: "UNKNOWN"  
-master: true             
-reset_timestamps_delay: -1.0  
-imu_calibration_sample_size: 1000  
+serial_number: "UNKNOWN"
+reset_timestamps_delay: -1.0
+imu_calibration_sample_size: 1000
 
 imu_bias:
-  ax: 0.0  
+  ax: 0.0
   ay: 0.0
   az: 0.0
   wx: 0.0
   wy: 0.0
   wz: 0.0
+
+# DAVIS346 Specific Parameters
+aps_enabled: true
+dvs_enabled: true
+imu_enabled: true
+
+imu_acc_scale: 3
+imu_gyro_scale: 3
+
+exposure: 4000
+frame_delay: 0
+max_events: 0
+streaming_rate: 30
+
+ADC_RefHigh_volt: 24
+ADC_RefHigh_curr: 7
+ADC_RefLow_volt: 1
+ADC_RefLow_curr: 7
+
+DiffBn_coarse: 4
+DiffBn_fine: 39
+
+OFFBn_coarse: 4
+OFFBn_fine: 0
+
+ONBn_coarse: 6
+ONBn_fine: 255
+
+PrBp_coarse: 2
+PrBp_fine: 255
+
+PrSFBp_coarse: 1
+PrSFBp_fine: 199
+
+RefrBp_coarse: 3
+RefrBp_fine: 7

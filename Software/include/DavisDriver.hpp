@@ -44,10 +44,48 @@ public:
     int imu_calibration_sample_size_;
     ImuBias imu_bias_;
 
+    //Camera Parameters
     bool aps_enabled, dvs_enabled, imu_enabled;
     int imu_acc_scale, imu_gyro_scale;
     int exposure, max_events, streaming_rate;
     int frame_delay;
+    int frame_mode, frame_interval;
+
+    // IMU Filter Parameters
+    int imu_low_pass_filter;
+    int imu_sample_rate_divider;
+
+    // Hardware Filtering (DVS)
+    bool pixel_auto_train;
+    int pixel_0_row, pixel_0_column;
+    int pixel_1_row, pixel_1_column;
+    int pixel_2_row, pixel_2_column;
+    int pixel_3_row, pixel_3_column;
+    int pixel_4_row, pixel_4_column;
+    int pixel_5_row, pixel_5_column;
+    int pixel_6_row, pixel_6_column;
+    int pixel_7_row, pixel_7_column;
+
+    // Background Activity Filter
+    bool background_activity_filter_enabled;
+    int background_activity_filter_time;
+
+    // Refractory Period Filter
+    bool refractory_period_enabled;
+    int refractory_period_time;
+
+    // ROI Filter
+    int roi_start_column, roi_start_row;
+    int roi_end_column, roi_end_row;
+
+    // Skip Events Filter
+    bool skip_enabled;
+    int skip_every;
+
+    // Polarity Filter
+    bool polarity_flatten;
+    bool polarity_suppress;
+    int polarity_suppress_type;
 
     // ADC Parameters
     int ADC_RefHigh_volt, ADC_RefHigh_curr;
@@ -60,6 +98,12 @@ public:
     int PrBp_coarse, PrBp_fine;
     int PrSFBp_coarse, PrSFBp_fine;
     int RefrBp_coarse, RefrBp_fine;
+
+        // APS Region of Interest
+    int aps_roi_start_column;
+    int aps_roi_start_row;
+    int aps_roi_end_column;
+    int aps_roi_end_row;
 
 private:
     std::string config_file_path; // Path to YAML file

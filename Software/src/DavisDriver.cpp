@@ -41,10 +41,11 @@ Change History
 //==============================================================================
 // Functions
 //------------------------------------------------------------------------------
-DavisDriver::DavisDriver(const std::string& config_path) :
+DavisDriver::DavisDriver(const std::string& config_path, std::shared_ptr<DataQueues> data_queues) :
     parameter_update_required_(false),
     parameter_bias_update_required_(false),
-    imu_calibration_running_(false)
+    imu_calibration_running_(false),
+    data_queues_(data_queues)
 {
     loadParameters(config_path);
  

@@ -61,15 +61,19 @@ private:
     std::condition_variable data_ready; // Condition variable to notify data availability
     bool stop = false;                  // Stop flag
     size_t max_size;                     // Max queue length
+    std::string queue_name;             //Queue name for debug
 
 public:
-    explicit ThreadSafeFIFO(size_t capacity) : max_size(capacity) {}
-    ~ThreadSafeFIFO() = default;
+    explicit ThreadSafeFIFO(size_t capacity, std::string name) 
+        : max_size(capacity),
+        queue_name(std::move(name)) {}
 
     // Add to queue (replace oldest if full)
     void push(const T& value) {
         std::lock_guard<std::mutex> lock(queue_mutex);
         if (queue.size() >= max_size) {
+            std::cerr << "[WARNING] Queue overflow: " << queue_name 
+                      << " is full! Overwriting oldest element." << std::endl;
             queue.pop_front();  // Remove oldest element
         }
         queue.push_back(value);
@@ -115,6 +119,35 @@ public:
     }
 };
 
+// Data Queus Class to mimic ROS Topics
+class DataQueues {
+public:
+    // Queues for different data types
+    std::shared_ptr<ThreadSafeFIFO<EventData>> event_queue;
+    std::shared_ptr<ThreadSafeFIFO<CameraInfoData>> camera_info_queue;
+    std::shared_ptr<ThreadSafeFIFO<IMUData>> imu_queue;
+    std::shared_ptr<ThreadSafeFIFO<ImageData>> image_queue;
+    std::shared_ptr<ThreadSafeFIFO<ExposureData>> exposure_queue;
+
+    // Constructor
+    explicit DataQueues(size_t queue_size) {
+        event_queue = std::make_shared<ThreadSafeFIFO<EventData>>(queue_size, "Input_DVS");          // Events buffer (10)
+        camera_info_queue = std::make_shared<ThreadSafeFIFO<CameraInfoData>>(1, "Input_CamInfo");        // Camera info buffer (1)
+        imu_queue = std::make_shared<ThreadSafeFIFO<IMUData>>(queue_size, "Input_IMU");              // IMU buffer (10)
+        image_queue = std::make_shared<ThreadSafeFIFO<ImageData>>(1, "Input_APS");                   // Images buffer (1)
+        exposure_queue = std::make_shared<ThreadSafeFIFO<ExposureData>>(queue_size, "Input_Expo");    // Exposure buffer (10)
+    }
+
+    // Accessor Function
+    template <typename Func>
+    void forEachQueue(Func func) {
+        func("Event Queue", event_queue);
+        func("IMU Queue", imu_queue);
+        func("Image Queue", image_queue);
+        func("Exposure Queue", exposure_queue);     //Remove if unused
+        func("Camera Info Queue", camera_info_queue); //Remove if unused
+    }
+};
 
 // Draft class to be editted
 // Need to address queue capacities and blocking - currently if front end cannot send data externally will block the front end
@@ -128,9 +161,9 @@ private:
 public:
     //Constructor sets size of each input queue
     CommunicationManager(size_t queue_size_1, size_t queue_size_2, size_t queue_size_3)
-        : from_camera(queue_size_1),
-          from_frontend(queue_size_2),
-          from_backend(queue_size_3)
+        : from_camera(queue_size_1, "Comms_1"),
+          from_frontend(queue_size_2, "Comms_2"),
+          from_backend(queue_size_3, "Comms_3")
     {}
     ~CommunicationManager() = default;
 

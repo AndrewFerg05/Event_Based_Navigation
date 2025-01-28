@@ -32,6 +32,34 @@ using TrackedFrames = uint8_t;
 using OtherData = uint8_t;
 
 
+
+// Dummy structs for data streams can change later
+
+using CameraInfoData = uint16_t;
+using ExposureData = uint16_t;
+
+struct IMUData {
+    std::chrono::nanoseconds timestamp;  // Time in nanoseconds
+    struct {
+        double x, y, z;
+    } linear_acceleration, angular_velocity;
+};
+
+// Dummy Event struct (similar to dvs_msgs::Event)
+struct EventData {
+    std::chrono::nanoseconds timestamp;
+    uint16_t x, y;   // Pixel coordinates
+    bool polarity;   // 0 or 1
+};
+
+// Dummy Image struct (similar to sensor_msgs::Image)
+struct ImageData {
+    std::chrono::nanoseconds timestamp;
+    uint32_t width, height;
+    std::vector<uint8_t> data; // Raw image data (grayscale or RGB)
+};
+
+
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------

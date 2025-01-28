@@ -35,13 +35,14 @@ struct IMU_Bias {
 
 class DavisDriver {
 public:
-  DavisDriver(const std::string& config_path);
+  DavisDriver(const std::string& config_path, std::shared_ptr<DataQueues> data_queues);
   ~DavisDriver() = default;
   void loadParameters(const std::string& config_path);
 
 private:
+  std::shared_ptr<DataQueues> data_queues_;
 
-std::string device_id_;
+  std::string device_id_;
   bool master_;
   double reset_timestamps_delay_;
   int imu_calibration_sample_size_;

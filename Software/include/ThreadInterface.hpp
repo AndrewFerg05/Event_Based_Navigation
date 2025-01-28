@@ -74,8 +74,7 @@ public:
     void push(const T& value) {
         std::lock_guard<std::mutex> lock(queue_mutex);
         if (queue.size() >= max_size) {
-            std::cerr << "[WARNING] Queue overflow: " << queue_name 
-                      << " is full! Overwriting oldest element." << std::endl;
+            std::cerr << "[WARNING] Queue overflow: " << queue_name << std::endl;
             queue.pop_front();  // Remove oldest element
         }
         queue.push_back(value);
@@ -138,7 +137,7 @@ public:
         event_queue = std::make_shared<ThreadSafeFIFO<EventData>>(queue_size, "Input_DVS", false);          // Events buffer (10)
         camera_info_queue = std::make_shared<ThreadSafeFIFO<CameraInfoData>>(1, "Input_CamInfo", false);        // Camera info buffer (1)
         imu_queue = std::make_shared<ThreadSafeFIFO<IMUData>>(queue_size, "Input_IMU", false);              // IMU buffer (10)
-        image_queue = std::make_shared<ThreadSafeFIFO<ImageData>>(1, "Input_APS"), false;                   // Images buffer (1)
+        image_queue = std::make_shared<ThreadSafeFIFO<ImageData>>(1, "Input_APS", false);                   // Images buffer (1)
         exposure_queue = std::make_shared<ThreadSafeFIFO<ExposureData>>(queue_size, "Input_Expo", false);    // Exposure buffer (10)
     }
 

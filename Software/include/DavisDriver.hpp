@@ -33,6 +33,29 @@ struct IMU_Bias {
     } linear_acceleration, angular_velocity;
 };
 
+class ConfigManager {
+public:
+    explicit ConfigManager(const std::string& config_path);
+    
+    void loadConfig(const std::string& config_path);      // Load parameters from YAML
+
+    //TODO - Check Params
+    std::string device_id_;
+    bool master_;
+    double reset_timestamps_delay_;
+    int imu_calibration_sample_size_;
+    IMU_Bias bias;
+
+    bool aps_enabled, dvs_enabled, imu_enabled;
+    int imu_acc_scale, imu_gyro_scale;
+    int exposure, max_events, streaming_rate;
+
+private:
+    std::string config_file_path; // Path to YAML file
+    std::mutex config_mutex;      // Thread safety for updates
+};
+
+
 class DavisDriver {
 public:
   DavisDriver(const std::string& config_path, std::shared_ptr<DataQueues> data_queues);
@@ -41,12 +64,7 @@ public:
 
 private:
   std::shared_ptr<DataQueues> data_queues_;
-
-  std::string device_id_;
-  bool master_;
-  double reset_timestamps_delay_;
-  int imu_calibration_sample_size_;
-  IMU_Bias bias;
+  ConfigManager config_manger_;
 
   bool parameter_update_required_;
   bool parameter_bias_update_required_;

@@ -41,29 +41,23 @@ Change History
 //==============================================================================
 // Functions
 //------------------------------------------------------------------------------
-DavisDriver::DavisDriver(const std::string& config_path, std::shared_ptr<DataQueues> data_queues) :
-    parameter_update_required_(false),
-    parameter_bias_update_required_(false),
-    imu_calibration_running_(false),
-    data_queues_(data_queues)
-{
-    loadParameters(config_path);
- 
-}
 
-void DavisDriver::loadParameters(const std::string& config_path) 
+ConfigManager::ConfigManager(const std::string& config_path) 
+    : config_file_path(config_path) {}
+
+void ConfigManager::loadConfig(const std::string& config_path) 
 {
     // Set up to read from YAML File - Unsure where these come from in ROS driver Driver.cpp - ROS Params Server?
     try {
         YAML::Node config = YAML::LoadFile(config_path);
 
-        //Load Parameters - TODO
+        //Load Parameters - TODO - Actual Values
         device_id_ = config["serial_number"] ? config["serial_number"].as<std::string>() : "UNKNOWN";
         master_ = config["master"] ? config["master"].as<bool>() : true; //Not needed
         reset_timestamps_delay_ = config["reset_timestamps_delay"] ? config["reset_timestamps_delay"].as<double>() : -1.0;
         imu_calibration_sample_size_ = config["imu_calibration_sample_size"] ? config["imu_calibration_sample_size"].as<int>() : 1000;
 
-        // IMU Biases - TODO
+        // IMU Biases - TODO - Actual Values
         bias.linear_acceleration.x = config["imu_bias/ax"] ? config["imu_bias/ax"].as<double>() : 0.0;
         bias.linear_acceleration.y = config["imu_bias/ay"] ? config["imu_bias/ay"].as<double>() : 0.0;
         bias.linear_acceleration.z = config["imu_bias/az"] ? config["imu_bias/az"].as<double>() : 0.0;
@@ -76,6 +70,16 @@ void DavisDriver::loadParameters(const std::string& config_path)
     catch (const std::exception& e) {
         std::cerr << "Error loading YAML config: " << e.what() << std::endl;
     }
+}
+
+DavisDriver::DavisDriver(const std::string& config_path, std::shared_ptr<DataQueues> data_queues) :
+    parameter_update_required_(false),
+    parameter_bias_update_required_(false),
+    imu_calibration_running_(false),
+    data_queues_(data_queues),
+     config_manger_(config_path)
+{
+    config_manger_.loadConfig(config_path);
 }
 
 //==============================================================================

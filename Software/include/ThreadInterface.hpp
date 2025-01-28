@@ -56,16 +56,18 @@ enum class ThreadState {
 template<typename T>
 class ThreadSafeFIFO {
 private:
-    std::deque<T> queue;               // Using deque for efficient removal from front
-    std::mutex queue_mutex;            // Mutex for thread safety
+    std::deque<T> queue;                // Using deque for efficient removal from front
+    std::mutex queue_mutex;             // Mutex for thread safety
     std::condition_variable data_ready; // Condition variable to notify data availability
     bool stop = false;                  // Stop flag
-    size_t max_size;                     // Max queue length
+    size_t max_size;                    // Max queue length
     std::string queue_name;             //Queue name for debug
+    bool sleep_if_empty;                // Determines if consumers should sleep if empty
 
 public:
-    explicit ThreadSafeFIFO(size_t capacity, std::string name) 
+    explicit ThreadSafeFIFO(size_t capacity, std::string name = "UnnamedQueue", bool sleep = false) 
         : max_size(capacity),
+        sleep_if_empty(sleep),
         queue_name(std::move(name)) {}
 
     // Add to queue (replace oldest if full)
@@ -83,7 +85,9 @@ public:
     // Remove from queue
     std::optional<T> pop() {
         std::unique_lock<std::mutex> lock(queue_mutex);
-        data_ready.wait(lock, [this]() { return !queue.empty() || stop; });  // Wait if empty
+        if (sleep_if_empty) {
+            data_ready.wait(lock, [this]() { return !queue.empty() || stop; });  // Blocking wait
+        }
         if (queue.empty()) return std::nullopt;  // If stopped, return nothing
         T data = queue.front();
         queue.pop_front();
@@ -131,11 +135,11 @@ public:
 
     // Constructor
     explicit DataQueues(size_t queue_size) {
-        event_queue = std::make_shared<ThreadSafeFIFO<EventData>>(queue_size, "Input_DVS");          // Events buffer (10)
-        camera_info_queue = std::make_shared<ThreadSafeFIFO<CameraInfoData>>(1, "Input_CamInfo");        // Camera info buffer (1)
-        imu_queue = std::make_shared<ThreadSafeFIFO<IMUData>>(queue_size, "Input_IMU");              // IMU buffer (10)
-        image_queue = std::make_shared<ThreadSafeFIFO<ImageData>>(1, "Input_APS");                   // Images buffer (1)
-        exposure_queue = std::make_shared<ThreadSafeFIFO<ExposureData>>(queue_size, "Input_Expo");    // Exposure buffer (10)
+        event_queue = std::make_shared<ThreadSafeFIFO<EventData>>(queue_size, "Input_DVS", false);          // Events buffer (10)
+        camera_info_queue = std::make_shared<ThreadSafeFIFO<CameraInfoData>>(1, "Input_CamInfo", false);        // Camera info buffer (1)
+        imu_queue = std::make_shared<ThreadSafeFIFO<IMUData>>(queue_size, "Input_IMU", false);              // IMU buffer (10)
+        image_queue = std::make_shared<ThreadSafeFIFO<ImageData>>(1, "Input_APS"), false;                   // Images buffer (1)
+        exposure_queue = std::make_shared<ThreadSafeFIFO<ExposureData>>(queue_size, "Input_Expo", false);    // Exposure buffer (10)
     }
 
     // Accessor Function
@@ -161,9 +165,9 @@ private:
 public:
     //Constructor sets size of each input queue
     CommunicationManager(size_t queue_size_1, size_t queue_size_2, size_t queue_size_3)
-        : from_camera(queue_size_1, "Comms_1"),
-          from_frontend(queue_size_2, "Comms_2"),
-          from_backend(queue_size_3, "Comms_3")
+        : from_camera(queue_size_1, "Comms_1", false),
+          from_frontend(queue_size_2, "Comms_2", false),
+          from_backend(queue_size_3, "Comms_3", false)
     {}
     ~CommunicationManager() = default;
 

@@ -68,7 +68,7 @@ int main()
 
     //Create data interfaces
     size_t test_queue_capacity = 10;
-    ThreadSafeFIFO<InputDataSync> data_DA_to_FE(test_queue_capacity, "Sync_data");
+    ThreadSafeFIFO<InputDataSync> data_DA_to_FE(test_queue_capacity, "Sync_data", true);
     CommunicationManager comms_interface(test_queue_capacity,test_queue_capacity,test_queue_capacity);
 
     // // Perform initial setup

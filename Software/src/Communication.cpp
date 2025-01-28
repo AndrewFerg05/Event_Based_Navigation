@@ -33,7 +33,7 @@ Change History
 #define RESET   3
 #define TEST    4
 
-#define TEST_IMAGE  "C:/Users/pokew/Documents/Year5/Project/example.jpg"
+#define TEST_IMAGE  "../example.jpg"
 
 #define MAX_PACKET_SIZE 65507            // Max packet in bytes for UDP
 #define PC_IP           "192.168.56.1"   // Change to base station IP

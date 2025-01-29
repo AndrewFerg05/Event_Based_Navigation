@@ -1,4 +1,4 @@
-serial_number: "UNKNOWN"
+serial_number: 00000092
 reset_timestamps_delay: -1.0
 imu_calibration_sample_size: 1000
 

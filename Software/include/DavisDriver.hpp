@@ -115,11 +115,12 @@ class DavisDriver {
 public:
   DavisDriver(const std::string& config_path, std::shared_ptr<DataQueues> data_queues);
   ~DavisDriver();
+  static void onDisconnectUSB(void*);
+private:
+
   void caerConnect();
   void changeDvsParameters();
   void readout();
-
-private:
   std::shared_ptr<DataQueues> data_queues_;
   ConfigManager config_manager_;
   std::chrono::microseconds delta_;
@@ -129,7 +130,7 @@ private:
 
   caerDeviceHandle davis_handle_;
   struct caer_davis_info davis_info_;
-  volatile bool running_;
+  volatile bool running_ = true;
 
   bool parameter_update_required_;
   bool parameter_bias_update_required_;

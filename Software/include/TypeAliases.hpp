@@ -18,7 +18,7 @@ Change History
 // External Files
 //------------------------------------------------------------------------------
 #include <cstdint>
-
+#include <chrono>
 
 
 
@@ -45,12 +45,30 @@ struct IMUData {
     } linear_acceleration, angular_velocity;
 };
 
-// Dummy Event struct (similar to dvs_msgs::Event)
-struct EventData {
-    std::chrono::nanoseconds timestamp;
-    uint16_t x, y;   // Pixel coordinates
-    bool polarity;   // 0 or 1
+struct Header {
+    uint64_t timestamp_ns;  // Equivalent to ROS Header timestamp
 };
+
+struct Event {
+    uint16_t x;
+    uint16_t y;
+    uint64_t timestamp_ns;
+    bool polarity;
+
+    Event(uint16_t x_, uint16_t y_, uint64_t ts_, bool p_)
+        : x(x_), y(y_), timestamp_ns(ts_), polarity(p_) {}
+};
+
+struct EventArray {
+    Header header; 
+    int width;
+    int height;
+    std::vector<Event> events;
+
+    EventArray(int w, int h) : width(w), height(h) {}
+};
+
+
 
 // Dummy Image struct (similar to sensor_msgs::Image)
 struct ImageData {

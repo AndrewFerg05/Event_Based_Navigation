@@ -3,11 +3,8 @@ Filename    : Software/src/DavisDriver.hpp
 Author      : Andrew Ferguson
 Project     : Event Based Navigation
 Date        : 28/01/25
-Description : Header file for the Davis Camera Driver
+Description : Source file for the Davis Camera Driver
 --------------------------------------------------------------------------------
-Change History
---------------------------------------------------------------------------------
-11-JAN-2025 SARK created to design code structure
 --------------------------------------------------------------------------------
 */
 
@@ -225,9 +222,10 @@ void DavisDriver::caerConnect()
     parameter_bias_update_required_ = true;
     parameter_update_required_ = true;
 
-    running_ = true;
-    //parameter_thread_ = std::thread(&DavisDriver::changeDvsParameters, this);
-    changeDvsParameters(); // Might not need to run in other thread if not dynamicall configuring
+    running_ = true; // Check this Runs
+
+    //parameter_thread_ = std::thread(&DavisDriver::changeDvsParameters, this); //Add while loop back into function if calling in other thread
+    changeDvsParameters(); // Might not need to run in other thread if not dynamicall configuring 
     readout_thread_ = std::thread(&DavisDriver::readout, this);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
@@ -236,13 +234,112 @@ void DavisDriver::caerConnect()
 
 void DavisDriver::readout()
 {
+    caerDeviceConfigSet(davis_handle_, CAER_HOST_CONFIG_DATAEXCHANGE, CAER_HOST_CONFIG_DATAEXCHANGE_BLOCKING, true);
+    caerDeviceDataStart(davis_handle_, NULL, NULL, NULL, &DavisDriver::onDisconnectUSB, this);
+    
+    std::chrono::steady_clock::time_point next_send_time = std::chrono::steady_clock::now();
 
+    std::shared_ptr<EventArray> event_array_msg;
+
+    while(running_)
+    {
+        try
+        {
+            caerEventPacketContainer packetContainer = caerDeviceDataGet(davis_handle_);
+            if (packetContainer == NULL)
+            {
+                continue; // Skip if nothing there.
+            }
+            int32_t packetNum = caerEventPacketContainerGetEventPacketsNumber(packetContainer);
+
+            for (int32_t i = 0; i < packetNum; i++)
+            {
+                caerEventPacketHeader packetHeader = caerEventPacketContainerGetEventPacket(packetContainer, i);
+                if (packetHeader == NULL)
+                {
+                    continue; // Skip if nothing there.
+                }
+
+                const int type = caerEventPacketHeaderGetEventType(packetHeader);
+
+                if (type == POLARITY_EVENT)
+                {
+                    if (!event_array_msg) 
+                    {
+                        event_array_msg = std::make_shared<EventArray>(davis_info_.dvsSizeX, davis_info_.dvsSizeY);
+                    }
+                    
+
+                    caerPolarityEventPacket polarity = (caerPolarityEventPacket) packetHeader;
+                    const int numEvents = caerEventPacketHeaderGetEventNumber(packetHeader);
+                
+                    for (int j = 0; j < numEvents; j++)
+                    {
+                        // Get full timestamp and addresses of first event.
+                        caerPolarityEvent event = caerPolarityEventPacketGetEvent(polarity, j);
+                        Event e(
+                        caerPolarityEventGetX(event),
+                        caerPolarityEventGetY(event),
+                        (uint64_t(caerPolarityEventGetTimestamp64(event, polarity)) * 1000), // removed reset_time_
+                        caerPolarityEventGetPolarity(event));
+
+                        if (j == 0) {
+                            event_array_msg->header.timestamp_ns = e.timestamp_ns;  // Assign first event timestamp to the header
+                        }
+
+                        event_array_msg->events.push_back(e);
+                    }
+
+                    if (std::chrono::steady_clock::now() > next_send_time ||
+                    config_manager_.streaming_rate == 0 ||
+                    (config_manager_.max_events != 0 && event_array_msg->events.size() > config_manager_.max_events))
+                    {
+                        data_queues_->event_queue->push(*event_array_msg);
+                            
+                        if (config_manager_.streaming_rate > 0)
+                        {
+                            next_send_time += delta_;
+                        }
+
+                        if (config_manager_.max_events != 0 && event_array_msg->events.size() > config_manager_.max_events)
+                        {
+                            next_send_time = std::chrono::steady_clock::now() + delta_;
+                        }
+
+                        event_array_msg.reset();
+                    }
+
+                    //Camera Info Published Here in ROS Driver
+                }              
+                else if (type == IMU6_EVENT)
+                {
+
+                }
+                else if (type == FRAME_EVENT)
+                {
+                    
+                }
+
+
+
+
+
+            }
+        
+        caerEventPacketContainerFree(packetContainer);
+        }
+        catch (const std::exception& e) 
+        {
+            std::cerr << "Exception caught in readout thread: " << e.what() << std::endl;
+        }
+    }
+    caerDeviceDataStop(davis_handle_);
 }
 
 void DavisDriver::changeDvsParameters()
 {
-    while(running_)
-    {
+    // while(running_)
+    // {
         try
         {
             if (parameter_update_required_)
@@ -443,8 +540,13 @@ void DavisDriver::changeDvsParameters()
         {
             std::cerr << "Exception in changeDvsParameters: " << e.what() << std::endl;
         }
-    }
+    // }
 }
 
+void DavisDriver::onDisconnectUSB(void* driver)
+{
+    std::cerr << "[ERROR] USB connection lost with DVS!" << std::endl;
+    static_cast<DavisDriver*>(driver)->caerConnect(); 
+}
 //==============================================================================
 // End of File : Software/src/DavisDriver.cpp

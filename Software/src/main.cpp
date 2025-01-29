@@ -26,8 +26,7 @@ CM - Communication
 #include <mutex>
 #include <thread>
 #include <vector>
-#include <libcaer/libcaer.h>
-#include <libcaer/devices/device_discover.h>
+
 
 // Local
 #include  "ThreadInterface.hpp"

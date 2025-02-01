@@ -38,15 +38,30 @@ using OtherData = uint8_t;
 using CameraInfoData = uint16_t;
 using ExposureData = uint16_t;
 
-struct IMUData {
-    std::chrono::nanoseconds timestamp;  // Time in nanoseconds
-    struct {
-        double x, y, z;
-    } linear_acceleration, angular_velocity;
-};
+
 
 struct Header {
-    uint64_t timestamp_ns;  // Equivalent to ROS Header timestamp
+    uint64_t stamp;  // Equivalent to ROS Header timestamp
+    std::string frame_id;   // Frame of reference
+};
+
+struct IMUData {
+    Header header; // Timestamp and frame information
+
+    struct {
+        double x, y, z; // Linear acceleration in m/s^2
+    } linear_acceleration;
+
+    struct {
+        double x, y, z; // Angular velocity in rad/s
+    } angular_velocity;
+
+    std::array<double, 9> orientation_covariance; // Orientation covariance (no orientation estimation by default)
+
+    IMUData() {
+        orientation_covariance.fill(0.0);
+        orientation_covariance[0] = -1.0; // No orientation estimation
+    }
 };
 
 struct Event {

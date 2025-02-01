@@ -52,12 +52,12 @@ void ConfigManager::loadConfig(const std::string& config_path){
         imu_calibration_sample_size_ = config["imu_calibration_sample_size"] ? config["imu_calibration_sample_size"].as<int>() : 1000;
 
         // IMU Biases
-        imu_bias_.ax = config["imu_bias"]["ax"] ? config["imu_bias"]["ax"].as<double>() : 0.0;
-        imu_bias_.ay = config["imu_bias"]["ay"] ? config["imu_bias"]["ay"].as<double>() : 0.0;
-        imu_bias_.az = config["imu_bias"]["az"] ? config["imu_bias"]["az"].as<double>() : 0.0;
-        imu_bias_.wx = config["imu_bias"]["wx"] ? config["imu_bias"]["wx"].as<double>() : 0.0;
-        imu_bias_.wy = config["imu_bias"]["wy"] ? config["imu_bias"]["wy"].as<double>() : 0.0;
-        imu_bias_.wz = config["imu_bias"]["wz"] ? config["imu_bias"]["wz"].as<double>() : 0.0;
+        bias_.linear_acceleration.x = config["imu_bias"]["ax"] ? config["imu_bias"]["ax"].as<double>() : 0.0;
+        bias_.linear_acceleration.y = config["imu_bias"]["ay"] ? config["imu_bias"]["ay"].as<double>() : 0.0;
+        bias_.linear_acceleration.z = config["imu_bias"]["az"] ? config["imu_bias"]["az"].as<double>() : 0.0;
+        bias_.angular_velocity.x = config["imu_bias"]["wx"] ? config["imu_bias"]["wx"].as<double>() : 0.0;
+        bias_.angular_velocity.y = config["imu_bias"]["wy"] ? config["imu_bias"]["wy"].as<double>() : 0.0;
+        bias_.angular_velocity.z = config["imu_bias"]["wz"] ? config["imu_bias"]["wz"].as<double>() : 0.0;
 
         // Camera
         aps_enabled = config["aps_enabled"] ? config["aps_enabled"].as<bool>() : true;
@@ -161,6 +161,7 @@ DavisDriver::DavisDriver(const std::string& config_path, std::shared_ptr<DataQue
     config_manager_.loadConfig(config_path);
     caerConnect();
     config_manager_.streaming_rate = 30;
+    bias = config_manager_.getBias();
     delta_ = std::chrono::microseconds(static_cast<long>(1e6 / config_manager_.streaming_rate));
 }
 
@@ -232,6 +233,53 @@ void DavisDriver::caerConnect()
 
 }
 
+void DavisDriver::updateImuBias()
+{
+    bias.linear_acceleration.x = 0.0;
+    bias.linear_acceleration.y = 0.0;
+    bias.linear_acceleration.z = 0.0;
+    bias.angular_velocity.x = 0.0;
+    bias.angular_velocity.y = 0.0;
+    bias.angular_velocity.z = 0.0;
+
+    for (auto m : imu_calibration_samples_)
+    {
+        bias.linear_acceleration.x += m.linear_acceleration.x;
+        bias.linear_acceleration.y += m.linear_acceleration.y;
+        bias.linear_acceleration.z += m.linear_acceleration.z;
+        bias.angular_velocity.x += m.angular_velocity.x;
+        bias.angular_velocity.y += m.angular_velocity.y;
+        bias.angular_velocity.z += m.angular_velocity.z;
+    }
+
+    bias.linear_acceleration.x /= (double) imu_calibration_samples_.size();
+    bias.linear_acceleration.y /= (double) imu_calibration_samples_.size();
+    bias.linear_acceleration.z /= (double) imu_calibration_samples_.size();
+    bias.linear_acceleration.z -= STANDARD_GRAVITY * ((bias.linear_acceleration.z > 0) ? 1 : -1);
+
+    bias.angular_velocity.x /= (double) imu_calibration_samples_.size();
+    bias.angular_velocity.y /= (double) imu_calibration_samples_.size();
+    bias.angular_velocity.z /= (double) imu_calibration_samples_.size();
+
+    std::cout << "IMU calibration done.\n";
+    std::cout << "Acceleration biases: " 
+              << bias.linear_acceleration.x << " "
+              << bias.linear_acceleration.y << " "
+              << bias.linear_acceleration.z << " [m/s^2]" << std::endl;
+
+    std::cout << "Gyroscope biases: "
+              << bias.angular_velocity.x << " "
+              << bias.angular_velocity.y << " "
+              << bias.angular_velocity.z << " [rad/s]" << std::endl;
+}
+
+void DavisDriver::triggerImuCalibration()
+{
+    std::cout << "Starting IMU calibration with " << config_manager_.imu_calibration_sample_size_ << " samples..." << std::endl;
+    imu_calibration_running_ = true;
+    imu_calibration_samples_.clear();
+}
+
 void DavisDriver::readout()
 {
     caerDeviceConfigSet(davis_handle_, CAER_HOST_CONFIG_DATAEXCHANGE, CAER_HOST_CONFIG_DATAEXCHANGE_BLOCKING, true);
@@ -284,7 +332,7 @@ void DavisDriver::readout()
                         caerPolarityEventGetPolarity(event));
 
                         if (j == 0) {
-                            event_array_msg->header.timestamp_ns = e.timestamp_ns;  // Assign first event timestamp to the header
+                            event_array_msg->header.stamp = e.timestamp_ns;  // Assign first event timestamp to the header
                         }
 
                         event_array_msg->events.push_back(e);
@@ -313,7 +361,54 @@ void DavisDriver::readout()
                 }              
                 else if (type == IMU6_EVENT)
                 {
+                    caerIMU6EventPacket imu = (caerIMU6EventPacket) packetHeader;
 
+                    const int numEvents = caerEventPacketHeaderGetEventNumber(packetHeader);
+
+                    for (int j = 0; j < numEvents; j++)
+                    {
+                        caerIMU6Event event = caerIMU6EventPacketGetEvent(imu, j);
+                        IMUData imu_data;
+                        
+                        // convert from g's to m/s^2 and align axes with camera frame
+                        imu_data.linear_acceleration.x = -caerIMU6EventGetAccelX(event) * STANDARD_GRAVITY;
+                        imu_data.linear_acceleration.y = caerIMU6EventGetAccelY(event) * STANDARD_GRAVITY;
+                        imu_data.linear_acceleration.z = -caerIMU6EventGetAccelZ(event) * STANDARD_GRAVITY;
+                        // convert from deg/s to rad/s and align axes with camera frame
+                        imu_data.angular_velocity.x = -caerIMU6EventGetGyroX(event) / 180.0 * M_PI;
+                        imu_data.angular_velocity.y = caerIMU6EventGetGyroY(event) / 180.0 * M_PI;
+                        imu_data.angular_velocity.z = -caerIMU6EventGetGyroZ(event) / 180.0 * M_PI;
+
+                        // no orientation estimate: http://docs.ros.org/api/sensor_msgs/html/msg/Imu.html
+                        imu_data.orientation_covariance[0] = -1.0;
+
+                        imu_data.header.stamp = caerIMU6EventGetTimestamp64(event, imu) * 1000;
+                        imu_data.header.frame_id = "base_link";     //might be redundant
+
+                        if (imu_calibration_running_)
+                        {
+                            if (imu_calibration_samples_.size() < config_manager_.imu_calibration_sample_size_)
+                            {
+                                imu_calibration_samples_.push_back(imu_data);
+                            }
+                            else
+                            {
+                                imu_calibration_running_ = false;
+                                updateImuBias();
+                            }
+                        }
+
+                        // bias correction
+                        imu_data.linear_acceleration.x -= bias.linear_acceleration.x;
+                        imu_data.linear_acceleration.y -= bias.linear_acceleration.y;
+                        imu_data.linear_acceleration.z -= bias.linear_acceleration.z;
+                        imu_data.angular_velocity.x -= bias.angular_velocity.x;
+                        imu_data.angular_velocity.y -= bias.angular_velocity.y;
+                        imu_data.angular_velocity.z -= bias.angular_velocity.z;
+
+                        // Push to the IMU queue
+                        data_queues_->imu_queue->push(imu_data);
+                    }
                 }
                 else if (type == FRAME_EVENT)
                 {

@@ -27,10 +27,7 @@ Description : Header file for the Davis Camera Driver
 //      Classes
 //------------------------------------------------------------------------------
 
-  struct ImuBias {
-        double ax, ay, az;
-        double wx, wy, wz;
-    };
+
 
 class ConfigManager {
 public:
@@ -42,7 +39,7 @@ public:
     std::string device_id_;
     double reset_timestamps_delay_;
     int imu_calibration_sample_size_;
-    ImuBias imu_bias_;
+    IMUData bias_;
 
     //Camera Parameters
     bool aps_enabled, dvs_enabled, imu_enabled;
@@ -105,6 +102,8 @@ public:
     int aps_roi_end_column;
     int aps_roi_end_row;
 
+    IMUData getBias() const { return bias_; }
+
 private:
     std::string config_file_path; // Path to YAML file
     std::mutex config_mutex;      // Thread safety for updates
@@ -121,6 +120,10 @@ private:
   void caerConnect();
   void changeDvsParameters();
   void readout();
+  void updateImuBias();
+  void triggerImuCalibration();
+
+  IMUData bias;
   std::shared_ptr<DataQueues> data_queues_;
   ConfigManager config_manager_;
   std::chrono::microseconds delta_;
@@ -134,7 +137,11 @@ private:
 
   bool parameter_update_required_;
   bool parameter_bias_update_required_;
+
   bool imu_calibration_running_;
+  std::vector<IMUData> imu_calibration_samples_;
+
+  static constexpr double STANDARD_GRAVITY = 9.81;
   
 };
 

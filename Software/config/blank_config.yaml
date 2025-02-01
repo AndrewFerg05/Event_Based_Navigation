@@ -19,6 +19,11 @@ imu_acc_scale: 3
 imu_gyro_scale: 3
 
 exposure: 4000
+
+autoexposure_desired_intensity: 70.0  # Default intensity target - Check
+autoexposure_gain: 100.0  # Default gain factor - Check
+
+
 frame_delay: 0
 max_events: 0
 streaming_rate: 30

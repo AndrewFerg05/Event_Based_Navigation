@@ -76,20 +76,25 @@ struct Event {
 
 struct EventArray {
     Header header; 
-    int width;
-    int height;
+    uint32_t width;
+    uint32_t height;
     std::vector<Event> events;
 
     EventArray(int w, int h) : width(w), height(h) {}
 };
 
 
-
-// Dummy Image struct (similar to sensor_msgs::Image)
 struct ImageData {
-    std::chrono::nanoseconds timestamp;
-    uint32_t width, height;
-    std::vector<uint8_t> data; // Raw image data (grayscale or RGB)
+    Header header;   // Header containing timestamp and frame_id
+    uint32_t width;       // Image width
+    uint32_t height;      // Image height
+    uint32_t step;        // Bytes per row (needed for decoding)
+    uint8_t is_bigendian;
+    std::string encoding;  // Image encoding format (e.g., "mono8", "rgb8")
+    std::vector<uint8_t> data; // Flattened pixel data stored row-major
+
+    // Constructor
+    ImageData() = default;
 };
 
 

@@ -64,6 +64,11 @@ void ConfigManager::loadConfig(const std::string& config_path){
         dvs_enabled = config["dvs_enabled"] ? config["dvs_enabled"].as<bool>() : true;
         imu_enabled = config["imu_enabled"] ? config["imu_enabled"].as<bool>() : true;
 
+        // Auto-exposure parameters
+        autoexposure_desired_intensity = config["autoexposure_desired_intensity"] ? config["autoexposure_desired_intensity"].as<float>() : 128.0f;
+        autoexposure_gain = config["autoexposure_gain"] ? config["autoexposure_gain"].as<float>() : 100.0f;
+
+
         frame_mode = config["frame_mode"] ? config["frame_mode"].as<int>() : 0;
         frame_interval = config["frame_interval"] ? config["frame_interval"].as<int>() : 0;
 
@@ -280,6 +285,23 @@ void DavisDriver::triggerImuCalibration()
     imu_calibration_samples_.clear();
 }
 
+int DavisDriver::computeNewExposure(const std::vector<uint8_t>& img_data, const uint32_t current_exposure) const
+{
+    const float desired_intensity = static_cast<float>(config_manager_.autoexposure_desired_intensity);
+    static constexpr int min_exposure = 10;
+    static constexpr int max_exposure = 25000;
+    static constexpr float proportion_to_cut = 0.25f;
+
+    const float current_intensity = trim_mean(img_data, proportion_to_cut);
+
+    const float err = desired_intensity - current_intensity;
+    const float delta_exposure = static_cast<float>(current_exposure) * static_cast<float>(config_manager_.autoexposure_gain) / 1000.f * err;
+
+    const int new_exposure = static_cast<int> (static_cast<float>(current_exposure) + delta_exposure + 0.5f);
+
+    return clip(new_exposure, min_exposure, max_exposure);
+}
+
 void DavisDriver::readout()
 {
     caerDeviceConfigSet(davis_handle_, CAER_HOST_CONFIG_DATAEXCHANGE, CAER_HOST_CONFIG_DATAEXCHANGE_BLOCKING, true);
@@ -412,12 +434,57 @@ void DavisDriver::readout()
                 }
                 else if (type == FRAME_EVENT)
                 {
+                    caerFrameEventPacket frame = (caerFrameEventPacket) packetHeader;
+                    caerFrameEvent event = caerFrameEventPacketGetEvent(frame, 0);
+
+                    uint16_t* image = caerFrameEventGetPixelArrayUnsafe(event);
+
+                    ImageData image_data_;
+
+                    // get image metadata
+                    caer_frame_event_color_channels frame_channels = caerFrameEventGetChannelNumber(event);
+                    const int32_t frame_width = caerFrameEventGetLengthX(event);
+                    const int32_t frame_height = caerFrameEventGetLengthY(event);
                     
+                    // set message metadata
+                    image_data_.width = frame_width;
+                    image_data_.height = frame_height;
+                    image_data_.step = frame_width * frame_channels;
+
+                    if (frame_channels==1)
+                    {
+                      image_data_.encoding = "mono8";
+                    }
+                    else if (frame_channels==3)
+                    {
+                      image_data_.encoding = "rgb8";
+                    }
+                    
+                    // set message data
+                    for (int img_y=0; img_y<frame_height*frame_channels; img_y++)
+                    {
+                        for (int img_x=0; img_x<frame_width; img_x++)
+                        {
+                            const uint16_t value = image[img_y*frame_width + img_x];
+                            image_data_.data.push_back(value >> 8); //DVS outputs 16 bit - libraries like open CV often expect 8-bit hence conversion
+                        }
+                    }
+
+                    // time
+                    image_data_.header.stamp = caerFrameEventGetTimestamp64(event, frame) * 1000;
+
+                    data_queues_->image_queue->push(image_data_);
+
+                    const int32_t exposure_time_microseconds = caerFrameEventGetExposureLength(event);
+                    // Removed exposure publishing
+
+                    //Auto-exposure algorithm
+                    // using the requested exposure instead of the actual, measured one gives more stable results
+                    uint32_t current_exposure;
+                    caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_APS, DAVIS_CONFIG_APS_EXPOSURE, &current_exposure);
+                    const int new_exposure = computeNewExposure(image_data_.data, current_exposure);
+                    caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_APS, DAVIS_CONFIG_APS_EXPOSURE, new_exposure);
                 }
-
-
-
-
 
             }
         

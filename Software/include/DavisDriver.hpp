@@ -21,6 +21,7 @@ Description : Header file for the Davis Camera Driver
 #include <libcaer/libcaer.h>
 #include <libcaer/devices/davis.h>
 #include <yaml-cpp/yaml.h>
+#include <numeric>
 
 
 //==============================================================================
@@ -47,6 +48,11 @@ public:
     int exposure, max_events, streaming_rate;
     int frame_delay;
     int frame_mode, frame_interval;
+
+    // Auto-exposure parameters
+    float autoexposure_desired_intensity;
+    float autoexposure_gain;
+
 
     // IMU Filter Parameters
     int imu_low_pass_filter;
@@ -122,6 +128,8 @@ private:
   void readout();
   void updateImuBias();
   void triggerImuCalibration();
+  int computeNewExposure(const std::vector<uint8_t>& img_data,
+                          const uint32_t current_exposure) const;
 
   IMUData bias;
   std::shared_ptr<DataQueues> data_queues_;
@@ -148,6 +156,48 @@ private:
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------
+template<typename T>
+T clip(T n, T lower, T upper) {
+    return std::max(lower, std::min(n, upper));
+}
+
+template<typename T>
+float mean(const std::vector<T>& v)
+{
+    if(v.empty())
+    {
+        return 0.f;
+    }
+
+    float sum = static_cast<float>(std::accumulate(v.begin(), v.end(), 0.0));
+    float mean = sum / v.size();
+    return mean;
+}
+
+/* Trimmed mean: removes the first and last proportion_to_cur percentiles of the data
+ *  before computing the mean, e.g.:
+ *     proportion_to_cut = 0 -> normal mean
+ *      proportion_to_cur = 0.5 -> median
+ */
+template<typename T>
+float trim_mean(const std::vector<T>& v_original, const float proportion_to_cut = 0)
+{
+    if(v_original.empty())
+    {
+        return 0.f;
+    }
+
+    std::vector<T> v(v_original);
+    std::sort(v.begin(), v.end());
+
+    const size_t size = v.size();
+    const size_t num_values_to_cut = static_cast<int>(size * proportion_to_cut);
+    const size_t start_index = num_values_to_cut - 1;
+    const size_t end_index = size - num_values_to_cut - 1;
+
+    std::vector<T> trimmed_vec(v.begin() + start_index, v.begin() + end_index);
+    return mean(trimmed_vec);
+}
 
 
 #endif  // DAVISDRIVER_HPP

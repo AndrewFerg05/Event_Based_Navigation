@@ -34,9 +34,10 @@ Change History
 #define TEST    4
 
 #define TEST_IMAGE  "../example.jpg"
+#define TEST_RUN_TIME 20
 
 #define MAX_PACKET_SIZE 65507            // Max packet in bytes for UDP
-#define PC_IP           "192.168.56.1"   // Change to base station IP
+#define PC_IP           "192.168.43.245"   // Change to base station IP (SARK's laptop)
 #define PC_PORT         5005             // Application address for base station
 #define ID_FRAME        0
 #define ID_EVENT        1
@@ -82,7 +83,7 @@ void CM_loop(
         // AF - Test Thread Control
         if (elapsed > 1)
         {
-            if (elapsed > 5)
+            if (elapsed > TEST_RUN_TIME)
             {
                 command = STOP;
                 state_change_called = true;
@@ -350,7 +351,9 @@ bool CM_serialInterface::ESPOpen() {
         const char *portName = sp_get_port_name(ports[i]);
         const char *description = sp_get_port_description(ports[i]);
 
-        if (strstr(description, "CP210x") != NULL) {
+        printf(description);
+
+        if (strstr(description, "CP210") != NULL) {
             printf("ESP32 on port: %s\n", portName ? portName : "N/A");
             if(sp_get_port_by_name(portName, &this->ESPPort) != SP_OK){
                 printf("Failed to find port by name.\n");
@@ -362,6 +365,7 @@ bool CM_serialInterface::ESPOpen() {
     if (sp_open(this->ESPPort, SP_MODE_READ_WRITE) != SP_OK) {
         printf("Failed to open ESP32 in read-write mode.\n");
     } else {
+        sp_set_baudrate(this->ESPPort, 115200);
         printf("ESP32 opened in read-write mode.\n");
     }
 
@@ -399,7 +403,7 @@ char* CM_serialInterface::ESPRead(){
 
     char termination_char = '\n'; // The character to stop reading at
 
-    while (read_buffer[0] != termination_char) {
+    while (little_endian(read_buffer[0]) != termination_char) {
         // Read one byte at a time
         int result = sp_blocking_read(this->ESPPort, read_buffer, 1, this->timeout);
         if (result < 0) {
@@ -407,26 +411,14 @@ char* CM_serialInterface::ESPRead(){
             free(response);
             return NULL;
         } else if (result == 0) {
-
-            // Timeout reached without receiving more data
+            // If no data in timeout return
+            response[total_read] = 'X';
             break;
         }
 
         // Append the byte to the response buffer
-        response[total_read] = read_buffer[0];
+        response[total_read] = little_endian(read_buffer[0]);
         total_read++;
-
-        // If the buffer is full, reallocate more memory
-        if (total_read >= buffer_size) {
-            buffer_size *= 2;
-            char *new_response = (char*)realloc(response, buffer_size);
-            if (!new_response) {
-                fprintf(stderr, "Memory reallocation failed.\n");
-                free(response);
-                return NULL;
-            }
-            response = new_response;
-        }
     }
 
     // Null-terminate the response

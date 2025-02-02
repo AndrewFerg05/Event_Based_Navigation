@@ -70,7 +70,7 @@ std::uint8_t CM_serialReceive(CM_serialInterface* serial);
 
 void CM_serialSendStatus(CM_serialInterface* serial, int32_t x, int32_t y);
 
-void CM_transmitStatus(int32_t x, int32_t y);
+void CM_transmitStatus(int32_t x, int32_t y, int32_t a, int32_t b);
 
 void CM_loop(
     std::atomic<ThreadState>& data_sync_state,

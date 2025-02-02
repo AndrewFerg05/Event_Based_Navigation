@@ -37,7 +37,7 @@ Change History
 #define TEST_RUN_TIME 20
 
 #define MAX_PACKET_SIZE 65507            // Max packet in bytes for UDP
-#define PC_IP           "192.168.43.245"   // Change to base station IP (SARK's laptop)
+#define PC_IP           "192.168.43.245" // Change to base station IP (SARK's laptop)
 #define PC_PORT         5005             // Application address for base station
 #define ID_FRAME        0
 #define ID_EVENT        1
@@ -111,7 +111,7 @@ void CM_loop(
                 command = commandReceived;
             }
 
-            //      Transmit to arduino displacement estimates
+            //      Send to ESP32 displacement estimates
             //          Get pose / displacement from BE
             CM_serialSendStatus(serial, 3, 4);
 
@@ -128,7 +128,7 @@ void CM_loop(
             CM_transmitFrame(frame, 1);
 
             //      Get position from BE and transmit on UDP
-            CM_transmitStatus(3,4);
+            CM_transmitStatus(3,4,5,6);
             
             sleep_ms(10);
             
@@ -202,23 +202,32 @@ void CM_serialSendStatus(CM_serialInterface* serial, int32_t x, int32_t y){
     return;
 }
 
-void CM_transmitStatus(int32_t x, int32_t y){
+void CM_transmitStatus(int32_t x, int32_t y, int32_t a, int32_t b) {
+    // Little-endian ID for status
+    int32_t id = little_endian(ID_STATUS);
 
-    /*
-    int32_t id = ID_STATUS;
-    int32_t dataSize = 8;
+    uint32_t dataSize = 16;
 
-    // Allocate buffer space
-    uchar* sendBuffer = static_cast<uchar*>(malloc(8+dataSize));    // 8 bytes for id, size and 8 for x and y
+    // Allocate buffer space (8 bytes for header + dataSize for actual data)
+    uchar* sendBuffer = static_cast<uchar*>(malloc(8 + dataSize));  // 8 bytes for header and dataSize bytes for data
     if (!sendBuffer) {
         std::cerr << "Memory allocation failed." << std::endl;
         return;
     }
 
-    memcpy(sendBuffer, &id, 4);
-    memcpy(sendBuffer + 4, &dataSize, 4);
+    dataSize = little_endian(dataSize);
+    x = little_endian(x);
+    y = little_endian(y);
+    a = little_endian(a);
+    b = little_endian(b);
+
+    // Copy ID and dataSize into the sendBuffer (Little-endian order)
+    memcpy(sendBuffer, &id, 4);  // Copy ID
+    memcpy(sendBuffer + 4, &dataSize, 4);  // Copy dataSize
     memcpy(sendBuffer + 8, &x, 4);
     memcpy(sendBuffer + 12, &y, 4);
+    memcpy(sendBuffer + 16, &a, 4);
+    memcpy(sendBuffer + 20, &b, 4);
 
     // Create a UDP socket
     int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -236,14 +245,13 @@ void CM_transmitStatus(int32_t x, int32_t y){
     inet_pton(AF_INET, PC_IP, &serverAddress.sin_addr);
 
     // Send the data in chunks
-    size_t totalSize = 8 + dataSize;  // Header (8 bytes) + frame data
+    size_t totalSize = 8 + dataSize;  // Header (8 bytes) + data size
     uchar* dataPtr = sendBuffer;
 
-    for (size_t i = 0; i < totalSize; i += MAX_PACKET_SIZE) 
-    {
+    for (size_t i = 0; i < totalSize; i += MAX_PACKET_SIZE) {
         size_t chunkSize = (i + MAX_PACKET_SIZE < totalSize) ? MAX_PACKET_SIZE : (totalSize - i);
-        
-        // Cast uchar* to const char* explicitly for the sendto function
+
+        // Send data chunk using sendto
         if (sendto(sockfd, reinterpret_cast<const char*>(dataPtr + i), chunkSize, 0, 
                 (struct sockaddr*)&serverAddress, sizeof(serverAddress)) < 0) {
             perror("Failed to send data chunk");
@@ -251,10 +259,15 @@ void CM_transmitStatus(int32_t x, int32_t y){
         }
     }
 
-    // Clean up
+    // Clean up - Ensure sendBuffer is only freed once and is valid
+    if (sendBuffer != nullptr) {
+        free(sendBuffer);
+    }
+
     close(sockfd);
-    free(sendBuffer);*/
 }
+
+
 
 void CM_transmitFrame(cv::Mat frame, int frameId) {
 

@@ -46,11 +46,9 @@ Change History
 //------------------------------------------------------------------------------
 
 enum class ThreadState {
-    Running,
-    Paused,
-    Stopped,
-    Reset,
-    Test
+    Run,
+    Stop,
+    Idle
 };
 
 template<typename T>
@@ -108,6 +106,11 @@ public:
         }
         data_ready.notify_all();
     }
+    
+    void clear() {
+    std::lock_guard<std::mutex> lock(queue_mutex);
+    queue.clear();  // Clear the deque
+    }
 
     // Check if queue is empty
     bool empty() {
@@ -141,15 +144,6 @@ public:
         exposure_queue = std::make_shared<ThreadSafeFIFO<ExposureData>>(queue_size, "Input_Expo", false);    // Exposure buffer (10)
     }
 
-    // Accessor Function
-    template <typename Func>
-    void forEachQueue(Func func) {
-        func("Event Queue", event_queue);
-        func("IMU Queue", imu_queue);
-        func("Image Queue", image_queue);
-        func("Exposure Queue", exposure_queue);     //Remove if unused
-        func("Camera Info Queue", camera_info_queue); //Remove if unused
-    }
 };
 
 // Draft class to be editted

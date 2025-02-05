@@ -29,9 +29,8 @@ Change History
 // Control Signals
 #define RUN     0
 #define STOP    1
-#define PAUSE   2
-#define RESET   3
-#define TEST    4
+#define IDLE    2
+
 
 #define TEST_IMAGE  "C:/Users/pokew/Documents/Year5/Project/example.jpg"
 
@@ -98,9 +97,9 @@ void CM_loop(
         if (command == RUN) {
 
             if(state_change_called){
-            data_sync_state = ThreadState::Running;
-            frontend_state = ThreadState::Running;
-            backend_state = ThreadState::Running;
+            data_sync_state = ThreadState::Run;
+            frontend_state = ThreadState::Run;
+            backend_state = ThreadState::Run;
             state_change_called = false;
             }
 
@@ -134,9 +133,9 @@ void CM_loop(
         } else if (command == STOP) {
             // Stop Condition
             if(state_change_called){
-            data_sync_state = ThreadState::Stopped;
-            frontend_state = ThreadState::Stopped;
-            backend_state = ThreadState::Stopped;
+            data_sync_state = ThreadState::Stop;
+            frontend_state = ThreadState::Stop;
+            backend_state = ThreadState::Stop;
             state_change_called = false;
             
             }
@@ -144,38 +143,15 @@ void CM_loop(
             data_DA->stop_queue();  //Wake FE if waiting on data
             break;
 
-        } else if (command == PAUSE) {
+        } else if (command == IDLE) {
             // Pause Condition
            if(state_change_called){
-            data_sync_state = ThreadState::Paused;
-            frontend_state = ThreadState::Paused;
-            backend_state = ThreadState::Paused;
+            data_sync_state = ThreadState::Idle;
+            frontend_state = ThreadState::Idle;
+            backend_state = ThreadState::Idle;
             state_change_called = false;
             }
 
-        } else if (command == RESET) {
-            // Reset Condition
-           if(state_change_called){
-            data_sync_state = ThreadState::Reset;
-            frontend_state = ThreadState::Reset;
-            backend_state = ThreadState::Reset;
-            state_change_called = false;
-            }
-
-        } else if (command == TEST) {
-            // Testing Conditionn
-          if(state_change_called){
-            data_sync_state = ThreadState::Test;
-            frontend_state = ThreadState::Test;
-            backend_state = ThreadState::Test;
-            state_change_called = false;
-            }
-            std::cout << "Comms Testing" << std::endl;
-            sleep_ms(100);
-        }
-        else if (command == 100){
-            std::cout << "Unknown state" << std::endl;
-            sleep_ms(100);
         }
     }
 }

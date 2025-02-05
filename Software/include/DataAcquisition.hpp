@@ -58,7 +58,7 @@ private:
     bool running_;
 
     void run();
-    void processDataQueues();
+    bool processDataQueues();
     void resetQueues();
     void extractAndEraseEvents();
     void checkImuDataAndImageAndEventsCallback();

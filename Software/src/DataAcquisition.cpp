@@ -47,19 +47,30 @@ DataAcquisition::~DataAcquisition() {
 }
 
 void DataAcquisition::start() {
-
+    if (acquisition_thread_.joinable()) return;  // Prevent multiple starts
+    running_ = true;
+    state_ = ThreadState::Run;
+    acquisition_thread_ = std::thread(&DataAcquisition::run, this);
 }
 
 void DataAcquisition::idle() {
-
+    std::cout << "[DataAcquisition] Resetting queues and entering idle mode..." << std::endl;
+    resetQueues();
+    state_ = ThreadState::Idle;
 }
 
 void DataAcquisition::stop() {
-
+    running_ = false;
+    state_ = ThreadState::Stop;
+    if (acquisition_thread_.joinable()) {
+        acquisition_thread_.join();
+    }
+    std::cout << "[DataAcquisition] Stopped." << std::endl;
 }
 
-void DataAcquisition::initBuffers() {
-
+void DataAcquisition::initBuffers() 
+{
+    
 }
 
 
@@ -67,6 +78,7 @@ void DataAcquisition::addImageData()
 {
 
 }
+
 
 void DataAcquisition::addEventsData()
 {
@@ -78,20 +90,50 @@ void DataAcquisition::addImuData()
 
 }
 
-void DataAcquisition::run()
+bool DataAcquisition::processDataQueues()
 {
+        bool processed = false;
 
-}
+        auto imu_data = input_data_queues_->imu_queue->pop();
+        if (imu_data) {
+            addImuData();
+            processed = true;
+        }
 
-void DataAcquisition::processDataQueues()
-{
+        auto event_data = input_data_queues_->event_queue->pop();
+        if (event_data) {
+            addEventsData();
+            processed = true;
+        }
+
+        auto image_data = input_data_queues_->image_queue->pop();
+        if (image_data) {
+            addImageData();
+            processed = true;
+        }
+
+        return processed;
 
 }
 
 void DataAcquisition::resetQueues()
 {
+    if (!input_data_queues_) {
+        std::cerr << "[ERROR] Data queues not initialized!" << std::endl;
+        return;
+    }
 
+    std::cout << "[INFO] Resetting all data queues..." << std::endl;
+    
+    input_data_queues_->event_queue->clear();
+    input_data_queues_->camera_info_queue->clear();
+    input_data_queues_->imu_queue->clear();
+    input_data_queues_->image_queue->clear();
+    input_data_queues_->exposure_queue->clear();
+
+    std::cout << "[INFO] All queues cleared!" << std::endl;
 }
+
 
 void DataAcquisition::extractAndEraseEvents()
 {
@@ -104,6 +146,33 @@ void DataAcquisition::checkImuDataAndImageAndEventsCallback()
 }
 
 
+void DataAcquisition::run() 
+{
+    while (running_) 
+    {
+        if (state_ == ThreadState::Idle) 
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));  // Avoid busy waiting
+            continue;
+        }
+
+        if (state_ == ThreadState::Stop) 
+        {
+            running_ = false;
+            break;
+        }
+
+        if (state_ ==ThreadState::Run)
+        {
+            if (!processDataQueues()) 
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));  // No data, sleep briefly
+            }
+
+        }
+    }
+}
+
 
 
 
@@ -115,41 +184,41 @@ void DA_loop(std::atomic<ThreadState>& state,
     
     InputDataSync valueToAdd = 0;
 
-    while (true) {
-        if (state == ThreadState::Stopped) {
-            break;
-        }
+    // while (true) {
+    //     if (state == ThreadState::Stopped) {
+    //         break;
+    //     }
 
-        if (state == ThreadState::Paused) {
-            //TODO - Wait while some condition
-            sleep_ms(100);
-            continue;
-        }
+    //     if (state == ThreadState::Paused) {
+    //         //TODO - Wait while some condition
+    //         sleep_ms(100);
+    //         continue;
+    //     }
 
-        if (state == ThreadState::Reset) {
-            //TODO call reset function then set running again
-            state = ThreadState::Running; 
-        }
+    //     if (state == ThreadState::Reset) {
+    //         //TODO call reset function then set running again
+    //         state = ThreadState::Running; 
+    //     }
 
-        if (state == ThreadState::Running) {
-            //TODO - Get data from camera
+    //     if (state == ThreadState::Running) {
+    //         //TODO - Get data from camera
 
-            //Get data
-            valueToAdd++;                       //For Sam architecture testing (replace with actual frames)
+    //         //Get data
+    //         valueToAdd++;                       //For Sam architecture testing (replace with actual frames)
 
-            //Synchronise data
+    //         //Synchronise data
 
-            //Put in buffer
-            data_DA->push(valueToAdd);   //For Sam architecture testing (replace with actual frames)
-            comms->queueInputData(valueToAdd); 
-            sleep_ms(25);
-        }
+    //         //Put in buffer
+    //         data_DA->push(valueToAdd);   //For Sam architecture testing (replace with actual frames)
+    //         comms->queueInputData(valueToAdd); 
+    //         sleep_ms(25);
+    //     }
 
-        if (state == ThreadState::Test) {
-            sleep_ms(100);
-            std::cout << "Data Aquisition Testing" << std::endl; 
-        }
-    }
+    //     if (state == ThreadState::Test) {
+    //         sleep_ms(100);
+    //         std::cout << "Data Aquisition Testing" << std::endl; 
+    //     }
+    // }
 }
 //==============================================================================
 // End of File : Software/src/DataAcquisition.cpp

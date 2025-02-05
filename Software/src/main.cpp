@@ -61,9 +61,9 @@ int main()
     DavisDriver driver(config_path, data_queues);
     
     // Create atomic control flags
-    std::atomic<ThreadState> data_aquire_state(ThreadState::Paused);
-    std::atomic<ThreadState> frontend_state(ThreadState::Paused);
-    std::atomic<ThreadState> backend_state(ThreadState::Paused);
+    std::atomic<ThreadState> data_aquire_state(ThreadState::Idle);
+    std::atomic<ThreadState> frontend_state(ThreadState::Idle);
+    std::atomic<ThreadState> backend_state(ThreadState::Idle);
 
     //Create data interfaces
     size_t test_queue_capacity = 10;

@@ -34,6 +34,81 @@ Change History
 //==============================================================================
 // Functions
 //------------------------------------------------------------------------------
+
+
+DataAcquisition::DataAcquisition(std::shared_ptr<DataQueues> data_queues, std::atomic<ThreadState>& state, std::shared_ptr<CommunicationManager> comms)
+    : input_data_queues_(data_queues), state_(state), comms_interface_(comms) 
+    {
+        initBuffers();
+    }
+
+DataAcquisition::~DataAcquisition() {
+    stop();
+}
+
+void DataAcquisition::start() {
+
+}
+
+void DataAcquisition::idle() {
+
+}
+
+void DataAcquisition::stop() {
+
+}
+
+void DataAcquisition::initBuffers() {
+
+}
+
+
+void DataAcquisition::addImageData()
+{
+
+}
+
+void DataAcquisition::addEventsData()
+{
+
+}
+
+void DataAcquisition::addImuData()
+{
+
+}
+
+void DataAcquisition::run()
+{
+
+}
+
+void DataAcquisition::processDataQueues()
+{
+
+}
+
+void DataAcquisition::resetQueues()
+{
+
+}
+
+void DataAcquisition::extractAndEraseEvents()
+{
+
+}
+
+void DataAcquisition::checkImuDataAndImageAndEventsCallback()
+{
+
+}
+
+
+
+
+
+
+
 void DA_loop(std::atomic<ThreadState>& state,
                             ThreadSafeFIFO<InputDataSync>* data_DA,
                             CommunicationManager* comms) {

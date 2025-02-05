@@ -68,7 +68,8 @@ int main()
     //Create data interfaces
     size_t test_queue_capacity = 10;
     ThreadSafeFIFO<InputDataSync> data_DA_to_FE(test_queue_capacity, "Sync_data", true);
-    CommunicationManager comms_interface(test_queue_capacity,test_queue_capacity,test_queue_capacity);
+    
+    std::shared_ptr<CommunicationManager> comms_interface = std::make_shared<CommunicationManager>(test_queue_capacity, test_queue_capacity, test_queue_capacity);
 
     // // Perform initial setup
     // std::cout << "Setting up..." << std::endl;
@@ -94,22 +95,22 @@ int main()
     // std::cout << "ESP Connection Initialised" << std::endl;
  
     // Start threads
-    std::thread data_aquire_thread(DA_loop, std::ref(data_aquire_state), &data_DA_to_FE, &comms_interface);
-    std::thread frontend_thread(FE_loop, std::ref(frontend_state), &data_DA_to_FE, &comms_interface);
-    std::thread backend_thread(BE_loop, std::ref(backend_state), &comms_interface);
+    // std::thread data_aquire_thread(DA_loop, std::ref(data_aquire_state), &data_DA_to_FE, &comms_interface);
+    // std::thread frontend_thread(FE_loop, std::ref(frontend_state), &data_DA_to_FE, &comms_interface);
+    // std::thread backend_thread(BE_loop, std::ref(backend_state), &comms_interface);
     
     // Start this thread
-    CM_loop(std::ref(data_aquire_state), 
-            std::ref(frontend_state), 
-            std::ref(backend_state),
-            &data_DA_to_FE,
-            &comms_interface,
-            &serial);
+    // CM_loop(std::ref(data_aquire_state), 
+    //         std::ref(frontend_state), 
+    //         std::ref(backend_state),
+    //         &data_DA_to_FE,
+    //         &comms_interface,
+    //         &serial);
 
     // Wait for other threads to exit
-    data_aquire_thread.join();
-    frontend_thread.join();
-    backend_thread.join();
+    // data_aquire_thread.join();
+    // frontend_thread.join();
+    // backend_thread.join();
 
     // // Perform cleanup
     // std::cout << "Cleaning up..." << std::endl;

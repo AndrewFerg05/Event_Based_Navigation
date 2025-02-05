@@ -37,7 +37,7 @@ using OtherData = uint8_t;
 
 using CameraInfoData = uint16_t;
 using ExposureData = uint16_t;
-
+using ImuCallback = uint16_t;
 
 
 struct Header {

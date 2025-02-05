@@ -27,6 +27,49 @@ Change History
 //------------------------------------------------------------------------------
 
 
+class DataAcquisition {
+public:
+
+    explicit DataAcquisition(
+        std::shared_ptr<DataQueues> data_queues,
+        std::atomic<ThreadState>& state,
+        std::shared_ptr<CommunicationManager> comms);
+
+    ~DataAcquisition();
+    void start();  
+    void idle();   
+    void stop();
+    void initBuffers();
+    void addImageData();
+    void addEventsData();
+    void addImuData();
+
+    void registerImuCallback(const ImuCallback& imu_callback)
+    {
+        imu_callback_ = imu_callback;
+    }
+ 
+
+private:
+    std::atomic<ThreadState>& state_;  // Atomic state flag
+    std::thread acquisition_thread_;
+    std::shared_ptr<DataQueues> input_data_queues_;
+    std::shared_ptr<CommunicationManager> comms_interface_;
+    bool running_;
+
+    void run();
+    void processDataQueues();
+    void resetQueues();
+    void extractAndEraseEvents();
+    void checkImuDataAndImageAndEventsCallback();
+
+protected:
+    ImuCallback imu_callback_;
+
+};
+
+
+
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------

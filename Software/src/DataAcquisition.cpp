@@ -70,7 +70,7 @@ void DataAcquisition::stop() {
 
 void DataAcquisition::initBuffers() 
 {
-    
+    imu_buffer_.clear(); 
 }
 
 
@@ -85,9 +85,30 @@ void DataAcquisition::addEventsData()
 
 }
 
-void DataAcquisition::addImuData()
+void DataAcquisition::addImuData(const IMUData& imu_data)
 {
+    const Vector3 gyr(
+    imu_data.angular_velocity.x,
+    imu_data.angular_velocity.y,
+    imu_data.angular_velocity.z);
+    const Vector3 acc(
+    imu_data.linear_acceleration.x,
+    imu_data.linear_acceleration.y,
+    imu_data.linear_acceleration.z);
+    int64_t stamp = imu_data.header.stamp;
 
+    Vector6 acc_gyr;
+    acc_gyr.head<3>() = acc;
+    acc_gyr.tail<3>() = gyr;
+    //stamp -= timeshift_cam_imu_;
+    imu_buffer_.insert(stamp, acc_gyr);
+
+    if (imu_callback_)
+    {
+        imu_callback_(stamp, acc, gyr);
+    }
+
+  checkImuDataAndImageAndEventsCallback();
 }
 
 bool DataAcquisition::processDataQueues()
@@ -95,8 +116,8 @@ bool DataAcquisition::processDataQueues()
         bool processed = false;
 
         auto imu_data = input_data_queues_->imu_queue->pop();
-        if (imu_data) {
-            addImuData();
+        if (imu_data.has_value()) {
+            addImuData(imu_data.value());
             processed = true;
         }
 

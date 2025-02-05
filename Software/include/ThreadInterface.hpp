@@ -41,6 +41,7 @@ Change History
 #include <optional>
 
 #include "TypeAliases.hpp"
+#include "Types.hpp"
 //==============================================================================
 //      Classes
 //------------------------------------------------------------------------------
@@ -106,7 +107,7 @@ public:
         }
         data_ready.notify_all();
     }
-    
+
     void clear() {
     std::lock_guard<std::mutex> lock(queue_mutex);
     queue.clear();  // Clear the deque

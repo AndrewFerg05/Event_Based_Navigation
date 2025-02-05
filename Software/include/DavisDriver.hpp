@@ -17,6 +17,7 @@ Description : Header file for the Davis Camera Driver
 //------------------------------------------------------------------------------
 #include "ThreadInterface.hpp"
 #include "TypeAliases.hpp"
+#include "Types.hpp"
 
 #include <libcaer/libcaer.h>
 #include <libcaer/devices/davis.h>

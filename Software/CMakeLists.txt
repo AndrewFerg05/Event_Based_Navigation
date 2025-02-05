@@ -28,6 +28,13 @@ if (WIN32)
     set(LIBSERIAL_INCLUDE_DIRS "C:/msys64/mingw64/include")
     set(LIBSERIAL_LIBRARY_DIRS "C:/msys64/mingw64/lib")
     set(LIBSERIAL_LIBRARIES "libserialport")
+
+    # Find Eigen3 on Windows
+    find_path(EIGEN3_INCLUDE_DIR NAMES Eigen/Core PATHS "C:/msys64/mingw64/include/eigen3")
+    if(NOT EIGEN3_INCLUDE_DIR)
+        message(FATAL_ERROR "Eigen3 not found! Install it via MSYS2 using 'pacman -S mingw-w64-x86_64-eigen3'")
+    endif()
+
 else()
     message("Mac or Linux Device")
 
@@ -45,6 +52,9 @@ else()
     # Ensure OpenCV include directories are used
     include_directories(${OpenCV_INCLUDE_DIRS})
     link_directories(${OpenCV_LIBRARY_DIRS})
+
+    # Find Eigen3 on macOS/Linux
+    find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 endif()
 
 # Add the library path for linking
@@ -62,14 +72,21 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${OpenCV_INCLUDE_DIRS}  # Use OpenCV's detected include directories
 )
 
+# Add Eigen include directory
+if (WIN32)
+    target_include_directories(${PROJECT_NAME} PRIVATE ${EIGEN3_INCLUDE_DIR})
+else()
+    target_include_directories(${PROJECT_NAME} PRIVATE ${EIGEN3_INCLUDE_DIRS})
+endif()
+
 if (WIN32)
     target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBCAER_LIBRARIES} ${OPENCV_LIBRARIES} ${LIBSERIAL_LIBRARIES} ws2_32)
 else()
-target_link_libraries(${PROJECT_NAME} PRIVATE 
-    ${LIBCAER_LIBRARIES} 
-    ${LIBUSB_LIBRARIES}
-    ${LIBSERIAL_LIBRARIES} 
-    ${OpenCV_LIBS}  # Correctly links OpenCV components
-    yaml-cpp        # Add YAML support
-)
+    target_link_libraries(${PROJECT_NAME} PRIVATE 
+        ${LIBCAER_LIBRARIES} 
+        ${LIBUSB_LIBRARIES}
+        ${LIBSERIAL_LIBRARIES} 
+        ${OpenCV_LIBS}  # Correctly links OpenCV components
+        yaml-cpp        # Add YAML support
+    )
 endif()

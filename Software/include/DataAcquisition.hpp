@@ -19,6 +19,8 @@ Change History
 //------------------------------------------------------------------------------
 #include "ThreadInterface.hpp"
 #include "TypeAliases.hpp"
+#include "Types.hpp"
+#include "RingBuffer.hpp"
 
 
 
@@ -28,6 +30,7 @@ Change History
 
 
 class DataAcquisition {
+
 public:
 
     explicit DataAcquisition(
@@ -42,7 +45,7 @@ public:
     void initBuffers();
     void addImageData();
     void addEventsData();
-    void addImuData();
+    void addImuData(const IMUData& imu_data);
 
     void registerImuCallback(const ImuCallback& imu_callback)
     {
@@ -62,6 +65,9 @@ private:
     void resetQueues();
     void extractAndEraseEvents();
     void checkImuDataAndImageAndEventsCallback();
+
+    RingBuffer<real_t, 6, 1000> imu_buffer_;
+
 
 protected:
     ImuCallback imu_callback_;

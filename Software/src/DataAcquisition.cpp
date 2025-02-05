@@ -56,6 +56,7 @@ void DataAcquisition::start() {
 void DataAcquisition::idle() {
     std::cout << "[DataAcquisition] Resetting queues and entering idle mode..." << std::endl;
     resetQueues();
+    imu_buffer_.clear();
     state_ = ThreadState::Idle;
 }
 

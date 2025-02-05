@@ -138,11 +138,11 @@ public:
 
     // Constructor
     explicit DataQueues(size_t queue_size) {
-        event_queue = std::make_shared<ThreadSafeFIFO<EventArray>>(queue_size, "Input_DVS", false);          // Events buffer (10)
-        camera_info_queue = std::make_shared<ThreadSafeFIFO<CameraInfoData>>(1, "Input_CamInfo", false);        // Camera info buffer (1)
-        imu_queue = std::make_shared<ThreadSafeFIFO<IMUData>>(queue_size, "Input_IMU", false);              // IMU buffer (10)
-        image_queue = std::make_shared<ThreadSafeFIFO<ImageData>>(1, "Input_APS", false);                   // Images buffer (1)
-        exposure_queue = std::make_shared<ThreadSafeFIFO<ExposureData>>(queue_size, "Input_Expo", false);    // Exposure buffer (10)
+        event_queue = std::make_shared<ThreadSafeFIFO<EventArray>>(1000, "Input_DVS", false);          // Events buffer (10)
+        camera_info_queue = std::make_shared<ThreadSafeFIFO<CameraInfoData>>(queue_size, "Input_CamInfo", false);        // Camera info buffer (1)
+        imu_queue = std::make_shared<ThreadSafeFIFO<IMUData>>(1000, "Input_IMU", false);              // IMU buffer (10)
+        image_queue = std::make_shared<ThreadSafeFIFO<ImageData>>(30, "Input_APS", false);                   // Images buffer (1)
+        exposure_queue = std::make_shared<ThreadSafeFIFO<ExposureData>>(1, "Input_Expo", false);    // Exposure buffer (10)
     }
 
 };

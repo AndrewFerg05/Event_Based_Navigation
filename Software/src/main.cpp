@@ -55,7 +55,7 @@ CM - Communication
 //------------------------------------------------------------------------------
 int main() 
 {
-    size_t input_queue_size = 10;
+    size_t input_queue_size = 10; //Actually manually set in constructor
     auto data_queues = std::make_shared<DataQueues>(input_queue_size);
     std::string config_path = "../config/blank_config.yaml";
     DavisDriver driver(config_path, data_queues);

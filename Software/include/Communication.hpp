@@ -54,6 +54,7 @@ class CM_serialInterface{
     public:
         bool ESPOpen();
         void ESPClose();
+        int ESPCheckBuffer() {return sp_input_waiting(this->ESPPort);}
         bool ESPWrite(char* message);
         char* ESPRead();
 

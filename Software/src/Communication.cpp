@@ -37,7 +37,7 @@ Change History
 #define TEST_RUN_TIME 20
 
 #define MAX_PACKET_SIZE 65507            // Max packet in bytes for UDP
-#define PC_IP           "192.168.43.245" // Change to base station IP (SARK's laptop)
+#define PC_IP           "10.12.125.174" // Change to base station IP (SARK's laptop)
 #define PC_PORT         5005             // Application address for base station
 #define ID_FRAME        0
 #define ID_EVENT        1
@@ -182,9 +182,11 @@ void CM_loop(
 
 std::uint8_t CM_serialReceive(CM_serialInterface* serial){
     char* message;
-    message = serial->ESPRead();
 
-    printf("Received message: %s \n", message);
+    while (serial->ESPCheckBuffer() > 0) {
+        message = serial->ESPRead();
+        printf("Received message: %s \n", message);
+    }
 
     return 0;
 }

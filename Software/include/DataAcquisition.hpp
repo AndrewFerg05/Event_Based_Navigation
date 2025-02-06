@@ -31,6 +31,9 @@ Change History
 
 class DataAcquisition {
     using ImuSyncBuffer = RingBuffer<real_t, 6, 1000>;
+    using ImuStampsVector = std::vector<ImuStamps>;
+    using ImuAccGyrVector = std::vector<ImuAccGyrContainer>;
+    using ImuBufferVector = std::vector<ImuSyncBuffer>;
 public:
 
     explicit DataAcquisition(
@@ -46,6 +49,7 @@ public:
     void addImageData();
     void addEventsData(const EventData& event_data);
     void addImuData(const IMUData& imu_data);
+    void onlyEventsNoImagesLogic();
 
     void registerImuCallback(const ImuCallback& imu_callback)
     {
@@ -64,10 +68,24 @@ private:
     bool processDataQueues();
     void resetQueues();
     void extractAndEraseEvents();
-    void checkImuDataAndImageAndEventsCallback();
+    void checkImuDataAndCallback();
+    bool validateImuBuffers(
+        const int64_t& min_stamp,
+        const int64_t& max_stamp,
+        const std::vector<std::tuple<int64_t, int64_t, bool> >&
+        oldest_newest_stamp_vector);
 
-    ImuSyncBuffer imu_buffer_;
+    ImuBufferVector imu_buffer_;
     EventBuffer event_buffer_;
+
+    StampedEventArrays event_packages_ready_to_process_;
+
+    size_t cur_ev_; // index of the last event processed yet
+
+    int64_t last_package_stamp_;
+    size_t last_package_ev_;
+  
+    int64_t last_event_package_broadcast_stamp_ { -1 };
 
 
 protected:

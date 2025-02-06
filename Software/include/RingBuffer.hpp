@@ -25,112 +25,257 @@ Description : Optimized Ring Buffer for IMU and Event Synchronization
 //      Classes
 //------------------------------------------------------------------------------
 
-// Template class for a Ring Buffer using Eigen storage
-template <typename T, size_t Rows, size_t Capacity>
-class RingBuffer {
+struct InterpolatorNearest
+{
+  template<typename Ringbuffer_T>
+  static typename Ringbuffer_T::DataType interpolate(
+      Ringbuffer_T* buffer,
+      int64_t time,
+      typename Ringbuffer_T::timering_t::iterator it_before)
+  {
+    // the end value
+    auto it_after = it_before + 1;
+    if (it_after == buffer->times_.end())
+    {
+      return buffer->dataAtTimeIterator(it_before);
+    }
+
+    // The times are ordered, we can guarantee those differences to be positive
+    if ((time - *it_before) < (*it_after - time))
+    {
+      return buffer->dataAtTimeIterator(it_before);
+    }
+    return buffer->dataAtTimeIterator(it_after);
+  }
+
+  template<typename Ringbuffer_T>
+  static typename Ringbuffer_T::DataType interpolate(
+      Ringbuffer_T* buffer,
+      int64_t time)
+  {
+    auto it_before = buffer->iterator_equal_or_before(time);
+    // caller should check the bounds:
+
+    return interpolate(buffer, time, it_before);
+  }
+};
+
+//! A simple linear interpolator
+struct InterpolatorLinear
+{
+  template<typename Ringbuffer_T>
+  static typename Ringbuffer_T::DataType interpolate(
+      Ringbuffer_T* buffer,
+      int64_t time,
+      typename Ringbuffer_T::timering_t::iterator it_before)
+  {
+    // the end value
+    auto it_after = it_before + 1;
+    if (it_after == buffer->times_.end())
+    {
+      return buffer->dataAtTimeIterator(it_before);
+    }
+
+    const real_t w1 =
+        static_cast<real_t>(time - *it_before) /
+        static_cast<real_t>(*it_after - *it_before);
+
+    return (real_t{1.0} - w1) * buffer->dataAtTimeIterator(it_before)
+        + w1 * buffer->dataAtTimeIterator(it_after);
+  }
+
+  template<typename Ringbuffer_T>
+  static typename Ringbuffer_T::DataType interpolate(
+      Ringbuffer_T* buffer,
+      int64_t time)
+  {
+    auto it_before = buffer->iterator_equal_or_before(time);
+    // caller should check the bounds:
+
+    return interpolate(buffer, time, it_before);
+  }
+};
+using DefaultInterpolator = InterpolatorLinear;
+
+
+//! A fixed size timed buffer templated on the number of entries.
+//! Opposed to the `Buffer`, values are expected to be received ORDERED in
+//! TIME!
+// Oldest entry: buffer.begin(), newest entry: buffer.rbegin()
+template <typename Scalar, size_t ValueDim, size_t Size>
+class Ringbuffer
+{
 public:
-    using MatrixType = Eigen::Matrix<T, Rows, Capacity>;
-    using VectorType = Eigen::Matrix<T, Rows, 1>;
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    explicit RingBuffer() : head_(0), tail_(0), size_(0) {
-        times_.resize(Capacity, 0);  // Initialize timestamps with zeros
-        data_.setZero();             // Initialize IMU data matrix with zeros
+  //! Ringbuffer is friend with the interpolator types.
+  friend struct InterpolatorNearest;
+  friend struct InterpolatorLinear;
+
+  typedef int64_t time_t;
+  typedef Eigen::Matrix<time_t, Size, 1> times_t;
+  typedef Eigen::Matrix<time_t, Eigen::Dynamic, 1> times_dynamic_t;
+  typedef Eigen::Matrix<Scalar, ValueDim, Size> data_t;
+  typedef Eigen::Matrix<Scalar, ValueDim, Eigen::Dynamic> data_dynamic_t;
+
+  // time ring is used to keep track of the positions of the data
+  // in the dataring
+  // uses fixed size ring_view
+  typedef ring_view<time_t> timering_t;
+
+  using DataType = Eigen::Matrix<Scalar, ValueDim, 1>;
+  using DataTypeMap = Eigen::Map<DataType>;
+
+  // a series of return types
+  using DataBoolPair = std::pair<DataType, bool>;
+  using TimeDataBoolTuple = std::tuple<time_t, DataType, bool>;
+  using TimeDataRangePair = std::pair<times_dynamic_t, data_dynamic_t>;
+
+  Ringbuffer()
+    : times_(timering_t(times_raw_.data(),
+                        times_raw_.data() + Size,
+                        times_raw_.data(),
+                        0))
+  {}
+
+  //! no copy, no move as there is no way to track the mutex
+  Ringbuffer(const Ringbuffer& from) = delete;
+  Ringbuffer(const Ringbuffer&& from) = delete;
+
+  inline void insert(time_t stamp,
+                     const DataType& data)
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    times_.push_back(stamp);
+    data_.col(times_.back_idx()) = data;
+  }
+
+  //! Get value with timestamp closest to stamp. Boolean returns if successful.
+  std::tuple<time_t, DataType, bool> getNearestValue(time_t stamp);
+
+  //! Get oldest value in buffer.
+  std::pair<DataType, bool> getOldestValue() const;
+
+  //! Get newest value in buffer.
+  std::pair<DataType, bool> getNewestValue() const;
+
+  //! Get timestamps of newest and oldest entry.
+  std::tuple<time_t, time_t, bool> getOldestAndNewestStamp() const;
+
+  /*! @brief Get Values between timestamps.
+   *
+   * If timestamps are not matched, the values
+   * are interpolated. Returns a vector of timestamps and a block matrix with
+   * values as columns. Returns empty matrices if not successful.
+   */
+  template <typename Interpolator = DefaultInterpolator>
+  TimeDataRangePair
+  getBetweenValuesInterpolated(time_t stamp_from, time_t stamp_to);
+
+  //! Get the values of the container at the given timestamps
+  //! The requested timestamps are expected to be in order!
+  template <typename Interpolator = DefaultInterpolator>
+  data_dynamic_t getValuesInterpolated(times_dynamic_t stamps);
+
+  //! Interpolate a single value
+  template <typename Interpolator = DefaultInterpolator>
+  bool getValueInterpolated(time_t t,  Eigen::Ref<data_dynamic_t> out);
+
+  inline void clear()
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    times_.reset();
+  }
+
+  inline size_t size() const
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return times_.size();
+  }
+
+  inline bool empty() const
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return times_.empty();
+  }
+
+  //! technically does not remove but only moves the beginning of the ring
+  inline void removeDataBeforeTimestamp(time_t stamp)
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    removeDataBeforeTimestamp_impl(stamp);
+  }
+
+  inline void removeDataOlderThan(real_t seconds)
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if(times_.empty())
+    {
+      return;
     }
 
-    // Add an element to the buffer
-    void insert(int64_t stamp, const VectorType& data) {
-        std::lock_guard<std::mutex> lock(mutex_);
+    removeDataBeforeTimestamp_impl(
+          times_.back() - secToNanosec(seconds));
+  }
 
-        // Store timestamp
-        times_[head_] = stamp;
+  inline void lock() const
+  {
+    mutex_.lock();
+  }
 
-        // Store IMU data into the Eigen matrix
-        data_.col(head_) = data;
+  inline void unlock() const
+  {
+    mutex_.unlock();
+  }
 
-        // Advance the head index
-        head_ = (head_ + 1) % Capacity;
+  const data_t& data() const
+  {
+    CHECK(!mutex_.try_lock()) << "Call lock() before accessing data.";
+    return data_;
+  }
 
-        if (size_ < Capacity) {
-            size_++;
-        } else {
-            // Overwrite oldest data
-            tail_ = (tail_ + 1) % Capacity;
-        }
-    }
+  const timering_t& times() const
+  {
+    CHECK(!mutex_.try_lock()) << "Call lock() before accessing data.";
+    return times_;
+  }
 
-    // Retrieve the oldest and newest timestamp in the buffer
-    std::tuple<int64_t, int64_t, bool> getOldestAndNewestStamp() const {
-        std::lock_guard<std::mutex> lock(mutex_);
-        if (size_ == 0) return {0, 0, false};  // No data available
+  typename timering_t::iterator iterator_equal_or_before(time_t stamp);
+  typename timering_t::iterator iterator_equal_or_after(time_t stamp);
 
-        return {times_[tail_], times_[(head_ - 1 + Capacity) % Capacity], true};
-    }
+  //! returns an iterator to the first element in the times_ ring that
+  //! is greater or equal to stamp
+  inline typename timering_t::iterator lower_bound(time_t stamp);
 
-    // Get all values between two timestamps, interpolating if necessary
-    std::pair<std::vector<int64_t>, std::vector<VectorType>> getBetweenValuesInterpolated(int64_t start_time, int64_t end_time) {
-        std::lock_guard<std::mutex> lock(mutex_);
-        std::vector<int64_t> timestamps;
-        std::vector<VectorType> measurements;
+  inline std::mutex& mutex() {return mutex_;}
 
-        if (size_ == 0) return {timestamps, measurements};  // Return empty vectors if no data
+protected:
+  mutable std::mutex mutex_;
+  data_t data_;
+  times_t times_raw_;
+  timering_t times_;
 
-        size_t index = tail_;
-        while (index != head_) {
-            int64_t ts = times_[index];
+  //! return the data at a given point in time
+  inline DataType dataAtTimeIterator(typename timering_t::iterator iter) const
+  {
+    //! @todo: i believe this is wrong.
+    return data_.col(iter.container_index());
+  }
 
-            if (ts >= start_time && ts <= end_time) {
-                timestamps.push_back(ts);
-                measurements.push_back(data_.col(index));
-            }
+  //! return the data at a given point in time (const)
+  inline DataType dataAtTimeIterator(typename timering_t::const_iterator iter) const
+  {
+    //! @todo: i believe this is wrong.
+    return data_.col(iter.container_index());
+  }
 
-            index = (index + 1) % Capacity;
-        }
-
-        return {timestamps, measurements};
-    }
-
-    // Check if the buffer has data within the given timestamp range
-    bool hasDataInRange(int64_t start_time, int64_t end_time) const {
-        std::lock_guard<std::mutex> lock(mutex_);
-        if (size_ == 0) return false;
-
-        size_t index = tail_;
-        while (index != head_) {
-            int64_t ts = times_[index];
-            if (ts >= start_time && ts <= end_time) return true;
-            index = (index + 1) % Capacity;
-        }
-
-        return false;
-    }
-
-    // Get the number of elements in the buffer
-    size_t size() const {
-        std::lock_guard<std::mutex> lock(mutex_);
-        return size_;
-    }
-
-    // Check if the buffer is empty
-    bool empty() const {
-        std::lock_guard<std::mutex> lock(mutex_);
-        return size_ == 0;
-    }
-
-    // Clear the buffer
-    void clear() {
-        std::lock_guard<std::mutex> lock(mutex_);
-        head_ = tail_ = size_ = 0;
-        times_.assign(Capacity, 0);
-        data_.setZero();
-    }
-
-private:
-    std::vector<int64_t> times_;  // Stores timestamps
-    MatrixType data_;             // Stores IMU data as Eigen matrix
-    size_t head_;                 // Write index
-    size_t tail_;                 // Read index
-    size_t size_;                 // Current size
-    mutable std::mutex mutex_;    // Mutex for thread safety
+  //! shifts the starting point of the ringbuffer to the given timestamp
+  //! no resizing or deletion happens.
+  inline void removeDataBeforeTimestamp_impl(time_t stamp)
+  {
+    auto it = lower_bound(stamp);
+    times_.reset_front(it.container_index());
+  }
 };
 
 #endif  // RINGBUFFER_HPP

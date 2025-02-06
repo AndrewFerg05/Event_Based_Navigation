@@ -39,6 +39,9 @@ Change History
 DataAcquisition::DataAcquisition(std::shared_ptr<DataQueues> data_queues, std::atomic<ThreadState>& state, std::shared_ptr<CommunicationManager> comms)
     : input_data_queues_(data_queues), state_(state), comms_interface_(comms) 
     {
+        cur_ev_ = 0;
+        last_package_stamp_ = -1;
+        last_package_ev_ = 0;
         initBuffers();
     }
 
@@ -58,6 +61,10 @@ void DataAcquisition::idle() {
     resetQueues();
     imu_buffer_.clear();
     event_buffer_.clear();
+    event_packages_ready_to_process_.clear();
+    cur_ev_ = 0;
+    last_package_stamp_ = -1;
+    last_package_ev_ = 0;
     state_ = ThreadState::Idle;
 }
 
@@ -72,6 +79,7 @@ void DataAcquisition::stop() {
 
 void DataAcquisition::initBuffers() 
 {
+    imu_buffer_ = ImuBufferVector(1);
     imu_buffer_.clear();
     event_buffer_.clear(); 
 }
@@ -81,6 +89,51 @@ void DataAcquisition::addImageData()
 {
 
 }
+
+
+void DataAcquisition::onlyEventsNoImagesLogic()
+{
+    int64_t interval_between_packets;
+
+    if(FLAGS_data_use_time_interval)
+        interval_between_packets = FLAGS_data_interval_between_event_packets * 1e3;
+    else
+        interval_between_packets = FLAGS_data_interval_between_event_packets;
+
+    const size_t package_size = FLAGS_data_size_augmented_event_packet;
+
+    for(; cur_ev_ < event_buffer_.size(); cur_ev_++)
+    {
+        const Event& e = event_buffer_[cur_ev_];
+        const int64_t cur_stamp = e.timestamp_ns;
+
+        bool create_packet = (!FLAGS_data_use_time_interval &&
+            (cur_ev_ - last_package_ev_ >= (size_t) interval_between_packets)) ||
+            (FLAGS_data_use_time_interval &&
+            (cur_stamp - last_package_stamp_ > interval_between_packets));
+
+            if(create_packet)
+            {
+                const int64_t package_stamp = cur_stamp;
+
+                size_t ev = cur_ev_ > package_size ?
+                            cur_ev_ - package_size : 0;
+
+
+                EventArrayPtr event_array_ptr = std::make_shared<EventArray>();
+                for(; ev <= cur_ev_ ; ev++)
+                    event_array_ptr->push_back(event_buffer_[ev]);
+
+                event_packages_ready_to_process_.push_back(StampedEventArray(package_stamp, event_array_ptr));
+
+                last_package_stamp_ = cur_stamp;
+                last_package_ev_ = cur_ev_;
+            }
+    }
+    
+
+}
+
 
 
 void DataAcquisition::addEventsData(const EventData& event_data)
@@ -95,7 +148,23 @@ void DataAcquisition::addEventsData(const EventData& event_data)
     
     event_buffer_.insert(event_buffer_.end(), events->begin(), events->end());
 
-    checkImuDataAndImageAndEventsCallback();
+
+
+    onlyEventsNoImagesLogic();
+    checkImuDataAndCallback();
+
+    static size_t event_history_size_ = 500000;
+    if (cur_ev_ > event_history_size_)
+    {
+      size_t remove_events = cur_ev_ - event_history_size_;
+
+      event_buffer_.erase(event_buffer_.begin(), event_buffer_.begin()
+                          + remove_events);
+      cur_ev_ -= remove_events;
+      last_package_ev_ -= remove_events;
+    }
+
+
 }
 
 void DataAcquisition::addImuData(const IMUData& imu_data)
@@ -114,14 +183,14 @@ void DataAcquisition::addImuData(const IMUData& imu_data)
     acc_gyr.head<3>() = acc;
     acc_gyr.tail<3>() = gyr;
     //stamp -= timeshift_cam_imu_;
-    imu_buffer_.insert(stamp, acc_gyr);
+    imu_buffer_[1].insert(stamp, acc_gyr);
 
     if (imu_callback_)
     {
         imu_callback_(stamp, acc, gyr);
     }
 
-  checkImuDataAndImageAndEventsCallback();
+    checkImuDataAndCallback();
 }
 
 bool DataAcquisition::processDataQueues()
@@ -140,12 +209,11 @@ bool DataAcquisition::processDataQueues()
             processed = true;
         }
 
-        auto image_data = input_data_queues_->image_queue->pop();
-        if (image_data) {
-            addImageData();
-            processed = true;
-        }
-
+        // auto image_data = input_data_queues_->image_queue->pop();
+        // if (image_data) {
+        //     addImageData();
+        //     processed = true;
+        // }
         return processed;
 
 }
@@ -168,17 +236,140 @@ void DataAcquisition::resetQueues()
     std::cout << "[INFO] All queues cleared!" << std::endl;
 }
 
-
 void DataAcquisition::extractAndEraseEvents()
 {
 
 }
 
-void DataAcquisition::checkImuDataAndImageAndEventsCallback()
+void DataAcquisition::checkImuDataAndCallback()
 {
+    if (event_packages_ready_to_process_.empty())
+    {
+      return; // No event package to process yet
+    }
 
+    std::vector<bool> discard_event_packet(event_packages_ready_to_process_.size(), false);
+
+    for(size_t i = 0; i < event_packages_ready_to_process_.size(); ++i)
+    {
+        const StampedEventArray& event_package = event_packages_ready_to_process_[i];
+        const int64_t event_package_stamp = event_package.first;
+
+        ImuStampsVector imu_timestamps(1);
+        ImuAccGyrVector imu_measurements(1);
+
+        std::vector<std::tuple<int64_t, int64_t, bool>> oldest_newest_stamp_vector(1);
+
+        std::transform(
+            imu_buffer_.begin(),
+            imu_buffer_.end(),
+            oldest_newest_stamp_vector.begin(),
+            [](const ImuSyncBuffer& imu_buffer) {
+            return imu_buffer.getOldestAndNewestStamp();
+        });
+
+        const int64_t oldest_imu_stamp = std::get<0>(oldest_newest_stamp_vector[0]);
+        const int64_t newest_imu_stamp = std::get<1>(oldest_newest_stamp_vector[0]);
+
+        if (!validateImuBuffers(
+                event_package_stamp,
+                event_package_stamp,
+                oldest_newest_stamp_vector))
+        {
+            if(oldest_imu_stamp >= event_package_stamp)
+            {
+              // Oldest IMU measurement is newer than image timestamp
+              // This will happen only at the very beginning, thus
+              // it is safe to simply discard the event package
+              discard_event_packet[i] = true;
+            }
+        }
+        else
+        {
+          for (size_t i = 0; i < 1; ++i)
+          {
+            if(last_event_package_broadcast_stamp_ < 0)
+            {
+              int64_t oldest_stamp = std::get<0>(oldest_newest_stamp_vector[i]);
+              std::tie(imu_timestamps[i], imu_measurements[i]) =
+                  imu_buffer_[i].getBetweenValuesInterpolated(
+                    oldest_stamp,
+                    event_package_stamp);
+            }
+            else
+            {
+              std::tie(imu_timestamps[i], imu_measurements[i]) =
+                  imu_buffer_[i].getBetweenValuesInterpolated(
+                    //event_package.second->at(0).ts.toNSec(), <-- Should be this...
+                    last_event_package_broadcast_stamp_,
+                    event_package_stamp);
+            }
+          }
+    
+        //   events_imu_callback_(event_package, imu_timestamps, imu_measurements);
+    
+          // Discard the event package, now that it's been processed
+          discard_event_packet[i] = true;
+    
+          last_event_package_broadcast_stamp_ = event_package_stamp;
+        }
+        
+    }
 }
 
+
+bool DataAcquisition::validateImuBuffers(
+    const int64_t& min_stamp,
+    const int64_t& max_stamp,
+    const std::vector<std::tuple<int64_t, int64_t, bool> >&
+    oldest_newest_stamp_vector)
+{
+    // Check if we have received some IMU measurements for at least one of the imu's.
+    if (std::none_of(oldest_newest_stamp_vector.begin(),
+                    oldest_newest_stamp_vector.end(),
+                    [](const std::tuple<int64_t, int64_t, bool>& oldest_newest_stamp)
+                    {
+                        if (std::get<2>(oldest_newest_stamp))
+                        {
+                            return true;
+                        }
+                            return false;
+                    }))        
+    {
+    return false;
+    }
+
+    // At least one IMU measurements before image
+    if (std::none_of(oldest_newest_stamp_vector.begin(),
+                    oldest_newest_stamp_vector.end(),
+                    [&min_stamp](const std::tuple<int64_t, int64_t, bool>& oldest_newest_stamp)
+                    {
+                        if (std::get<0>(oldest_newest_stamp) < min_stamp) {
+                            return true;
+                        }
+                    return false;
+                    }))
+    {
+    return false;
+    }
+
+    // At least one IMU measurements after image
+    if (std::none_of(oldest_newest_stamp_vector.begin(),
+                    oldest_newest_stamp_vector.end(),
+                    [&max_stamp](const std::tuple<int64_t, int64_t, bool>& oldest_newest_stamp) 
+                    {
+                        if (std::get<1>(oldest_newest_stamp) > max_stamp)
+                        {
+                            return true;
+                        }
+                    return false;
+                    }))
+    {
+        return false;
+    }
+    
+    return true;
+}
 
 void DataAcquisition::run() 
 {

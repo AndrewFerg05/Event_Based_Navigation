@@ -22,6 +22,7 @@ Change History
 #include <Eigen/Core>
 #include <Eigen/StdVector>
 
+#include "Types.hpp"
 
 //==============================================================================
 //      Classes
@@ -40,6 +41,11 @@ using CameraInfoData = uint16_t;
 using ExposureData = uint16_t;
 
 
+// Event Data
+using EventArray = std::vector<Event>;
+using EventQueue = EventArray;
+using EventArrayPtr = std::shared_ptr<EventArray>;
+using EventBuffer = std::deque<Event>;
 
 using real_t = double; //Can change between single and double
 

@@ -57,6 +57,7 @@ void DataAcquisition::idle() {
     std::cout << "[DataAcquisition] Resetting queues and entering idle mode..." << std::endl;
     resetQueues();
     imu_buffer_.clear();
+    event_buffer_.clear();
     state_ = ThreadState::Idle;
 }
 
@@ -71,7 +72,8 @@ void DataAcquisition::stop() {
 
 void DataAcquisition::initBuffers() 
 {
-    imu_buffer_.clear(); 
+    imu_buffer_.clear();
+    event_buffer_.clear(); 
 }
 
 
@@ -81,9 +83,19 @@ void DataAcquisition::addImageData()
 }
 
 
-void DataAcquisition::addEventsData()
+void DataAcquisition::addEventsData(const EventData& event_data)
 {
+    if(event_data.events.empty())
+        return;
 
+    EventArrayPtr events = std::make_shared<EventArray>();
+
+    for(auto& e : event_data.events)
+        events->push_back(e);
+    
+    event_buffer_.insert(event_buffer_.end(), events->begin(), events->end());
+
+    checkImuDataAndImageAndEventsCallback();
 }
 
 void DataAcquisition::addImuData(const IMUData& imu_data)
@@ -123,8 +135,8 @@ bool DataAcquisition::processDataQueues()
         }
 
         auto event_data = input_data_queues_->event_queue->pop();
-        if (event_data) {
-            addEventsData();
+        if (event_data.has_value()) {
+            addEventsData(event_data.value());
             processed = true;
         }
 

@@ -61,13 +61,13 @@ struct Event {
         : x(x_), y(y_), timestamp_ns(ts_), polarity(p_) {}
 };
 
-struct EventArray {
+struct EventData {
     Header header; 
     uint32_t width;
     uint32_t height;
     std::vector<Event> events;
 
-    EventArray(int w, int h) : width(w), height(h) {}
+    EventData(int w, int h) : width(w), height(h) {}
 };
 
 

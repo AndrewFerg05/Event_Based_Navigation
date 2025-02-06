@@ -44,7 +44,7 @@ public:
     void stop();
     void initBuffers();
     void addImageData();
-    void addEventsData();
+    void addEventsData(const EventData& event_data);
     void addImuData(const IMUData& imu_data);
 
     void registerImuCallback(const ImuCallback& imu_callback)
@@ -67,6 +67,7 @@ private:
     void checkImuDataAndImageAndEventsCallback();
 
     RingBuffer<real_t, 6, 1000> imu_buffer_;
+    EventBuffer event_buffer_;
 
 
 protected:

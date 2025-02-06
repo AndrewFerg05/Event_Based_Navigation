@@ -130,7 +130,7 @@ public:
 class DataQueues {
 public:
     // Queues for different data types
-    std::shared_ptr<ThreadSafeFIFO<EventArray>> event_queue;
+    std::shared_ptr<ThreadSafeFIFO<EventData>> event_queue;
     std::shared_ptr<ThreadSafeFIFO<CameraInfoData>> camera_info_queue;
     std::shared_ptr<ThreadSafeFIFO<IMUData>> imu_queue;
     std::shared_ptr<ThreadSafeFIFO<ImageData>> image_queue;
@@ -138,7 +138,7 @@ public:
 
     // Constructor
     explicit DataQueues(size_t queue_size) {
-        event_queue = std::make_shared<ThreadSafeFIFO<EventArray>>(1000, "Input_DVS", false);          // Events buffer (10)
+        event_queue = std::make_shared<ThreadSafeFIFO<EventData>>(1000, "Input_DVS", false);          // Events buffer (10)
         camera_info_queue = std::make_shared<ThreadSafeFIFO<CameraInfoData>>(queue_size, "Input_CamInfo", false);        // Camera info buffer (1)
         imu_queue = std::make_shared<ThreadSafeFIFO<IMUData>>(1000, "Input_IMU", false);              // IMU buffer (10)
         image_queue = std::make_shared<ThreadSafeFIFO<ImageData>>(30, "Input_APS", false);                   // Images buffer (1)

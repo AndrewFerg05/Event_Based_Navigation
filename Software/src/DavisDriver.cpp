@@ -309,7 +309,7 @@ void DavisDriver::readout()
     
     std::chrono::steady_clock::time_point next_send_time = std::chrono::steady_clock::now();
 
-    std::shared_ptr<EventArray> event_array_msg;
+    std::shared_ptr<EventData> event_array_msg;
 
     while(running_)
     {
@@ -336,7 +336,7 @@ void DavisDriver::readout()
                 {
                     if (!event_array_msg) 
                     {
-                        event_array_msg = std::make_shared<EventArray>(davis_info_.dvsSizeX, davis_info_.dvsSizeY);
+                        event_array_msg = std::make_shared<EventData>(davis_info_.dvsSizeX, davis_info_.dvsSizeY);
                     }
                     
 

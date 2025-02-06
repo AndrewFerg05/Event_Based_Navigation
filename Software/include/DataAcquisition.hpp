@@ -30,7 +30,7 @@ Change History
 
 
 class DataAcquisition {
-
+    using ImuSyncBuffer = RingBuffer<real_t, 6, 1000>;
 public:
 
     explicit DataAcquisition(
@@ -66,7 +66,7 @@ private:
     void extractAndEraseEvents();
     void checkImuDataAndImageAndEventsCallback();
 
-    RingBuffer<real_t, 6, 1000> imu_buffer_;
+    ImuSyncBuffer imu_buffer_;
     EventBuffer event_buffer_;
 
 

@@ -34,10 +34,10 @@ Change History
 #define TEST    4
 
 #define TEST_IMAGE  "../example.jpg"
-#define TEST_RUN_TIME 20
+#define TEST_RUN_TIME 5
 
 #define MAX_PACKET_SIZE 65507            // Max packet in bytes for UDP
-#define PC_IP           "10.12.125.174" // Change to base station IP (SARK's laptop)
+#define PC_IP           "192.168.43.245" // Change to base station IP (SARK's laptop)
 #define PC_PORT         5005             // Application address for base station
 #define ID_FRAME        0
 #define ID_EVENT        1
@@ -66,7 +66,6 @@ void CM_loop(
 
     bool state_change_called = false; //Used to only set the atomics once
 	
-    int frameId = 3;
     cv::Mat frame = cv::imread(TEST_IMAGE);
     if (frame.empty()) {
         std::cerr << "Failed to load image." << std::endl;
@@ -128,7 +127,7 @@ void CM_loop(
             CM_transmitFrame(frame, 1);
 
             //      Get position from BE and transmit on UDP
-            CM_transmitStatus(3,4,5,6);
+            CM_transmitStatus(iterations, iterations, 0, iterations, iterations, iterations);
             
             sleep_ms(10);
             
@@ -183,32 +182,40 @@ void CM_loop(
 std::uint8_t CM_serialReceive(CM_serialInterface* serial){
     char* message;
 
-    while (serial->ESPCheckBuffer() > 0) {
+    if (serial->ESPCheckOpen() == 1)
+    {
+        while (serial->ESPCheckBuffer() > 0) {
         message = serial->ESPRead();
         printf("Received message: %s \n", message);
+        }
     }
 
-    return 0;
+    return 42;
 }
 
 void CM_serialSendStatus(CM_serialInterface* serial, int32_t x, int32_t y){
-    char message[50];
-    
-    snprintf(message, sizeof(message), "Iteration: %d\n", iterations);
-    printf(message);
 
     iterations++;
+    printf("Iteration: %d \n", iterations);
 
-    serial->ESPWrite(message);
+    if (serial->ESPCheckOpen() == 1)
+    {
+        char message[50];
+        
+        snprintf(message, sizeof(message), "Iteration: %d\n", iterations);
+        printf(message);
+
+        serial->ESPWrite(message);
+    }
 
     return;
 }
 
-void CM_transmitStatus(int32_t x, int32_t y, int32_t a, int32_t b) {
+void CM_transmitStatus(int32_t x, int32_t y, int32_t z, int32_t yaw, int32_t pitch, int32_t roll) {
     // Little-endian ID for status
     int32_t id = little_endian(ID_STATUS);
 
-    uint32_t dataSize = 16;
+    uint32_t dataSize = 24;
 
     // Allocate buffer space (8 bytes for header + dataSize for actual data)
     uchar* sendBuffer = static_cast<uchar*>(malloc(8 + dataSize));  // 8 bytes for header and dataSize bytes for data
@@ -220,16 +227,20 @@ void CM_transmitStatus(int32_t x, int32_t y, int32_t a, int32_t b) {
     dataSize = little_endian(dataSize);
     x = little_endian(x);
     y = little_endian(y);
-    a = little_endian(a);
-    b = little_endian(b);
+    z = little_endian(z);
+    yaw = little_endian(yaw);
+    pitch = little_endian(pitch);
+    roll = little_endian(roll);
 
     // Copy ID and dataSize into the sendBuffer (Little-endian order)
     memcpy(sendBuffer, &id, 4);  // Copy ID
     memcpy(sendBuffer + 4, &dataSize, 4);  // Copy dataSize
     memcpy(sendBuffer + 8, &x, 4);
     memcpy(sendBuffer + 12, &y, 4);
-    memcpy(sendBuffer + 16, &a, 4);
-    memcpy(sendBuffer + 20, &b, 4);
+    memcpy(sendBuffer + 16, &z, 4);
+    memcpy(sendBuffer + 20, &yaw, 4);
+    memcpy(sendBuffer + 24, &pitch, 4);
+    memcpy(sendBuffer + 28, &roll, 4);
 
     // Create a UDP socket
     int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -268,8 +279,6 @@ void CM_transmitStatus(int32_t x, int32_t y, int32_t a, int32_t b) {
 
     close(sockfd);
 }
-
-
 
 void CM_transmitFrame(cv::Mat frame, int frameId) {
 
@@ -352,7 +361,6 @@ void CM_cleanupNet() {
     #endif
 }
 
-
 bool CM_serialInterface::ESPOpen() {
 
     struct sp_port **ports;
@@ -382,6 +390,7 @@ bool CM_serialInterface::ESPOpen() {
     } else {
         sp_set_baudrate(this->ESPPort, 115200);
         printf("ESP32 opened in read-write mode.\n");
+        this->open = 1;
     }
 
     sp_free_port_list(ports); // Free the list of ports
@@ -390,55 +399,65 @@ bool CM_serialInterface::ESPOpen() {
 }
 
 void CM_serialInterface::ESPClose(){
-    sp_close(this->ESPPort);
+    if (this->open == 1){
+        sp_close(this->ESPPort);
+        this->open = 0;
+    }
     return;
 }
 
 bool CM_serialInterface::ESPWrite(char* message){
-
-    // Write the message to the serial port
-    int bytes_written = sp_blocking_write(this->ESPPort, message, strlen(message), this->timeout);
-    if (bytes_written < 0) {
-        std::cerr << "Failed to write to ESP" << std::endl;
-        return 1;   // Failed to write to ESP
+    if (this->open == 1){
+        // Write the message to the serial port
+        int bytes_written = sp_blocking_write(this->ESPPort, message, strlen(message), this->timeout);
+        if (bytes_written < 0) {
+            std::cerr << "Failed to write to ESP" << std::endl;
+            return 1;   // Failed to write to ESP
+        }
     }
 
     return 0;
 }
 
 char* CM_serialInterface::ESPRead(){
-    char read_buffer[1];          // Buffer to read one character at a time
-    size_t buffer_size = 256;     // Initial buffer size
-    char *response = (char*)malloc(buffer_size);
-    if (!response) {
-        fprintf(stderr, "Memory allocation failed.\n");
-        return NULL;
-    }
-    size_t total_read = 0;
 
-    char termination_char = '\n'; // The character to stop reading at
-
-    while (little_endian(read_buffer[0]) != termination_char) {
-        // Read one byte at a time
-        int result = sp_blocking_read(this->ESPPort, read_buffer, 1, this->timeout);
-        if (result < 0) {
-            fprintf(stderr, "Error reading from serial port.\n");
-            free(response);
+    if (this->open == 1){
+        char read_buffer[1];          // Buffer to read one character at a time
+        size_t buffer_size = 256;     // Initial buffer size
+        char *response = (char*)malloc(buffer_size);
+        if (!response) {
+            fprintf(stderr, "Memory allocation failed.\n");
             return NULL;
-        } else if (result == 0) {
-            // If no data in timeout return
-            response[total_read] = 'X';
-            break;
         }
 
-        // Append the byte to the response buffer
-        response[total_read] = little_endian(read_buffer[0]);
-        total_read++;
+        size_t total_read = 0;
+        char termination_char = '\n'; // The character to stop reading at
+
+        while (little_endian(read_buffer[0]) != termination_char) {
+            // Read one byte at a time
+            int result = sp_blocking_read(this->ESPPort, read_buffer, 1, this->timeout);
+            if (result < 0) {
+                fprintf(stderr, "Error reading from serial port.\n");
+                free(response);
+                return NULL;
+            } else if (result == 0) {
+                // If no data in timeout return
+                response[total_read] = 'X';
+                break;
+            }
+
+            // Append the byte to the response buffer
+            response[total_read] = little_endian(read_buffer[0]);
+            total_read++;
+        }
+
+        // Null-terminate the response
+        response[total_read] = '\0';
+
+        return response;
     }
-
-    // Null-terminate the response
-    response[total_read] = '\0';
-
+    char *response;
+    response[0] = '\0';
     return response;
 }
 

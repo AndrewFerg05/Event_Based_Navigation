@@ -51,7 +51,9 @@ class CM_serialInterface{
     private:
         struct sp_port *ESPPort = NULL;
         int timeout = 50;
+        bool open = 0;
     public:
+        bool ESPCheckOpen() {return this->open;}
         bool ESPOpen();
         void ESPClose();
         int ESPCheckBuffer() {return sp_input_waiting(this->ESPPort);}
@@ -71,7 +73,7 @@ std::uint8_t CM_serialReceive(CM_serialInterface* serial);
 
 void CM_serialSendStatus(CM_serialInterface* serial, int32_t x, int32_t y);
 
-void CM_transmitStatus(int32_t x, int32_t y, int32_t a, int32_t b);
+void CM_transmitStatus(int32_t x, int32_t y, int32_t z, int32_t yaw, int32_t pitch, int32_t roll);
 
 void CM_loop(
     std::atomic<ThreadState>& data_sync_state,

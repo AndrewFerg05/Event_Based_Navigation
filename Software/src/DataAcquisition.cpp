@@ -169,26 +169,26 @@ void DataAcquisition::addEventsData(const EventData& event_data)
 
 void DataAcquisition::addImuData(const IMUData& imu_data)
 {
-    // const Vector3 gyr(
-    // imu_data.angular_velocity.x,
-    // imu_data.angular_velocity.y,
-    // imu_data.angular_velocity.z);
-    // const Vector3 acc(
-    // imu_data.linear_acceleration.x,
-    // imu_data.linear_acceleration.y,
-    // imu_data.linear_acceleration.z);
-    // int64_t stamp = imu_data.header.stamp;
+    const Vector3 gyr(
+    imu_data.angular_velocity.x,
+    imu_data.angular_velocity.y,
+    imu_data.angular_velocity.z);
+    const Vector3 acc(
+    imu_data.linear_acceleration.x,
+    imu_data.linear_acceleration.y,
+    imu_data.linear_acceleration.z);
+    int64_t stamp = imu_data.header.stamp;
 
-    // Vector6 acc_gyr;
-    // acc_gyr.head<3>() = acc;
-    // acc_gyr.tail<3>() = gyr;
-    // //stamp -= timeshift_cam_imu_;
-    // imu_buffer_[1].insert(stamp, acc_gyr);
+    Vector6 acc_gyr;
+    acc_gyr.head<3>() = acc;
+    acc_gyr.tail<3>() = gyr;
+    //stamp -= timeshift_cam_imu_;
+    imu_buffer_[1].insert(stamp, acc_gyr);
 
-    // if (imu_callback_)
-    // {
-    //     imu_callback_(stamp, acc, gyr);
-    // }
+    if (imu_callback_)
+    {
+        imu_callback_(stamp, acc, gyr);
+    }
 
     checkImuDataAndCallback();
 }
@@ -209,11 +209,11 @@ bool DataAcquisition::processDataQueues()
             processed = true;
         }
 
-        // auto image_data = input_data_queues_->image_queue->pop();
-        // if (image_data) {
-        //     addImageData();
-        //     processed = true;
-        // }
+        auto image_data = input_data_queues_->image_queue->pop();
+        if (image_data) {
+            addImageData();
+            processed = true;
+        }
         return processed;
 
 }
@@ -260,61 +260,72 @@ void DataAcquisition::checkImuDataAndCallback()
 
         std::vector<std::tuple<int64_t, int64_t, bool>> oldest_newest_stamp_vector(1);
 
-        // std::transform(
-        //     imu_buffer_.begin(),
-        //     imu_buffer_.end(),
-        //     oldest_newest_stamp_vector.begin(),
-        //     [](const ImuSyncBuffer& imu_buffer) {
-        //     return imu_buffer.getOldestAndNewestStamp();
-        // });
+        std::transform(
+            imu_buffer_.begin(),
+            imu_buffer_.end(),
+            oldest_newest_stamp_vector.begin(),
+            [](const ImuSyncBuffer& imu_buffer) {
+            return imu_buffer.getOldestAndNewestStamp();
+        });
 
-        // const int64_t oldest_imu_stamp = std::get<0>(oldest_newest_stamp_vector[0]);
-        // const int64_t newest_imu_stamp = std::get<1>(oldest_newest_stamp_vector[0]);
+        const int64_t oldest_imu_stamp = std::get<0>(oldest_newest_stamp_vector[0]);
+        const int64_t newest_imu_stamp = std::get<1>(oldest_newest_stamp_vector[0]);
 
-        // if (!validateImuBuffers(
-        //         event_package_stamp,
-        //         event_package_stamp,
-        //         oldest_newest_stamp_vector))
-        // {
-        //     if(oldest_imu_stamp >= event_package_stamp)
-        //     {
-        //       // Oldest IMU measurement is newer than image timestamp
-        //       // This will happen only at the very beginning, thus
-        //       // it is safe to simply discard the event package
-        //       discard_event_packet[i] = true;
-        //     }
-        // }
-        // else
-        // {
-        //   for (size_t i = 0; i < 1; ++i)
-        //   {
-        //     if(last_event_package_broadcast_stamp_ < 0)
-        //     {
-        //       int64_t oldest_stamp = std::get<0>(oldest_newest_stamp_vector[i]);
-        //       std::tie(imu_timestamps[i], imu_measurements[i]) =
-        //           imu_buffer_[i].getBetweenValuesInterpolated(
-        //             oldest_stamp,
-        //             event_package_stamp);
-        //     }
-        //     else
-        //     {
-        //       std::tie(imu_timestamps[i], imu_measurements[i]) =
-        //           imu_buffer_[i].getBetweenValuesInterpolated(
-        //             //event_package.second->at(0).ts.toNSec(), <-- Should be this...
-        //             last_event_package_broadcast_stamp_,
-        //             event_package_stamp);
-        //     }
-        //   }
+        if (!validateImuBuffers(
+                event_package_stamp,
+                event_package_stamp,
+                oldest_newest_stamp_vector))
+        {
+            if(oldest_imu_stamp >= event_package_stamp)
+            {
+              // Oldest IMU measurement is newer than image timestamp
+              // This will happen only at the very beginning, thus
+              // it is safe to simply discard the event package
+              discard_event_packet[i] = true;
+            }
+        }
+        else
+        {
+          for (size_t i = 0; i < 1; ++i)
+          {
+            if(last_event_package_broadcast_stamp_ < 0)
+            {
+              int64_t oldest_stamp = std::get<0>(oldest_newest_stamp_vector[i]);
+              std::tie(imu_timestamps[i], imu_measurements[i]) =
+                  imu_buffer_[i].getBetweenValuesInterpolated(
+                    oldest_stamp,
+                    event_package_stamp);
+            }
+            else
+            {
+              std::tie(imu_timestamps[i], imu_measurements[i]) =
+                  imu_buffer_[i].getBetweenValuesInterpolated(
+                    //event_package.second->at(0).ts.toNSec(), <-- Should be this...
+                    last_event_package_broadcast_stamp_,
+                    event_package_stamp);
+            }
+          }
     
-        //   events_imu_callback_(event_package, imu_timestamps, imu_measurements);
+          events_imu_callback_(event_package, imu_timestamps, imu_measurements);
     
-        //   // Discard the event package, now that it's been processed
-        //   discard_event_packet[i] = true;
+          // Discard the event package, now that it's been processed
+          discard_event_packet[i] = true;
     
-        //   last_event_package_broadcast_stamp_ = event_package_stamp;
-        // }
+          last_event_package_broadcast_stamp_ = event_package_stamp;
+        }
         
     }
+
+    // Discard all the event packages that have been marked
+    StampedEventArrays event_packages_ready_to_process_new;
+    for(size_t i=0; i<event_packages_ready_to_process_.size(); ++i)
+    {
+        if(!discard_event_packet[i])
+        {
+            event_packages_ready_to_process_new.push_back(event_packages_ready_to_process_[i]);
+        }
+    }
+    event_packages_ready_to_process_ = event_packages_ready_to_process_new;
 }
 
 
@@ -399,51 +410,5 @@ void DataAcquisition::run()
 }
 
 
-
-
-
-
-void DA_loop(std::atomic<ThreadState>& state,
-                            ThreadSafeFIFO<InputDataSync>* data_DA,
-                            CommunicationManager* comms) {
-    
-    InputDataSync valueToAdd = 0;
-
-    // while (true) {
-    //     if (state == ThreadState::Stopped) {
-    //         break;
-    //     }
-
-    //     if (state == ThreadState::Paused) {
-    //         //TODO - Wait while some condition
-    //         sleep_ms(100);
-    //         continue;
-    //     }
-
-    //     if (state == ThreadState::Reset) {
-    //         //TODO call reset function then set running again
-    //         state = ThreadState::Running; 
-    //     }
-
-    //     if (state == ThreadState::Running) {
-    //         //TODO - Get data from camera
-
-    //         //Get data
-    //         valueToAdd++;                       //For Sam architecture testing (replace with actual frames)
-
-    //         //Synchronise data
-
-    //         //Put in buffer
-    //         data_DA->push(valueToAdd);   //For Sam architecture testing (replace with actual frames)
-    //         comms->queueInputData(valueToAdd); 
-    //         sleep_ms(25);
-    //     }
-
-    //     if (state == ThreadState::Test) {
-    //         sleep_ms(100);
-    //         std::cout << "Data Aquisition Testing" << std::endl; 
-    //     }
-    // }
-}
 //==============================================================================
 // End of File : Software/src/DataAcquisition.cpp

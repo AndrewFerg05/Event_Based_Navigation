@@ -30,11 +30,17 @@ Change History
 
 
 class DataAcquisition {
-    using ImuSyncBuffer = int;
-    // using ImuSyncBuffer = RingBuffer<real_t, 6, 1000>;
+    using ImuSyncBuffer = Ringbuffer<real_t, 6, 1000>;
     using ImuStampsVector = std::vector<ImuStamps>;
     using ImuAccGyrVector = std::vector<ImuAccGyrContainer>;
     using ImuBufferVector = std::vector<ImuSyncBuffer>;
+
+    using SynchronizedEventsImuCallback =
+            std::function<void (const StampedEventArray& /*event_arrays*/,
+                      const ImuStampsVector& /*imu_timestamps*/,
+                      const ImuAccGyrVector& /*imu_measurements*/)>;
+
+
 public:
 
     explicit DataAcquisition(
@@ -55,6 +61,11 @@ public:
     void registerImuCallback(const ImuCallback& imu_callback)
     {
         imu_callback_ = imu_callback;
+    }
+
+    void registerCameraImuCallback(const SynchronizedEventsImuCallback& callback)
+    {
+        events_imu_callback_ = callback;
     }
  
 
@@ -91,6 +102,7 @@ private:
 
 protected:
     ImuCallback imu_callback_;
+    SynchronizedEventsImuCallback events_imu_callback_;
 
 };
 

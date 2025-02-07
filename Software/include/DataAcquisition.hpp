@@ -30,7 +30,8 @@ Change History
 
 
 class DataAcquisition {
-    using ImuSyncBuffer = RingBuffer<real_t, 6, 1000>;
+    using ImuSyncBuffer = int;
+    // using ImuSyncBuffer = RingBuffer<real_t, 6, 1000>;
     using ImuStampsVector = std::vector<ImuStamps>;
     using ImuAccGyrVector = std::vector<ImuAccGyrContainer>;
     using ImuBufferVector = std::vector<ImuSyncBuffer>;

@@ -26,7 +26,8 @@ CM - Communication
 #include <mutex>
 #include <thread>
 #include <vector>
-
+#include <iostream>
+#include <Eigen/Dense>
 
 // Local
 #include  "ThreadInterface.hpp"

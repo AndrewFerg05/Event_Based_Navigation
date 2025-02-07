@@ -79,7 +79,7 @@ void DataAcquisition::stop() {
 
 void DataAcquisition::initBuffers() 
 {
-    imu_buffer_ = ImuBufferVector(1);
+    // imu_buffer_ = ImuBufferVector(1);
     imu_buffer_.clear();
     event_buffer_.clear(); 
 }
@@ -169,26 +169,26 @@ void DataAcquisition::addEventsData(const EventData& event_data)
 
 void DataAcquisition::addImuData(const IMUData& imu_data)
 {
-    const Vector3 gyr(
-    imu_data.angular_velocity.x,
-    imu_data.angular_velocity.y,
-    imu_data.angular_velocity.z);
-    const Vector3 acc(
-    imu_data.linear_acceleration.x,
-    imu_data.linear_acceleration.y,
-    imu_data.linear_acceleration.z);
-    int64_t stamp = imu_data.header.stamp;
+    // const Vector3 gyr(
+    // imu_data.angular_velocity.x,
+    // imu_data.angular_velocity.y,
+    // imu_data.angular_velocity.z);
+    // const Vector3 acc(
+    // imu_data.linear_acceleration.x,
+    // imu_data.linear_acceleration.y,
+    // imu_data.linear_acceleration.z);
+    // int64_t stamp = imu_data.header.stamp;
 
-    Vector6 acc_gyr;
-    acc_gyr.head<3>() = acc;
-    acc_gyr.tail<3>() = gyr;
-    //stamp -= timeshift_cam_imu_;
-    imu_buffer_[1].insert(stamp, acc_gyr);
+    // Vector6 acc_gyr;
+    // acc_gyr.head<3>() = acc;
+    // acc_gyr.tail<3>() = gyr;
+    // //stamp -= timeshift_cam_imu_;
+    // imu_buffer_[1].insert(stamp, acc_gyr);
 
-    if (imu_callback_)
-    {
-        imu_callback_(stamp, acc, gyr);
-    }
+    // if (imu_callback_)
+    // {
+    //     imu_callback_(stamp, acc, gyr);
+    // }
 
     checkImuDataAndCallback();
 }
@@ -260,59 +260,59 @@ void DataAcquisition::checkImuDataAndCallback()
 
         std::vector<std::tuple<int64_t, int64_t, bool>> oldest_newest_stamp_vector(1);
 
-        std::transform(
-            imu_buffer_.begin(),
-            imu_buffer_.end(),
-            oldest_newest_stamp_vector.begin(),
-            [](const ImuSyncBuffer& imu_buffer) {
-            return imu_buffer.getOldestAndNewestStamp();
-        });
+        // std::transform(
+        //     imu_buffer_.begin(),
+        //     imu_buffer_.end(),
+        //     oldest_newest_stamp_vector.begin(),
+        //     [](const ImuSyncBuffer& imu_buffer) {
+        //     return imu_buffer.getOldestAndNewestStamp();
+        // });
 
-        const int64_t oldest_imu_stamp = std::get<0>(oldest_newest_stamp_vector[0]);
-        const int64_t newest_imu_stamp = std::get<1>(oldest_newest_stamp_vector[0]);
+        // const int64_t oldest_imu_stamp = std::get<0>(oldest_newest_stamp_vector[0]);
+        // const int64_t newest_imu_stamp = std::get<1>(oldest_newest_stamp_vector[0]);
 
-        if (!validateImuBuffers(
-                event_package_stamp,
-                event_package_stamp,
-                oldest_newest_stamp_vector))
-        {
-            if(oldest_imu_stamp >= event_package_stamp)
-            {
-              // Oldest IMU measurement is newer than image timestamp
-              // This will happen only at the very beginning, thus
-              // it is safe to simply discard the event package
-              discard_event_packet[i] = true;
-            }
-        }
-        else
-        {
-          for (size_t i = 0; i < 1; ++i)
-          {
-            if(last_event_package_broadcast_stamp_ < 0)
-            {
-              int64_t oldest_stamp = std::get<0>(oldest_newest_stamp_vector[i]);
-              std::tie(imu_timestamps[i], imu_measurements[i]) =
-                  imu_buffer_[i].getBetweenValuesInterpolated(
-                    oldest_stamp,
-                    event_package_stamp);
-            }
-            else
-            {
-              std::tie(imu_timestamps[i], imu_measurements[i]) =
-                  imu_buffer_[i].getBetweenValuesInterpolated(
-                    //event_package.second->at(0).ts.toNSec(), <-- Should be this...
-                    last_event_package_broadcast_stamp_,
-                    event_package_stamp);
-            }
-          }
+        // if (!validateImuBuffers(
+        //         event_package_stamp,
+        //         event_package_stamp,
+        //         oldest_newest_stamp_vector))
+        // {
+        //     if(oldest_imu_stamp >= event_package_stamp)
+        //     {
+        //       // Oldest IMU measurement is newer than image timestamp
+        //       // This will happen only at the very beginning, thus
+        //       // it is safe to simply discard the event package
+        //       discard_event_packet[i] = true;
+        //     }
+        // }
+        // else
+        // {
+        //   for (size_t i = 0; i < 1; ++i)
+        //   {
+        //     if(last_event_package_broadcast_stamp_ < 0)
+        //     {
+        //       int64_t oldest_stamp = std::get<0>(oldest_newest_stamp_vector[i]);
+        //       std::tie(imu_timestamps[i], imu_measurements[i]) =
+        //           imu_buffer_[i].getBetweenValuesInterpolated(
+        //             oldest_stamp,
+        //             event_package_stamp);
+        //     }
+        //     else
+        //     {
+        //       std::tie(imu_timestamps[i], imu_measurements[i]) =
+        //           imu_buffer_[i].getBetweenValuesInterpolated(
+        //             //event_package.second->at(0).ts.toNSec(), <-- Should be this...
+        //             last_event_package_broadcast_stamp_,
+        //             event_package_stamp);
+        //     }
+        //   }
     
         //   events_imu_callback_(event_package, imu_timestamps, imu_measurements);
     
-          // Discard the event package, now that it's been processed
-          discard_event_packet[i] = true;
+        //   // Discard the event package, now that it's been processed
+        //   discard_event_packet[i] = true;
     
-          last_event_package_broadcast_stamp_ = event_package_stamp;
-        }
+        //   last_event_package_broadcast_stamp_ = event_package_stamp;
+        // }
         
     }
 }

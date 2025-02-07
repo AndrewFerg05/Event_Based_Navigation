@@ -21,9 +21,9 @@ if (WIN32)
     set(LIBCAER_LIBRARY_DIRS "C:/msys64/mingw64/lib")
     set(LIBCAER_LIBRARIES "libcaer")
 
-    set(OPENCV_INCLUDE_DIRS "C:/msys64/mingw64/include/opencv4")
-    set(OPENCV_LIBRARY_DIRS "C:/msys64/mingw64/lib")
-    set(OPENCV_LIBRARIES opencv_core opencv_imgcodecs opencv_highgui)
+    set(OpenCV_INCLUDE_DIRS "C:/msys64/mingw64/include/opencv4")
+    set(OpenCV_LIBRARY_DIRS "C:/msys64/mingw64/lib")
+    set(OpenCV_LIBRARIES opencv_core opencv_imgcodecs opencv_highgui)
 
     set(LIBSERIAL_INCLUDE_DIRS "C:/msys64/mingw64/include")
     set(LIBSERIAL_LIBRARY_DIRS "C:/msys64/mingw64/lib")
@@ -58,7 +58,9 @@ else()
 endif()
 
 # Add the library path for linking
-link_directories(${LIBCAER_LIBRARY_DIRS} ${LIBUSB_LIBRARY_DIRS} ${LIBSERIAL_LIBRARY_DIRS})
+
+link_directories(${LIBCAER_LIBRARY_DIRS} ${LIBUSB_LIBRARY_DIRS} ${LIBSERIAL_LIBRARY_DIRS} ${OpenCV_LIBRARY_DIRS})
+
 
 # Add executable
 add_executable(${PROJECT_NAME} ${SOURCES})
@@ -80,7 +82,7 @@ else()
 endif()
 
 if (WIN32)
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBCAER_LIBRARIES} ${OPENCV_LIBRARIES} ${LIBSERIAL_LIBRARIES} ws2_32)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBCAER_LIBRARIES} ${OpenCV_LIBRARIES} ${LIBSERIAL_LIBRARIES} ws2_32)
 else()
     target_link_libraries(${PROJECT_NAME} PRIVATE 
         ${LIBCAER_LIBRARIES} 

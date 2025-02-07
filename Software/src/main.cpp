@@ -108,10 +108,15 @@ int main()
     //         &comms_interface,
     //         &serial);
 
+    std::cout << "CM Thread Ended" << std::endl;
+
     // Wait for other threads to exit
-    // data_aquire_thread.join();
-    // frontend_thread.join();
-    // backend_thread.join();
+    data_aquire_thread.join();
+    std::cout << "DA Thread Ended" << std::endl;
+    frontend_thread.join();
+    std::cout << "FE Thread Ended" << std::endl;
+    backend_thread.join();
+    std::cout << "BE Thread Ended" << std::endl;
 
     // // Perform cleanup
     // std::cout << "Cleaning up..." << std::endl;

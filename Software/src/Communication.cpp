@@ -29,9 +29,8 @@ Change History
 // Control Signals
 #define RUN     0
 #define STOP    1
-#define PAUSE   2
-#define RESET   3
-#define TEST    4
+#define IDLE    2
+
 
 #define TEST_IMAGE  "../example.jpg"
 #define TEST_RUN_TIME 5
@@ -98,83 +97,61 @@ void CM_loop(
         if (command == RUN) {
 
             if(state_change_called){
-            data_sync_state = ThreadState::Running;
-            frontend_state = ThreadState::Running;
-            backend_state = ThreadState::Running;
+            data_sync_state = ThreadState::Run;
+            frontend_state = ThreadState::Run;
+            backend_state = ThreadState::Run;
             state_change_called = false;
             }
 
-            // Arduino Communication
-            commandReceived = CM_serialReceive(serial);
-            if (commandReceived != 42){     // If not no response
-                command = commandReceived;
-            }
+            // // Arduino Communication
+            // commandReceived = CM_serialReceive(serial);
+            // if (commandReceived != 42){     // If not no response
+            //     command = commandReceived;
+            // }
 
             //      Send to ESP32 displacement estimates
             //          Get pose / displacement from BE
             CM_serialSendStatus(serial, 3, 4);
 
 
-            // Base Station Communication
-            //      Get frames from DA and transmit on UDP
-            if(!comms->processQueues())
-            {
-                std::cout << "No data To Send" << std::endl;
-            }
-            CM_transmitFrame(frame, 0);
+            // // Base Station Communication
+            // //      Get frames from DA and transmit on UDP
+            // if(!comms->processQueues())
+            // {
+            //     std::cout << "No data To Send" << std::endl;
+            // }
+            // CM_transmitFrame(frame, 0);
 
-            //      Get event frames from FE and transmit on UDP
-            CM_transmitFrame(frame, 1);
+            // //      Get event frames from FE and transmit on UDP
+            // CM_transmitFrame(frame, 1);
 
             //      Get position from BE and transmit on UDP
             CM_transmitStatus(iterations, iterations, 0, iterations, iterations, iterations);
             
-            sleep_ms(10);
+            // sleep_ms(10);
             
         } else if (command == STOP) {
             // Stop Condition
             if(state_change_called){
-            data_sync_state = ThreadState::Stopped;
-            frontend_state = ThreadState::Stopped;
-            backend_state = ThreadState::Stopped;
+            data_sync_state = ThreadState::Stop;
+            frontend_state = ThreadState::Stop;
+            backend_state = ThreadState::Stop;
             state_change_called = false;
+            
             }
 
             data_DA->stop_queue();  //Wake FE if waiting on data
             break;
 
-        } else if (command == PAUSE) {
+        } else if (command == IDLE) {
             // Pause Condition
            if(state_change_called){
-            data_sync_state = ThreadState::Paused;
-            frontend_state = ThreadState::Paused;
-            backend_state = ThreadState::Paused;
+            data_sync_state = ThreadState::Idle;
+            frontend_state = ThreadState::Idle;
+            backend_state = ThreadState::Idle;
             state_change_called = false;
             }
 
-        } else if (command == RESET) {
-            // Reset Condition
-           if(state_change_called){
-            data_sync_state = ThreadState::Reset;
-            frontend_state = ThreadState::Reset;
-            backend_state = ThreadState::Reset;
-            state_change_called = false;
-            }
-
-        } else if (command == TEST) {
-            // Testing Conditionn
-          if(state_change_called){
-            data_sync_state = ThreadState::Test;
-            frontend_state = ThreadState::Test;
-            backend_state = ThreadState::Test;
-            state_change_called = false;
-            }
-            std::cout << "Comms Testing" << std::endl;
-            sleep_ms(100);
-        }
-        else if (command == 100){
-            std::cout << "Unknown state" << std::endl;
-            sleep_ms(100);
         }
     }
 }

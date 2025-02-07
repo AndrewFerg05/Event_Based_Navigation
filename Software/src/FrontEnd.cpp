@@ -41,41 +41,41 @@ void FE_loop(std::atomic<ThreadState>& state,
     int readData = 0;
     int processedData = 0;
 
-    while (true) {
-        if (state == ThreadState::Stopped) {
-            break;
-        }
+    // while (true) {
+    //     if (state == ThreadState::Stopped) {
+    //         break;
+    //     }
 
-        if (state == ThreadState::Paused) {
-            //TODO - Wait while some condition
-            sleep_ms(100);
-            continue;
-        }
+    //     if (state == ThreadState::Paused) {
+    //         //TODO - Wait while some condition
+    //         sleep_ms(100);
+    //         continue;
+    //     }
 
-        if (state == ThreadState::Reset) {
-            //TODO call reset function then set running again
-            state = ThreadState::Running; 
-        }
+    //     if (state == ThreadState::Reset) {
+    //         //TODO call reset function then set running again
+    //         state = ThreadState::Running; 
+    //     }
 
-        if (state == ThreadState::Running) {
+    //     if (state == ThreadState::Running) {
             
-            //TODO
-            // Check buffer can be read
-            auto item_DA = data_DA->pop(); // Get data from queue
-            if (item_DA.has_value()) {
-                comms->queueTrackedFrameData(item_DA.value());
-                sleep_ms(30);
-            } else {
-                std::cout << "Queue returned no value (stopped or empty)." << std::endl;
-                sleep_ms(10);
-            }
-        }
+    //         //TODO
+    //         // Check buffer can be read
+    //         auto item_DA = data_DA->pop(); // Get data from queue
+    //         if (item_DA.has_value()) {
+    //             comms->queueTrackedFrameData(item_DA.value());
+    //             sleep_ms(30);
+    //         } else {
+    //             std::cout << "Queue returned no value (stopped or empty)." << std::endl;
+    //             sleep_ms(10);
+    //         }
+    //     }
 
-        if (state == ThreadState::Test) {
-            sleep_ms(100);
-            std::cout << "Frontend Testing" << std::endl; 
-        }
-    }
+    //     if (state == ThreadState::Test) {
+    //         sleep_ms(100);
+    //         std::cout << "Frontend Testing" << std::endl; 
+    //     }
+    // }
 }
 
 

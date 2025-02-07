@@ -58,7 +58,9 @@ else()
 endif()
 
 # Add the library path for linking
+
 link_directories(${LIBCAER_LIBRARY_DIRS} ${LIBUSB_LIBRARY_DIRS} ${LIBSERIAL_LIBRARY_DIRS} ${OpenCV_LIBRARY_DIRS})
+
 
 # Add executable
 add_executable(${PROJECT_NAME} ${SOURCES})

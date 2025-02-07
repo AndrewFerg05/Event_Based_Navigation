@@ -54,6 +54,8 @@ class CM_serialInterface{
         bool open = 0;
     public:
         bool ESPCheckOpen() {return this->open;}
+    CM_serialInterface() = default;
+    ~CM_serialInterface() = default;
         bool ESPOpen();
         void ESPClose();
         int ESPCheckBuffer() {return sp_input_waiting(this->ESPPort);}

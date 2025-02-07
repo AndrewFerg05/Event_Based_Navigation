@@ -19,12 +19,81 @@ Change History
 //------------------------------------------------------------------------------
 #include "ThreadInterface.hpp"
 #include "TypeAliases.hpp"
+#include "Types.hpp"
+#include "RingBuffer.hpp"
 
 
 
 //==============================================================================
 //      Classes
 //------------------------------------------------------------------------------
+
+
+class DataAcquisition {
+    using ImuSyncBuffer = int;
+    // using ImuSyncBuffer = RingBuffer<real_t, 6, 1000>;
+    using ImuStampsVector = std::vector<ImuStamps>;
+    using ImuAccGyrVector = std::vector<ImuAccGyrContainer>;
+    using ImuBufferVector = std::vector<ImuSyncBuffer>;
+public:
+
+    explicit DataAcquisition(
+        std::shared_ptr<DataQueues> data_queues,
+        std::atomic<ThreadState>& state,
+        std::shared_ptr<CommunicationManager> comms);
+
+    ~DataAcquisition();
+    void start();  
+    void idle();   
+    void stop();
+    void initBuffers();
+    void addImageData();
+    void addEventsData(const EventData& event_data);
+    void addImuData(const IMUData& imu_data);
+    void onlyEventsNoImagesLogic();
+
+    void registerImuCallback(const ImuCallback& imu_callback)
+    {
+        imu_callback_ = imu_callback;
+    }
+ 
+
+private:
+    std::atomic<ThreadState>& state_;  // Atomic state flag
+    std::thread acquisition_thread_;
+    std::shared_ptr<DataQueues> input_data_queues_;
+    std::shared_ptr<CommunicationManager> comms_interface_;
+    bool running_;
+
+    void run();
+    bool processDataQueues();
+    void resetQueues();
+    void extractAndEraseEvents();
+    void checkImuDataAndCallback();
+    bool validateImuBuffers(
+        const int64_t& min_stamp,
+        const int64_t& max_stamp,
+        const std::vector<std::tuple<int64_t, int64_t, bool> >&
+        oldest_newest_stamp_vector);
+
+    ImuBufferVector imu_buffer_;
+    EventBuffer event_buffer_;
+
+    StampedEventArrays event_packages_ready_to_process_;
+
+    size_t cur_ev_; // index of the last event processed yet
+
+    int64_t last_package_stamp_;
+    size_t last_package_ev_;
+  
+    int64_t last_event_package_broadcast_stamp_ { -1 };
+
+
+protected:
+    ImuCallback imu_callback_;
+
+};
+
 
 
 //==============================================================================

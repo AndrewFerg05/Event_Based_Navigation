@@ -23,11 +23,18 @@ if (WIN32)
 
     set(OpenCV_INCLUDE_DIRS "C:/msys64/mingw64/include/opencv4")
     set(OpenCV_LIBRARY_DIRS "C:/msys64/mingw64/lib")
-    set(OpenCV_LIBS opencv_core opencv_imgcodecs opencv_highgui)
+    set(OpenCV_LIBRARIES opencv_core opencv_imgcodecs opencv_highgui)
 
     set(LIBSERIAL_INCLUDE_DIRS "C:/msys64/mingw64/include")
     set(LIBSERIAL_LIBRARY_DIRS "C:/msys64/mingw64/lib")
     set(LIBSERIAL_LIBRARIES "libserialport")
+
+    # Find Eigen3 on Windows
+    find_path(EIGEN3_INCLUDE_DIR NAMES Eigen/Core PATHS "C:/msys64/mingw64/include/eigen3")
+    if(NOT EIGEN3_INCLUDE_DIR)
+        message(FATAL_ERROR "Eigen3 not found! Install it via MSYS2 using 'pacman -S mingw-w64-x86_64-eigen3'")
+    endif()
+
 else()
     message("Mac or Linux Device")
 
@@ -37,7 +44,7 @@ else()
     pkg_check_modules(LIBCAER REQUIRED libcaer)
     pkg_check_modules(LIBUSB REQUIRED libusb-1.0)
     pkg_check_modules(LIBSERIAL REQUIRED libserialport)
-    #find_package(yaml-cpp REQUIRED)
+    find_package(yaml-cpp REQUIRED)
 
     # Find OpenCV the correct way
     find_package(OpenCV REQUIRED)
@@ -45,6 +52,9 @@ else()
     # Ensure OpenCV include directories are used
     include_directories(${OpenCV_INCLUDE_DIRS})
     link_directories(${OpenCV_LIBRARY_DIRS})
+
+    # Find Eigen3 on macOS/Linux
+    find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 endif()
 
 # Add the library path for linking
@@ -62,14 +72,21 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${OpenCV_INCLUDE_DIRS}  # Use OpenCV's detected include directories
 )
 
+# Add Eigen include directory
 if (WIN32)
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBCAER_LIBRARIES} ${OpenCV_LIBS} ${LIBSERIAL_LIBRARIES} ws2_32)
+    target_include_directories(${PROJECT_NAME} PRIVATE ${EIGEN3_INCLUDE_DIR})
 else()
-target_link_libraries(${PROJECT_NAME} PRIVATE 
-    ${LIBCAER_LIBRARIES} 
-    ${LIBUSB_LIBRARIES}
-    ${LIBSERIAL_LIBRARIES} 
-    ${OpenCV_LIBS}  # Correctly links OpenCV components
-    #yaml-cpp        # Add YAML support
-)
+    target_include_directories(${PROJECT_NAME} PRIVATE ${EIGEN3_INCLUDE_DIRS})
+endif()
+
+if (WIN32)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBCAER_LIBRARIES} ${OpenCV_LIBRARIES} ${LIBSERIAL_LIBRARIES} ws2_32)
+else()
+    target_link_libraries(${PROJECT_NAME} PRIVATE 
+        ${LIBCAER_LIBRARIES} 
+        ${LIBUSB_LIBRARIES}
+        ${LIBSERIAL_LIBRARIES} 
+        ${OpenCV_LIBS}  # Correctly links OpenCV components
+        yaml-cpp        # Add YAML support
+    )
 endif()

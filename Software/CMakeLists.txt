@@ -26,13 +26,19 @@ if (WIN32)
     set(LIBCAER_LIBRARY_DIRS "C:/msys64/mingw64/lib")
     set(LIBCAER_LIBRARIES "libcaer")
 
-    set(OPENCV_INCLUDE_DIRS "C:/msys64/mingw64/include/opencv4")
-    set(OPENCV_LIBRARY_DIRS "C:/msys64/mingw64/lib")
-    set(OPENCV_LIBRARIES opencv_core opencv_imgcodecs opencv_highgui)
+    set(OpenCV_INCLUDE_DIRS "C:/msys64/mingw64/include/opencv4")
+    set(OpenCV_LIBRARY_DIRS "C:/msys64/mingw64/lib")
+    set(OpenCV_LIBRARIES opencv_core opencv_imgcodecs opencv_highgui)
 
     set(LIBSERIAL_INCLUDE_DIRS "C:/msys64/mingw64/include")
     set(LIBSERIAL_LIBRARY_DIRS "C:/msys64/mingw64/lib")
     set(LIBSERIAL_LIBRARIES "libserialport")
+
+    set(YAML_INCLUDE_DIRS "C:/msys64/mingw64/include")
+    set(YAML_LIBRARY_DIRS "C:/msys64/mingw64/lib")
+    set(YAML_LIBRARIES "yaml-cpp")
+
+    find_package(glog REQUIRED)
 
     # Find Eigen3 on Windows
     find_path(EIGEN3_INCLUDE_DIR NAMES Eigen/Core PATHS "C:/msys64/mingw64/include/eigen3")
@@ -66,7 +72,9 @@ else()
 endif()
 
 # Add the library path for linking
-link_directories(${LIBCAER_LIBRARY_DIRS} ${LIBUSB_LIBRARY_DIRS} ${LIBSERIAL_LIBRARY_DIRS})
+
+link_directories(${LIBCAER_LIBRARY_DIRS} ${LIBUSB_LIBRARY_DIRS} ${LIBSERIAL_LIBRARY_DIRS} ${OpenCV_LIBRARY_DIRS} ${YAML_LIBRARY_DIRS})
+
 
 # Add executable
 add_executable(${PROJECT_NAME} ${SOURCES})
@@ -81,6 +89,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${LIBUSB_INCLUDE_DIRS} 
     ${LIBSERIAL_INCLUDE_DIRS} 
     ${OpenCV_INCLUDE_DIRS}  # Use OpenCV's detected include directories
+    ${YAML_INCLUDE_DIRS}
 )
 
 # Add Eigen include directory
@@ -94,10 +103,11 @@ endif()
 if (WIN32)
     target_link_libraries(${PROJECT_NAME} PRIVATE 
         ${LIBCAER_LIBRARIES} 
-        ${OPENCV_LIBRARIES} 
+        ${OpenCV_LIBRARIES} 
         ${LIBSERIAL_LIBRARIES} 
         ws2_32
-        glog::glog  # Link Google glog
+        glog::glog
+        ${YAML_LIBRARIES}
     )
 else()
     target_link_libraries(${PROJECT_NAME} PRIVATE 

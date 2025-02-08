@@ -51,11 +51,14 @@ class CM_serialInterface{
     private:
         struct sp_port *ESPPort = NULL;
         int timeout = 50;
+        bool open = 0;
     public:
+        bool ESPCheckOpen() {return this->open;}
     CM_serialInterface() = default;
     ~CM_serialInterface() = default;
         bool ESPOpen();
         void ESPClose();
+        int ESPCheckBuffer() {return sp_input_waiting(this->ESPPort);}
         bool ESPWrite(char* message);
         char* ESPRead();
 
@@ -72,14 +75,14 @@ std::uint8_t CM_serialReceive(CM_serialInterface* serial);
 
 void CM_serialSendStatus(CM_serialInterface* serial, int32_t x, int32_t y);
 
-void CM_transmitStatus(int32_t x, int32_t y);
+void CM_transmitStatus(int32_t x, int32_t y, int32_t z, int32_t yaw, int32_t pitch, int32_t roll);
 
 void CM_loop(
     std::atomic<ThreadState>& data_sync_state,
     std::atomic<ThreadState>& frontend_state,
     std::atomic<ThreadState>& backend_state,
     ThreadSafeFIFO<InputDataSync>* data_DA,
-    CommunicationManager* comms,
+    std::shared_ptr<CommunicationManager> comms,
     CM_serialInterface* serial);
 
 void CM_transmitFrame(cv::Mat frame, int frame_id);

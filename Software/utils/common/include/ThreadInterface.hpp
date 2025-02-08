@@ -21,9 +21,11 @@ Change History
 #ifdef _WIN32
     #include <windows.h>
     #define sleep_ms(x) Sleep(x)  // Sleep a thread in milliseconds on Windows
+    #define sleep_us(x) Sleep(1)
 #else
     #include <chrono>
     #define sleep_ms(x) std::this_thread::sleep_for(std::chrono::milliseconds(x))  // Sleep a thread in other systems
+    #define sleep_us(x) std::this_thread::sleep_for(std::chrono::microseconds(x))  // Sleep a thread in other systems
 #endif
 
 //==============================================================================

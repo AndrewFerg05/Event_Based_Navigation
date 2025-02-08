@@ -408,7 +408,7 @@ void DataAcquisition::run()
     {
         if (state_ == ThreadState::Idle) 
         {
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));  // Avoid busy waiting
+            sleep_ms(10);  // Avoid busy waiting
             continue;
         }
 
@@ -422,7 +422,7 @@ void DataAcquisition::run()
         {
             if (!processDataQueues()) 
             {
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));  // No data, sleep briefly
+                sleep_ms(1);  // No data, sleep briefly
             }
 
         }

@@ -42,6 +42,8 @@ DataAcquisition::DataAcquisition(std::shared_ptr<DataQueues> data_queues, std::a
         cur_ev_ = 0;
         last_package_stamp_ = -1;
         last_package_ev_ = 0;
+        CHECK_GE(FLAGS_data_size_augmented_event_packet, 0) <<
+        "DA: data_size_augmented_event_packet should be positive.";
         initBuffers();
     }
 
@@ -57,7 +59,7 @@ void DataAcquisition::start() {
 }
 
 void DataAcquisition::idle() {
-    std::cout << "[DataAcquisition] Resetting queues and entering idle mode..." << std::endl;
+    LOG(INFO) << "DA: Resetting queues and entering idle mode...";
     resetQueues();
     imu_buffer_.clear();
     event_buffer_.clear();
@@ -74,12 +76,11 @@ void DataAcquisition::stop() {
     if (acquisition_thread_.joinable()) {
         acquisition_thread_.join();
     }
-    std::cout << "[DataAcquisition] Stopped." << std::endl;
+    LOG(INFO) << "DA: Thread stopped";
 }
 
 void DataAcquisition::initBuffers() 
 {
-    // imu_buffer_ = ImuBufferVector(1);
     imu_buffer_.clear();
     event_buffer_.clear(); 
 }
@@ -116,16 +117,25 @@ void DataAcquisition::onlyEventsNoImagesLogic()
             {
                 const int64_t package_stamp = cur_stamp;
 
+                VLOG(100) << "DA: Creating event package from " << last_package_stamp_
+                << " to " << cur_stamp
+                << " with stamp: " << package_stamp;
+
                 size_t ev = cur_ev_ > package_size ?
                             cur_ev_ - package_size : 0;
 
+                // Build the actual event package
+                VLOG(100) << "DA: Augmented event package: " << event_buffer_[ev].timestamp_ns
+                << " to " << cur_stamp
+                << " with " << cur_ev_ - ev + 1 << " events";
 
                 EventArrayPtr event_array_ptr = std::make_shared<EventArray>();
                 for(; ev <= cur_ev_ ; ev++)
                     event_array_ptr->push_back(event_buffer_[ev]);
 
                 event_packages_ready_to_process_.push_back(StampedEventArray(package_stamp, event_array_ptr));
-
+                
+                // Prepare to build a new event package
                 last_package_stamp_ = cur_stamp;
                 last_package_ev_ = cur_ev_;
             }
@@ -133,8 +143,6 @@ void DataAcquisition::onlyEventsNoImagesLogic()
     
 
 }
-
-
 
 void DataAcquisition::addEventsData(const EventData& event_data)
 {
@@ -145,10 +153,10 @@ void DataAcquisition::addEventsData(const EventData& event_data)
 
     for(auto& e : event_data.events)
         events->push_back(e);
-    
+
+    VLOG(1000) << event_data.events[0].timestamp_ns;
+
     event_buffer_.insert(event_buffer_.end(), events->begin(), events->end());
-
-
 
     onlyEventsNoImagesLogic();
     checkImuDataAndCallback();
@@ -162,9 +170,12 @@ void DataAcquisition::addEventsData(const EventData& event_data)
                           + remove_events);
       cur_ev_ -= remove_events;
       last_package_ev_ -= remove_events;
+
+      VLOG(10) << "DA: Removed " << remove_events << " events from the DVS buffer";
     }
 
-
+    VLOG(1000) << "DA: num events added to the queue: " << events->size();
+    VLOG(1000) << "DA: total num events: " << event_buffer_.size();
 }
 
 void DataAcquisition::addImuData(const IMUData& imu_data)
@@ -221,11 +232,11 @@ bool DataAcquisition::processDataQueues()
 void DataAcquisition::resetQueues()
 {
     if (!input_data_queues_) {
-        std::cerr << "[ERROR] Data queues not initialized!" << std::endl;
+        LOG(ERROR) << "DA: Data queues not initialized!";
         return;
     }
 
-    std::cout << "[INFO] Resetting all data queues..." << std::endl;
+    LOG(INFO) << "DA: Resetting all data queues...";
     
     input_data_queues_->event_queue->clear();
     input_data_queues_->camera_info_queue->clear();
@@ -233,7 +244,7 @@ void DataAcquisition::resetQueues()
     input_data_queues_->image_queue->clear();
     input_data_queues_->exposure_queue->clear();
 
-    std::cout << "[INFO] All queues cleared!" << std::endl;
+    LOG(INFO) << "DA: All queues cleared";
 }
 
 void DataAcquisition::extractAndEraseEvents()
@@ -255,6 +266,8 @@ void DataAcquisition::checkImuDataAndCallback()
         const StampedEventArray& event_package = event_packages_ready_to_process_[i];
         const int64_t event_package_stamp = event_package.first;
 
+        VLOG(1000) << "Current event package stamp:" << event_package_stamp;
+
         ImuStampsVector imu_timestamps(1);
         ImuAccGyrVector imu_measurements(1);
 
@@ -271,6 +284,9 @@ void DataAcquisition::checkImuDataAndCallback()
         const int64_t oldest_imu_stamp = std::get<0>(oldest_newest_stamp_vector[0]);
         const int64_t newest_imu_stamp = std::get<1>(oldest_newest_stamp_vector[0]);
 
+        VLOG(1000) << "DA: Oldest IMU stamp: " << oldest_imu_stamp;
+        VLOG(1000) << "DA: Newest IMU stamp: " << newest_imu_stamp;
+
         if (!validateImuBuffers(
                 event_package_stamp,
                 event_package_stamp,
@@ -281,30 +297,34 @@ void DataAcquisition::checkImuDataAndCallback()
               // Oldest IMU measurement is newer than image timestamp
               // This will happen only at the very beginning, thus
               // it is safe to simply discard the event package
+              VLOG(1000) << "DA: Discarding event packet at stamp:" << event_package_stamp;
               discard_event_packet[i] = true;
             }
         }
         else
         {
-          for (size_t i = 0; i < 1; ++i)
-          {
-            if(last_event_package_broadcast_stamp_ < 0)
+            // We have enough IMU measurements to broadcast the current packet
+            VLOG(1000) << "DA: last_event_package_broadcast_stamp: " << last_event_package_broadcast_stamp_;
+            
+            for (size_t i = 0; i < 1; ++i)
             {
-              int64_t oldest_stamp = std::get<0>(oldest_newest_stamp_vector[i]);
-              std::tie(imu_timestamps[i], imu_measurements[i]) =
-                  imu_buffer_[i].getBetweenValuesInterpolated(
-                    oldest_stamp,
-                    event_package_stamp);
+                if(last_event_package_broadcast_stamp_ < 0)
+                {
+                int64_t oldest_stamp = std::get<0>(oldest_newest_stamp_vector[i]);
+                std::tie(imu_timestamps[i], imu_measurements[i]) =
+                    imu_buffer_[i].getBetweenValuesInterpolated(
+                        oldest_stamp,
+                        event_package_stamp);
+                }
+                else
+                {
+                std::tie(imu_timestamps[i], imu_measurements[i]) =
+                    imu_buffer_[i].getBetweenValuesInterpolated(
+                        //event_package.second->at(0).ts.toNSec(), <-- Should be this...
+                        last_event_package_broadcast_stamp_,
+                        event_package_stamp);
+                }
             }
-            else
-            {
-              std::tie(imu_timestamps[i], imu_measurements[i]) =
-                  imu_buffer_[i].getBetweenValuesInterpolated(
-                    //event_package.second->at(0).ts.toNSec(), <-- Should be this...
-                    last_event_package_broadcast_stamp_,
-                    event_package_stamp);
-            }
-          }
     
           events_imu_callback_(event_package, imu_timestamps, imu_measurements);
     

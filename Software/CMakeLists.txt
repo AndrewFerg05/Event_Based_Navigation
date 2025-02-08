@@ -8,8 +8,13 @@ project(Event_Based_Navigation)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Use all cpp files in src
-file(GLOB SOURCES "src/*.cpp")
+# Use all cpp files in src and utils directories
+file(GLOB SOURCES 
+    "src/*.cpp" 
+    "utils/common/src/*.cpp"
+    "utils/frontend/src/*.cpp"
+    "utils/backend/src/*.cpp"
+)
 
 if (WIN32)
     message("Windows Device")
@@ -59,6 +64,9 @@ else()
 
     # Find Eigen3 on macOS/Linux
     find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+
+    # Find Google glog
+    find_package(glog REQUIRED)
 endif()
 
 # Add the library path for linking
@@ -72,6 +80,9 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 # Target Include Directory
 target_include_directories(${PROJECT_NAME} PRIVATE 
     include 
+    utils/common/include
+    utils/frontend/include
+    utils/backend/include
     ${LIBCAER_INCLUDE_DIRS} 
     ${LIBUSB_INCLUDE_DIRS} 
     ${LIBSERIAL_INCLUDE_DIRS} 
@@ -86,8 +97,16 @@ else()
     target_include_directories(${PROJECT_NAME} PRIVATE ${EIGEN3_INCLUDE_DIRS})
 endif()
 
+# Link required libraries
 if (WIN32)
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBCAER_LIBRARIES} ${OpenCV_LIBRARIES} ${LIBSERIAL_LIBRARIES} ws2_32 ${YAML_LIBRARIES})
+    target_link_libraries(${PROJECT_NAME} PRIVATE 
+        ${LIBCAER_LIBRARIES} 
+        ${OpenCV_LIBRARIES} 
+        ${LIBSERIAL_LIBRARIES} 
+        ws2_32
+        glog::glog  # Link Google glog
+        ${YAML_LIBRARIES}
+    )
 else()
     target_link_libraries(${PROJECT_NAME} PRIVATE 
         ${LIBCAER_LIBRARIES} 
@@ -95,5 +114,6 @@ else()
         ${LIBSERIAL_LIBRARIES} 
         ${OpenCV_LIBS}  # Correctly links OpenCV components
         yaml-cpp        # Add YAML support
+        glog::glog      # Link Google glog
     )
 endif()

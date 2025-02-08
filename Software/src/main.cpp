@@ -36,6 +36,7 @@ CM - Communication
 #include  "DataAcquisition.hpp"
 #include  "FrontEnd.hpp"
 #include "DavisDriver.hpp"
+#include "Logging.hpp"
 
 
 //==============================================================================
@@ -54,10 +55,9 @@ CM - Communication
 //==============================================================================
 // Functions
 //------------------------------------------------------------------------------
-int main() 
+int main(int argc, char* argv[]) 
 {
-    error("INIT", "===================START=OF=ERROR=LOG===================");
-    message("INIT", "===================START=OF=MESSAGE=LOG===================");
+    initLogging(argv[0]);
 
 
     size_t input_queue_size = 10; //Actually manually set in constructor

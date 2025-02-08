@@ -82,7 +82,7 @@ void CM_loop(
     std::atomic<ThreadState>& frontend_state,
     std::atomic<ThreadState>& backend_state,
     ThreadSafeFIFO<InputDataSync>* data_DA,
-    CommunicationManager* comms,
+    std::shared_ptr<CommunicationManager> comms,
     CM_serialInterface* serial);
 
 void CM_transmitFrame(cv::Mat frame, int frame_id);

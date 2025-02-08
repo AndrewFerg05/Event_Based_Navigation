@@ -164,7 +164,7 @@ DavisDriver::DavisDriver(const std::string& config_path, std::shared_ptr<DataQue
      config_manager_(config_path)
 {
     config_manager_.loadConfig(config_path);
-    caerConnect();
+    //caerConnect();
     config_manager_.streaming_rate = 30;
     bias = config_manager_.getBias();
     delta_ = std::chrono::microseconds(static_cast<long>(1e6 / config_manager_.streaming_rate));
@@ -189,7 +189,7 @@ void DavisDriver::caerConnect()
         const char* serial_number_restrict = (config_manager_.device_id_.empty()) ? nullptr : config_manager_.device_id_.c_str();
 
         if (serial_number_restrict) {
-            std::cerr << "Requested serial number: " << config_manager_.device_id_ << std::endl;
+            //std::cerr << "Requested serial number: " << config_manager_.device_id_ << std::endl;
         }
 
         // Attempt to open the DAVIS camera
@@ -199,16 +199,19 @@ void DavisDriver::caerConnect()
         device_is_running = (davis_handle_ != nullptr);
 
         if (!device_is_running) {
-            std::cerr << "Could not find DAVIS. Retrying every second..." << std::endl;
-            std::this_thread::sleep_for(std::chrono::microseconds(500));  // Wait before retrying
+            //std::cerr << "Could not find DAVIS. Retrying every second..." << std::endl;
+            sleep_us(500);  // Wait before retrying
         }
 
         // Exit if the driver is manually stopped (replace with actual stopping condition)
         if (!running_) {
-            std::cerr << "Driver stopped. Exiting startup loop." << std::endl;
+            //std::cerr << "Driver stopped. Exiting startup loop." << std::endl;
             return;
         }
     }
+
+    std::cout << "Out of while loop" << std::endl;
+
     // Retrieve device information
     davis_info_ = caerDavisInfoGet(davis_handle_);
     config_manager_.device_id_ = "DAVIS-" + std::string(davis_info_.deviceString).substr(14, 8);
@@ -234,7 +237,7 @@ void DavisDriver::caerConnect()
     changeDvsParameters(); // Might not need to run in other thread if not dynamicall configuring 
     readout_thread_ = std::thread(&DavisDriver::readout, this);
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    sleep_ms(500);
 
 }
 
@@ -616,7 +619,7 @@ void DavisDriver::changeDvsParameters()
                     std::cout << "Auto-training hot-pixel filter..." << std::endl;
                     while(config_manager_.pixel_auto_train)
                     {
-                      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                      sleep_ms(100);
                       caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_AUTO_TRAIN, (uint32_t*)&config_manager_.pixel_auto_train);
                     }
                   

@@ -29,6 +29,10 @@ if (WIN32)
     set(LIBSERIAL_LIBRARY_DIRS "C:/msys64/mingw64/lib")
     set(LIBSERIAL_LIBRARIES "libserialport")
 
+    set(YAML_INCLUDE_DIRS "C:/msys64/mingw64/include")
+    set(YAML_LIBRARY_DIRS "C:/msys64/mingw64/lib")
+    set(YAML_LIBRARIES "yaml-cpp")
+
     # Find Eigen3 on Windows
     find_path(EIGEN3_INCLUDE_DIR NAMES Eigen/Core PATHS "C:/msys64/mingw64/include/eigen3")
     if(NOT EIGEN3_INCLUDE_DIR)
@@ -59,7 +63,7 @@ endif()
 
 # Add the library path for linking
 
-link_directories(${LIBCAER_LIBRARY_DIRS} ${LIBUSB_LIBRARY_DIRS} ${LIBSERIAL_LIBRARY_DIRS} ${OpenCV_LIBRARY_DIRS})
+link_directories(${LIBCAER_LIBRARY_DIRS} ${LIBUSB_LIBRARY_DIRS} ${LIBSERIAL_LIBRARY_DIRS} ${OpenCV_LIBRARY_DIRS} ${YAML_LIBRARY_DIRS})
 
 
 # Add executable
@@ -72,6 +76,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${LIBUSB_INCLUDE_DIRS} 
     ${LIBSERIAL_INCLUDE_DIRS} 
     ${OpenCV_INCLUDE_DIRS}  # Use OpenCV's detected include directories
+    ${YAML_INCLUDE_DIRS}
 )
 
 # Add Eigen include directory
@@ -82,7 +87,7 @@ else()
 endif()
 
 if (WIN32)
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBCAER_LIBRARIES} ${OpenCV_LIBRARIES} ${LIBSERIAL_LIBRARIES} ws2_32)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBCAER_LIBRARIES} ${OpenCV_LIBRARIES} ${LIBSERIAL_LIBRARIES} ws2_32 ${YAML_LIBRARIES})
 else()
     target_link_libraries(${PROJECT_NAME} PRIVATE 
         ${LIBCAER_LIBRARIES} 

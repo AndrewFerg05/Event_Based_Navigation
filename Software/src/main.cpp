@@ -56,10 +56,16 @@ CM - Communication
 //------------------------------------------------------------------------------
 int main() 
 {
+    error("INIT", "===================START=OF=ERROR=LOG===================");
+    message("INIT", "===================START=OF=MESSAGE=LOG===================");
+
+
     size_t input_queue_size = 10; //Actually manually set in constructor
     auto data_queues = std::make_shared<DataQueues>(input_queue_size);
     std::string config_path = "../config/blank_config.yaml";
     DavisDriver driver(config_path, data_queues);   //Starts driver to add data to input queues
+    std::cout << "Driver setup..." << std::endl;
+    
     
     // Create atomic control flags
     std::atomic<ThreadState> data_aquire_state(ThreadState::Idle);
@@ -72,28 +78,29 @@ int main()
     
     std::shared_ptr<CommunicationManager> comms_interface = std::make_shared<CommunicationManager>(test_queue_capacity, test_queue_capacity, test_queue_capacity);
 
-    // // Perform initial setup
-    // std::cout << "Setting up..." << std::endl;
+    // Perform initial setup
+    std::cout << "Setting up..." << std::endl;
 
-    // // Initialise camera
+    // Initialise camera
 
-    // // Initialise WiFi
-    // if (CM_initNet() != 0) 
-    // {
-    //     std::cerr << "Internet initialisation failed!" << std::endl;
-    //     return 0;
-    // }
-    // std::cout << "WiFi Initialised" << std::endl;
+    // Initialise WiFi
+    if (CM_initNet() != 0) 
+    {
+        error("MAIN", "WiFi Initialisation Failure");
+        return 0;
+    }
+    message("MAIN", "WiFi Initialised");
     
 
     // // Initialise serial
     CM_serialInterface serial;
-    // // Prepare ESP for connection
-    // if (serial.ESPOpen() != 0){
-    //     std::cerr << "Failed to open ESP" << std::endl;
-    //     return 0;
-    // }
-    // std::cout << "ESP Connection Initialised" << std::endl;
+    // Prepare ESP for connection
+    if (serial.ESPOpen() == 0){
+        error("MAIN","Failed to open ESP32");
+    }
+    else{
+        message("MAIN","ESP32 Serial Connection Initialised");
+    }
  
     // Start threads
     // std::thread data_aquire_thread(DA_loop, std::ref(data_aquire_state), &data_DA_to_FE, &comms_interface);
@@ -101,35 +108,35 @@ int main()
     // std::thread backend_thread(BE_loop, std::ref(backend_state), &comms_interface);
     
     // Start this thread
-    // CM_loop(std::ref(data_aquire_state), 
-    //         std::ref(frontend_state), 
-    //         std::ref(backend_state),
-    //         &data_DA_to_FE,
-    //         &comms_interface,
-    //         &serial);
+    CM_loop(std::ref(data_aquire_state), 
+            std::ref(frontend_state), 
+            std::ref(backend_state),
+            &data_DA_to_FE,
+            comms_interface,
+            &serial);
 
-    std::cout << "CM Thread Ended" << std::endl;
+    message("MAIN","CM Thread Ended");
 
     // Wait for other threads to exit
-    data_aquire_thread.join();
-    std::cout << "DA Thread Ended" << std::endl;
-    frontend_thread.join();
-    std::cout << "FE Thread Ended" << std::endl;
-    backend_thread.join();
-    std::cout << "BE Thread Ended" << std::endl;
+    // data_aquire_thread.join();
+    // std::cout << "DA Thread Ended" << std::endl;
+    // frontend_thread.join();
+    // std::cout << "FE Thread Ended" << std::endl;
+    // backend_thread.join();
+    // std::cout << "BE Thread Ended" << std::endl;
 
     // // Perform cleanup
-    // std::cout << "Cleaning up..." << std::endl;
+    std::cout << "Cleaning up..." << std::endl;
     
     // // Close WiFi
-    // CM_cleanupNet();
-    // std::cout << "Wifi closed" << std::endl;
+    CM_cleanupNet();
+    message("MAIN","WiFi Closed");
 
-    // // Close ESP connection
-    // serial.ESPClose();
-    // std::cout << "Serial closed" << std::endl;
+    // Close ESP connection
+    serial.ESPClose();
+    message("MAIN","Serial closed");
 
-    // std::cout << "Program ended" << std::endl;
+    std::cout << "Program ended" << std::endl;
 
     return 0;
 }

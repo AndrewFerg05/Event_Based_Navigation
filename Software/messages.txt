@@ -1,0 +1,8 @@
+(INIT) at [2025-02-08 16:30:27] : ===================START=OF=MESSAGE=LOG===================
+(MAIN) at [2025-02-08 16:30:27] : WiFi Initialised
+(MAIN) at [2025-02-08 16:30:27] : ESP32 Serial Connection Initialised
+(CM)   at [2025-02-08 16:30:30] : Changing to Run state
+(CM)   at [2025-02-08 16:30:33] : Changing to Stop state
+(MAIN) at [2025-02-08 16:30:33] : CM Thread Ended
+(MAIN) at [2025-02-08 16:30:33] : WiFi Closed
+(MAIN) at [2025-02-08 16:30:33] : Serial closed

@@ -1,0 +1,2 @@
+ERROR (INIT) at [2025-02-08 16:30:27] : ===================START=OF=ERROR=LOG===================
+ERROR (CM)   at [2025-02-08 16:30:27] : Failed to open ESP32 port in read/write mode.

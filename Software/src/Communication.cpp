@@ -55,20 +55,20 @@ void CM_loop(
     std::atomic<ThreadState>& frontend_state,
     std::atomic<ThreadState>& backend_state,
     ThreadSafeFIFO<InputDataSync>* data_DA,
-    CommunicationManager* comms,
+    std::shared_ptr<CommunicationManager> comms,
     CM_serialInterface* serial) {
 
     auto start_time = std::chrono::steady_clock::now();   
 
     std::uint8_t commandReceived = 100; //Get this from external serial source
-    std::uint8_t command = 100; //Get this from external source
+    std::uint8_t command = IDLE; //Get this from external source
 
     bool state_change_called = false; //Used to only set the atomics once
 	
     cv::Mat frame = cv::imread(TEST_IMAGE);
     if (frame.empty()) {
-        std::cerr << "Failed to load image." << std::endl;
-        command = 0;
+        error("CM", "Failed to load test image.");
+        command = STOP;
     }
 
     int bufferSize = 0;
@@ -78,66 +78,57 @@ void CM_loop(
         auto now = std::chrono::steady_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - start_time).count();
 
-        // AF - Test Thread Control
-        if (elapsed > 1)
-        {
-            if (elapsed > TEST_RUN_TIME)
-            {
-                command = STOP;
-                state_change_called = true;
-            }
-            else 
-            {
-                command = RUN;
-                state_change_called = true;
-            }
-        }
-
         // Thread control
         if (command == RUN) {
 
             if(state_change_called){
-            data_sync_state = ThreadState::Run;
-            frontend_state = ThreadState::Run;
-            backend_state = ThreadState::Run;
-            state_change_called = false;
+                message("CM","Changing to Run state");
+                data_sync_state = ThreadState::Run;
+                frontend_state = ThreadState::Run;
+                backend_state = ThreadState::Run;
+                state_change_called = false;
             }
 
-            // // Arduino Communication
+            // ESP Receive code mode
             // commandReceived = CM_serialReceive(serial);
             // if (commandReceived != 42){     // If not no response
             //     command = commandReceived;
             // }
+            if (elapsed > TEST_RUN_TIME)
+            {
+                state_change_called = true;
+                command = STOP;
+            }
 
-            //      Send to ESP32 displacement estimates
-            //          Get pose / displacement from BE
-            CM_serialSendStatus(serial, 3, 4);
+            // Base Station Communication
+            //      Get frames from DA and transmit on UDP
+            if(!comms->processQueues())
+            {
+                // No data in buffers
+            }
+            else
+            {
+                // Transmit camera frames from DA
+                CM_transmitFrame(frame, 0);
 
+                //Transmit event frames from FE
+                CM_transmitFrame(frame, 1);
 
-            // // Base Station Communication
-            // //      Get frames from DA and transmit on UDP
-            // if(!comms->processQueues())
-            // {
-            //     std::cout << "No data To Send" << std::endl;
-            // }
-            // CM_transmitFrame(frame, 0);
+                //Transmit position estimate from BE
+                CM_transmitStatus(iterations, iterations, 0, iterations, iterations, iterations);
 
-            // //      Get event frames from FE and transmit on UDP
-            // CM_transmitFrame(frame, 1);
-
-            //      Get position from BE and transmit on UDP
-            CM_transmitStatus(iterations, iterations, 0, iterations, iterations, iterations);
-            
-            // sleep_ms(10);
+                //Send to ESP32 position estimate from BE
+                CM_serialSendStatus(serial, iterations, iterations);
+            }
             
         } else if (command == STOP) {
             // Stop Condition
             if(state_change_called){
-            data_sync_state = ThreadState::Stop;
-            frontend_state = ThreadState::Stop;
-            backend_state = ThreadState::Stop;
-            state_change_called = false;
-            
+                message("CM","Changing to Stop state");
+                data_sync_state = ThreadState::Stop;
+                frontend_state = ThreadState::Stop;
+                backend_state = ThreadState::Stop;
+                state_change_called = false;
             }
 
             data_DA->stop_queue();  //Wake FE if waiting on data
@@ -146,12 +137,27 @@ void CM_loop(
         } else if (command == IDLE) {
             // Pause Condition
            if(state_change_called){
-            data_sync_state = ThreadState::Idle;
-            frontend_state = ThreadState::Idle;
-            backend_state = ThreadState::Idle;
-            state_change_called = false;
+                message("CM","Changing to Idle state");
+                data_sync_state = ThreadState::Idle;
+                frontend_state = ThreadState::Idle;
+                backend_state = ThreadState::Idle;
+                state_change_called = false;
             }
 
+            // Wait for run command from ESP
+            // commandReceived = CM_serialReceive(serial);
+            // if (commandReceived != 42){     // If not no response
+            //     command = commandReceived;
+            // }
+
+            sleep_ms(100);
+            
+            //(FOR TESTING WITHOUT ESP)
+            if (elapsed > 1)
+            {
+                state_change_called = true;
+                command = RUN;
+            }
         }
     }
 }
@@ -343,7 +349,7 @@ bool CM_serialInterface::ESPOpen() {
     struct sp_port **ports;
 
     if (sp_list_ports(&ports) != SP_OK) {
-        fprintf(stderr, "Error finding serial ports\n");
+        error("CM", "Failed to open serial ports.");
         return 1;
     }
 
@@ -351,22 +357,22 @@ bool CM_serialInterface::ESPOpen() {
         const char *portName = sp_get_port_name(ports[i]);
         const char *description = sp_get_port_description(ports[i]);
 
-        printf(description);
+        //printf(description);
 
         if (strstr(description, "CP210") != NULL) {
-            printf("ESP32 on port: %s\n", portName ? portName : "N/A");
+            //printf("ESP32 on port: %s\n", portName ? portName : "N/A");
             if(sp_get_port_by_name(portName, &this->ESPPort) != SP_OK){
-                printf("Failed to find port by name.\n");
-                return 0;
+                error("CM", "Failed to find ESP32 port by name.");
+                return 1;
             }
         }
     }
 
     if (sp_open(this->ESPPort, SP_MODE_READ_WRITE) != SP_OK) {
-        printf("Failed to open ESP32 in read-write mode.\n");
+        error("CM", "Failed to open ESP32 port in read/write mode.");
+        return 1;
     } else {
         sp_set_baudrate(this->ESPPort, 115200);
-        printf("ESP32 opened in read-write mode.\n");
         this->open = 1;
     }
 

@@ -8,8 +8,13 @@ project(Event_Based_Navigation)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Use all cpp files in src
-file(GLOB SOURCES "src/*.cpp")
+# Use all cpp files in src and utils directories
+file(GLOB SOURCES 
+    "src/*.cpp" 
+    "utils/common/src/*.cpp"
+    "utils/frontend/src/*.cpp"
+    "utils/backend/src/*.cpp"
+)
 
 if (WIN32)
     message("Windows Device")
@@ -66,6 +71,9 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 # Target Include Directory
 target_include_directories(${PROJECT_NAME} PRIVATE 
     include 
+    utils/common/include
+    utils/frontend/include
+    utils/backend/include
     ${LIBCAER_INCLUDE_DIRS} 
     ${LIBUSB_INCLUDE_DIRS} 
     ${LIBSERIAL_INCLUDE_DIRS} 

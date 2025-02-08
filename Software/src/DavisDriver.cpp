@@ -149,10 +149,10 @@ void ConfigManager::loadConfig(const std::string& config_path){
         aps_roi_end_column = config["aps_roi_end_column"] ? config["aps_roi_end_column"].as<int>() : 0;
         aps_roi_end_row = config["aps_roi_end_row"] ? config["aps_roi_end_row"].as<int>() : 0;
 
-        std::cout << "Loaded parameters successfully from " << config_file_path << std::endl;
+        LOG(INFO) << "Driver: Loaded parameters successfully from " << config_file_path;
 
     } catch (const std::exception& e) {
-        std::cerr << "Error loading YAML config: " << e.what() << std::endl;
+        LOG(ERROR) << "Driver: Error loading YAML config: " << e.what();
     }
 }
 
@@ -189,7 +189,7 @@ void DavisDriver::caerConnect()
         const char* serial_number_restrict = (config_manager_.device_id_.empty()) ? nullptr : config_manager_.device_id_.c_str();
 
         if (serial_number_restrict) {
-            std::cerr << "Requested serial number: " << config_manager_.device_id_ << std::endl;
+            LOG(INFO) << "Driver: Requested serial number: " << config_manager_.device_id_;
         }
 
         // Attempt to open the DAVIS camera
@@ -199,13 +199,13 @@ void DavisDriver::caerConnect()
         device_is_running = (davis_handle_ != nullptr);
 
         if (!device_is_running) {
-            std::cerr << "Could not find DAVIS. Retrying every second..." << std::endl;
+            LOG(ERROR) << "Driver: Could not find DAVIS. Retrying every second...";
             std::this_thread::sleep_for(std::chrono::microseconds(500));  // Wait before retrying
         }
 
         // Exit if the driver is manually stopped (replace with actual stopping condition)
         if (!running_) {
-            std::cerr << "Driver stopped. Exiting startup loop." << std::endl;
+            LOG(WARNING) << "Driver: Driver stopped. Exiting startup loop.";
             return;
         }
     }
@@ -214,11 +214,12 @@ void DavisDriver::caerConnect()
     config_manager_.device_id_ = "DAVIS-" + std::string(davis_info_.deviceString).substr(14, 8);
 
     // Print device info
-    std::cout << davis_info_.deviceString << " --- ID: " << davis_info_.deviceID
-            << ", Master: " << davis_info_.deviceIsMaster
-            << ", DVS X: " << davis_info_.dvsSizeX
-            << ", DVS Y: " << davis_info_.dvsSizeY
-            << ", Logic: " << davis_info_.firmwareVersion << std::endl;
+    LOG(INFO) << "Driver: " << davis_info_.deviceString << "--- ID: " << davis_info_.deviceID
+    << ", Master: " << davis_info_.deviceIsMaster
+    << ", DVS X: " << davis_info_.dvsSizeX
+    << ", DVS Y: " << davis_info_.dvsSizeY
+    << ", Logic: " << davis_info_.firmwareVersion;
+
 
     // Send the default configuration before using the device.
     caerDeviceSendDefaultConfig(davis_handle_);;
@@ -266,21 +267,25 @@ void DavisDriver::updateImuBias()
     bias.angular_velocity.y /= (double) imu_calibration_samples_.size();
     bias.angular_velocity.z /= (double) imu_calibration_samples_.size();
 
-    std::cout << "IMU calibration done.\n";
-    std::cout << "Acceleration biases: " 
+    LOG(INFO) << "Driver: IMU calibration done.";
+
+    LOG(INFO) << "Driver: Acceleration biases: " 
               << bias.linear_acceleration.x << " "
               << bias.linear_acceleration.y << " "
-              << bias.linear_acceleration.z << " [m/s^2]" << std::endl;
-
-    std::cout << "Gyroscope biases: "
+              << bias.linear_acceleration.z << " [m/s^2]";
+    
+    LOG(INFO) << "Driver: Gyroscope biases: "
               << bias.angular_velocity.x << " "
               << bias.angular_velocity.y << " "
-              << bias.angular_velocity.z << " [rad/s]" << std::endl;
+              << bias.angular_velocity.z << " [rad/s]";
+    
 }
 
 void DavisDriver::triggerImuCalibration()
 {
-    std::cout << "Starting IMU calibration with " << config_manager_.imu_calibration_sample_size_ << " samples..." << std::endl;
+    LOG(INFO) << "Driver: Starting IMU calibration with " 
+          << config_manager_.imu_calibration_sample_size_ << " samples...";
+
     imu_calibration_running_ = true;
     imu_calibration_samples_.clear();
 }
@@ -492,7 +497,8 @@ void DavisDriver::readout()
         }
         catch (const std::exception& e) 
         {
-            std::cerr << "Exception caught in readout thread: " << e.what() << std::endl;
+            LOG(ERROR) << "Driver: Exception caught in readout thread: " << e.what();
+
         }
     }
     caerDeviceDataStop(davis_handle_);
@@ -613,7 +619,8 @@ void DavisDriver::changeDvsParameters()
                   // if using auto train, update the configuration with hardware values
                   if (config_manager_.pixel_auto_train)
                   {
-                    std::cout << "Auto-training hot-pixel filter..." << std::endl;
+                    LOG(INFO) << "Driver: Auto-training hot-pixel filter...";
+
                     while(config_manager_.pixel_auto_train)
                     {
                       std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -638,7 +645,8 @@ void DavisDriver::changeDvsParameters()
                     caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_7_COLUMN, (uint32_t*)&config_manager_.pixel_7_column);
                     
                     
-                    std::cout << "Done auto-training hot-pixel filter." << std::endl;
+                    LOG(INFO) << "Driver: Completed auto-training hot-pixel";
+
                   }
                   else // apply current configuration to hardware
                   {
@@ -700,14 +708,15 @@ void DavisDriver::changeDvsParameters()
         }
         catch (const std::exception& e)
         {
-            std::cerr << "Exception in changeDvsParameters: " << e.what() << std::endl;
+            LOG(ERROR) << "Driver: Exception in changeDvsParameters: " << e.what();
+
         }
     // }
 }
 
 void DavisDriver::onDisconnectUSB(void* driver)
 {
-    std::cerr << "[ERROR] USB connection lost with DVS!" << std::endl;
+    LOG(ERROR) << "Driver: USB connection lost with DVS!";
     static_cast<DavisDriver*>(driver)->caerConnect(); 
 }
 //==============================================================================

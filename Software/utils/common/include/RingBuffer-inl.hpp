@@ -33,11 +33,13 @@ template <typename Scalar, size_t ValueDim, size_t Size>
 typename Ringbuffer<Scalar, ValueDim, Size>::TimeDataBoolTuple
 Ringbuffer<Scalar, ValueDim, Size>::getNearestValue(time_t stamp)
 {
+  CHECK_GE(stamp, 0u);
 
   std::lock_guard<std::mutex> lock(mutex_);
 
   if(times_.empty())
   {
+    LOG(WARNING) << "Buffer is empty.";
     return std::make_tuple(-1, DataType(), false);
   }
 
@@ -69,6 +71,7 @@ Ringbuffer<Scalar, ValueDim, Size>::getNearestValue(time_t stamp)
   // Select which entry is closest based on time difference.
   if(dt_after < 0 && dt_before < 0)
   {
+    CHECK(false) << "Should not occur.";
     return std::make_tuple(-1, DataType(), false);
   }
   else if(dt_after < 0)
@@ -130,12 +133,15 @@ Ringbuffer<Scalar, ValueDim, Size>::getBetweenValuesInterpolated(
     time_t stamp_from,
     time_t stamp_to)
 {
+  CHECK_GE(stamp_from, 0u);
+  CHECK_LT(stamp_from, stamp_to);
   times_dynamic_t stamps;
   data_dynamic_t values;
 
   std::lock_guard<std::mutex> lock(mutex_);
   if(times_.size() < 2)
   {
+    LOG(WARNING) << "Buffer has less than 2 entries.";
     return std::make_pair(stamps, values); // return empty means unsuccessful.
   }
 
@@ -143,17 +149,22 @@ Ringbuffer<Scalar, ValueDim, Size>::getBetweenValuesInterpolated(
   const time_t newest_stamp = times_.back();
   if(stamp_from < oldest_stamp)
   {
+    LOG(WARNING) << "Requests older timestamp than in buffer.";
     return std::make_pair(stamps, values); // return empty means unsuccessful.
   }
   if(stamp_to > newest_stamp)
   {
+    LOG(WARNING) << "Requests newer timestamp than in buffer.";
     return std::make_pair(stamps, values); // return empty means unsuccessful.
   }
 
   auto it_from_before = iterator_equal_or_before(stamp_from);
   auto it_to_after = iterator_equal_or_after(stamp_to);
+  CHECK(it_from_before != times_.end());
+  CHECK(it_to_after != times_.end());
   if(it_from_before == it_to_after)
   {
+    LOG(FATAL) << "Not enough data for interpolation";
     return std::make_pair(stamps, values); // return empty means unsuccessful.
   }
   auto it_from_after = it_from_before + 1;
@@ -218,6 +229,7 @@ typename Ringbuffer<Scalar, ValueDim, Size>::data_dynamic_t
 Ringbuffer<Scalar, ValueDim, Size>::getValuesInterpolated(
     times_dynamic_t stamps)
 {
+  CHECK_GT(stamps.size(), 0);
 
   std::lock_guard<std::mutex> lock(mutex_);
   time_t oldest_time = times_.front();
@@ -232,6 +244,8 @@ Ringbuffer<Scalar, ValueDim, Size>::getValuesInterpolated(
   for (int i = 1; i < stamps.size(); ++i)
   {
     // ensure that we stay within the bounds of the buffer
+    CHECK_LT(stamps(i), newest_time);
+    CHECK_GT(stamps(i), oldest_time);
 
     // advance to next value
     while (*(it_before + 1) < stamps(i))
@@ -274,6 +288,7 @@ template <typename Scalar, size_t ValueDim, size_t Size>
 typename Ringbuffer<Scalar, ValueDim, Size>::timering_t::iterator
 Ringbuffer<Scalar, ValueDim, Size>::iterator_equal_or_before(time_t stamp)
 {
+  DEBUG_CHECK(!mutex_.try_lock()) << "Call lock() before accessing data.";
   auto it = lower_bound(stamp);
 
   if(*it == stamp)
@@ -296,6 +311,7 @@ template <typename Scalar, size_t ValueDim, size_t Size>
 typename Ringbuffer<Scalar, ValueDim, Size>::timering_t::iterator
 Ringbuffer<Scalar, ValueDim, Size>::iterator_equal_or_after(time_t stamp)
 {
+  DEBUG_CHECK(!mutex_.try_lock()) << "Call lock() before accessing data.";
   return lower_bound(stamp);
 }
 
@@ -359,6 +375,7 @@ Ringbuffer<Scalar, ValueDim, Size>::lower_bound(time_t stamp)
   // no match points to end
   return times_.end();
 }
+
 
 #endif  // TYPE_ALIASES_HPP
 //==============================================================================

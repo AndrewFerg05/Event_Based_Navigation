@@ -25,6 +25,7 @@ Description : Optimized Ring Buffer for IMU and Event Synchronization
 #include <type_traits>
 #include <utility>
 
+#include "Logging.hpp"
 #include "RingView.hpp"
 #include "TimeConversions.hpp"
 
@@ -32,6 +33,16 @@ Description : Optimized Ring Buffer for IMU and Event Synchronization
 //      Classes
 //------------------------------------------------------------------------------
 
+
+//! @todo: move the interpolators somewhere where they make more sense?
+//!
+//! Interpolators have to implement:
+//! _ interpolate(Ringbuffer<...>*, int64_t time, Ringbuffer<...>timering_t::iterator);
+//! Passing the (optional) interator to the timestamp right before the to be
+//! interpolated value speeds up the process.
+//! The passed it_before is expected to be valid.
+//!
+//! A nearest neighbour "interpolator".
 struct InterpolatorNearest
 {
   template<typename Ringbuffer_T>
@@ -44,6 +55,7 @@ struct InterpolatorNearest
     auto it_after = it_before + 1;
     if (it_after == buffer->times_.end())
     {
+      LOG(WARNING) << "Interpolation hit end of buffer.";
       return buffer->dataAtTimeIterator(it_before);
     }
 
@@ -61,6 +73,8 @@ struct InterpolatorNearest
       int64_t time)
   {
     auto it_before = buffer->iterator_equal_or_before(time);
+    // caller should check the bounds:
+    CHECK(it_before != buffer->times_.end());
 
     return interpolate(buffer, time, it_before);
   }
@@ -79,6 +93,7 @@ struct InterpolatorLinear
     auto it_after = it_before + 1;
     if (it_after == buffer->times_.end())
     {
+      LOG(WARNING) << "Interpolation hit end of buffer.";
       return buffer->dataAtTimeIterator(it_before);
     }
 
@@ -104,6 +119,11 @@ struct InterpolatorLinear
 };
 using DefaultInterpolator = InterpolatorLinear;
 
+
+//! A fixed size timed buffer templated on the number of entries.
+//! Opposed to the `Buffer`, values are expected to be received ORDERED in
+//! TIME!
+// Oldest entry: buffer.begin(), newest entry: buffer.rbegin()
 template <typename Scalar, size_t ValueDim, size_t Size>
 class Ringbuffer
 {
@@ -132,151 +152,152 @@ public:
   using DataBoolPair = std::pair<DataType, bool>;
   using TimeDataBoolTuple = std::tuple<time_t, DataType, bool>;
   using TimeDataRangePair = std::pair<times_dynamic_t, data_dynamic_t>;
+
   Ringbuffer()
-  : times_(timering_t(times_raw_.data(),
-                      times_raw_.data() + Size,
-                      times_raw_.data(),
-                      0))
-{}
+    : times_(timering_t(times_raw_.data(),
+                        times_raw_.data() + Size,
+                        times_raw_.data(),
+                        0))
+  {}
 
-//! no copy, no move as there is no way to track the mutex
-Ringbuffer(const Ringbuffer& from) = delete;
-Ringbuffer(const Ringbuffer&& from) = delete;
+  //! no copy, no move as there is no way to track the mutex
+  Ringbuffer(const Ringbuffer& from) = delete;
+  Ringbuffer(const Ringbuffer&& from) = delete;
 
-inline void insert(time_t stamp,
-                   const DataType& data)
-{
-  std::lock_guard<std::mutex> lock(mutex_);
-  times_.push_back(stamp);
-  data_.col(times_.back_idx()) = data;
-}
-
-//! Get value with timestamp closest to stamp. Boolean returns if successful.
-std::tuple<time_t, DataType, bool> getNearestValue(time_t stamp);
-
-//! Get oldest value in buffer.
-std::pair<DataType, bool> getOldestValue() const;
-
-//! Get newest value in buffer.
-std::pair<DataType, bool> getNewestValue() const;
-
-//! Get timestamps of newest and oldest entry.
-std::tuple<time_t, time_t, bool> getOldestAndNewestStamp() const;
-
-/*! @brief Get Values between timestamps.
- *
- * If timestamps are not matched, the values
- * are interpolated. Returns a vector of timestamps and a block matrix with
- * values as columns. Returns empty matrices if not successful.
- */
-template <typename Interpolator = DefaultInterpolator>
-TimeDataRangePair
-getBetweenValuesInterpolated(time_t stamp_from, time_t stamp_to);
-
-//! Get the values of the container at the given timestamps
-//! The requested timestamps are expected to be in order!
-template <typename Interpolator = DefaultInterpolator>
-data_dynamic_t getValuesInterpolated(times_dynamic_t stamps);
-
-//! Interpolate a single value
-template <typename Interpolator = DefaultInterpolator>
-bool getValueInterpolated(time_t t,  Eigen::Ref<data_dynamic_t> out);
-
-inline void clear()
-{
-  std::lock_guard<std::mutex> lock(mutex_);
-  times_.reset();
-}
-
-inline size_t size() const
-{
-  std::lock_guard<std::mutex> lock(mutex_);
-  return times_.size();
-}
-
-inline bool empty() const
-{
-  std::lock_guard<std::mutex> lock(mutex_);
-  return times_.empty();
-}
-
-//! technically does not remove but only moves the beginning of the ring
-inline void removeDataBeforeTimestamp(time_t stamp)
-{
-  std::lock_guard<std::mutex> lock(mutex_);
-  removeDataBeforeTimestamp_impl(stamp);
-}
-
-inline void removeDataOlderThan(real_t seconds)
-{
-  std::lock_guard<std::mutex> lock(mutex_);
-  if(times_.empty())
+  inline void insert(time_t stamp,
+                     const DataType& data)
   {
-    return;
+    std::lock_guard<std::mutex> lock(mutex_);
+    times_.push_back(stamp);
+    data_.col(times_.back_idx()) = data;
   }
 
-  removeDataBeforeTimestamp_impl(
-        times_.back() - secToNanosec(seconds));
-}
+  //! Get value with timestamp closest to stamp. Boolean returns if successful.
+  std::tuple<time_t, DataType, bool> getNearestValue(time_t stamp);
 
-inline void lock() const
-{
-  mutex_.lock();
-}
+  //! Get oldest value in buffer.
+  std::pair<DataType, bool> getOldestValue() const;
 
-inline void unlock() const
-{
-  mutex_.unlock();
-}
+  //! Get newest value in buffer.
+  std::pair<DataType, bool> getNewestValue() const;
 
-const data_t& data() const
-{
-  CHECK(!mutex_.try_lock()) << "Call lock() before accessing data.";
-  return data_;
-}
+  //! Get timestamps of newest and oldest entry.
+  std::tuple<time_t, time_t, bool> getOldestAndNewestStamp() const;
 
-const timering_t& times() const
-{
-  CHECK(!mutex_.try_lock()) << "Call lock() before accessing data.";
-  return times_;
-}
+  /*! @brief Get Values between timestamps.
+   *
+   * If timestamps are not matched, the values
+   * are interpolated. Returns a vector of timestamps and a block matrix with
+   * values as columns. Returns empty matrices if not successful.
+   */
+  template <typename Interpolator = DefaultInterpolator>
+  TimeDataRangePair
+  getBetweenValuesInterpolated(time_t stamp_from, time_t stamp_to);
 
-typename timering_t::iterator iterator_equal_or_before(time_t stamp);
-typename timering_t::iterator iterator_equal_or_after(time_t stamp);
+  //! Get the values of the container at the given timestamps
+  //! The requested timestamps are expected to be in order!
+  template <typename Interpolator = DefaultInterpolator>
+  data_dynamic_t getValuesInterpolated(times_dynamic_t stamps);
 
-//! returns an iterator to the first element in the times_ ring that
-//! is greater or equal to stamp
-inline typename timering_t::iterator lower_bound(time_t stamp);
+  //! Interpolate a single value
+  template <typename Interpolator = DefaultInterpolator>
+  bool getValueInterpolated(time_t t,  Eigen::Ref<data_dynamic_t> out);
 
-inline std::mutex& mutex() {return mutex_;}
+  inline void clear()
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    times_.reset();
+  }
+
+  inline size_t size() const
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return times_.size();
+  }
+
+  inline bool empty() const
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return times_.empty();
+  }
+
+  //! technically does not remove but only moves the beginning of the ring
+  inline void removeDataBeforeTimestamp(time_t stamp)
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    removeDataBeforeTimestamp_impl(stamp);
+  }
+
+  inline void removeDataOlderThan(real_t seconds)
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if(times_.empty())
+    {
+      return;
+    }
+
+    removeDataBeforeTimestamp_impl(
+          times_.back() - secToNanosec(seconds));
+  }
+
+  inline void lock() const
+  {
+    mutex_.lock();
+  }
+
+  inline void unlock() const
+  {
+    mutex_.unlock();
+  }
+
+  const data_t& data() const
+  {
+    CHECK(!mutex_.try_lock()) << "Call lock() before accessing data.";
+    return data_;
+  }
+
+  const timering_t& times() const
+  {
+    CHECK(!mutex_.try_lock()) << "Call lock() before accessing data.";
+    return times_;
+  }
+
+  typename timering_t::iterator iterator_equal_or_before(time_t stamp);
+  typename timering_t::iterator iterator_equal_or_after(time_t stamp);
+
+  //! returns an iterator to the first element in the times_ ring that
+  //! is greater or equal to stamp
+  inline typename timering_t::iterator lower_bound(time_t stamp);
+
+  inline std::mutex& mutex() {return mutex_;}
 
 protected:
-mutable std::mutex mutex_;
-data_t data_;
-times_t times_raw_;
-timering_t times_;
+  mutable std::mutex mutex_;
+  data_t data_;
+  times_t times_raw_;
+  timering_t times_;
 
-//! return the data at a given point in time
-inline DataType dataAtTimeIterator(typename timering_t::iterator iter) const
-{
-  //! @todo: i believe this is wrong.
-  return data_.col(iter.container_index());
-}
+  //! return the data at a given point in time
+  inline DataType dataAtTimeIterator(typename timering_t::iterator iter) const
+  {
+    //! @todo: i believe this is wrong.
+    return data_.col(iter.container_index());
+  }
 
-//! return the data at a given point in time (const)
-inline DataType dataAtTimeIterator(typename timering_t::const_iterator iter) const
-{
-  //! @todo: i believe this is wrong.
-  return data_.col(iter.container_index());
-}
+  //! return the data at a given point in time (const)
+  inline DataType dataAtTimeIterator(typename timering_t::const_iterator iter) const
+  {
+    //! @todo: i believe this is wrong.
+    return data_.col(iter.container_index());
+  }
 
-//! shifts the starting point of the ringbuffer to the given timestamp
-//! no resizing or deletion happens.
-inline void removeDataBeforeTimestamp_impl(time_t stamp)
-{
-  auto it = lower_bound(stamp);
-  times_.reset_front(it.container_index());
-}
+  //! shifts the starting point of the ringbuffer to the given timestamp
+  //! no resizing or deletion happens.
+  inline void removeDataBeforeTimestamp_impl(time_t stamp)
+  {
+    auto it = lower_bound(stamp);
+    times_.reset_front(it.container_index());
+  }
 };
 
 

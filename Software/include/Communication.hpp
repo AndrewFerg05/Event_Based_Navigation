@@ -44,6 +44,7 @@ Change History
 
 #include "ThreadInterface.hpp"
 #include "TypeAliases.hpp"
+#include "Logging.hpp"
 //==============================================================================
 //      Classes
 //------------------------------------------------------------------------------

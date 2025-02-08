@@ -67,7 +67,7 @@ void CM_loop(
 	
     cv::Mat frame = cv::imread(TEST_IMAGE);
     if (frame.empty()) {
-        std::cout << "CM: Failed to load test image. " << std::endl;
+        LOG(ERROR) << "CM: Failed to load test image. ";
         command = STOP;
     }
 
@@ -82,7 +82,7 @@ void CM_loop(
         if (command == RUN) {
 
             if(state_change_called){
-                std::cout << "CM: Changed to run state " << std::endl;
+                LOG(INFO) << "CM: Changed to run state ";
                 data_sync_state = ThreadState::Run;
                 frontend_state = ThreadState::Run;
                 backend_state = ThreadState::Run;
@@ -124,7 +124,7 @@ void CM_loop(
         } else if (command == STOP) {
             // Stop Condition
             if(state_change_called){
-                std::cout << "CM: Changed to stop state " << std::endl;
+                LOG(INFO) << "CM: Changed to stop state ";
                 data_sync_state = ThreadState::Stop;
                 frontend_state = ThreadState::Stop;
                 backend_state = ThreadState::Stop;
@@ -137,7 +137,7 @@ void CM_loop(
         } else if (command == IDLE) {
             // Pause Condition
            if(state_change_called){
-            std::cout << "CM: Changed to idle state " << std::endl;
+            LOG(INFO) << "CM: Changed to idle state ";
                 data_sync_state = ThreadState::Idle;
                 frontend_state = ThreadState::Idle;
                 backend_state = ThreadState::Idle;
@@ -179,7 +179,7 @@ std::uint8_t CM_serialReceive(CM_serialInterface* serial){
 void CM_serialSendStatus(CM_serialInterface* serial, int32_t x, int32_t y){
 
     iterations++;
-    printf("Iteration: %d \n", iterations);
+    LOG(INFO) << "Iteration: ", std::to_string(iterations);
 
     if (serial->ESPCheckOpen() == 1)
     {
@@ -195,9 +195,7 @@ void CM_serialSendStatus(CM_serialInterface* serial, int32_t x, int32_t y){
 }
 
 void CM_transmitStatus(int32_t x, int32_t y, int32_t z, int32_t yaw, int32_t pitch, int32_t roll) {
-    // Little-endian ID for status
     int32_t id = little_endian(ID_STATUS);
-
     uint32_t dataSize = 24;
 
     // Allocate buffer space (8 bytes for header + dataSize for actual data)
@@ -216,8 +214,8 @@ void CM_transmitStatus(int32_t x, int32_t y, int32_t z, int32_t yaw, int32_t pit
     roll = little_endian(roll);
 
     // Copy ID and dataSize into the sendBuffer (Little-endian order)
-    memcpy(sendBuffer, &id, 4);  // Copy ID
-    memcpy(sendBuffer + 4, &dataSize, 4);  // Copy dataSize
+    memcpy(sendBuffer, &id, 4);
+    memcpy(sendBuffer + 4, &dataSize, 4);
     memcpy(sendBuffer + 8, &x, 4);
     memcpy(sendBuffer + 12, &y, 4);
     memcpy(sendBuffer + 16, &z, 4);
@@ -247,7 +245,6 @@ void CM_transmitStatus(int32_t x, int32_t y, int32_t z, int32_t yaw, int32_t pit
     for (size_t i = 0; i < totalSize; i += MAX_PACKET_SIZE) {
         size_t chunkSize = (i + MAX_PACKET_SIZE < totalSize) ? MAX_PACKET_SIZE : (totalSize - i);
 
-        // Send data chunk using sendto
         if (sendto(sockfd, reinterpret_cast<const char*>(dataPtr + i), chunkSize, 0, 
                 (struct sockaddr*)&serverAddress, sizeof(serverAddress)) < 0) {
             perror("Failed to send data chunk");
@@ -349,7 +346,7 @@ bool CM_serialInterface::ESPOpen() {
     struct sp_port **ports;
 
     if (sp_list_ports(&ports) != SP_OK) {
-        std::cout << "CM: Failed to open serial ports" << std::endl;
+        LOG(ERROR) << "CM: Failed to open serial ports";
         return 1;
     }
 
@@ -362,14 +359,14 @@ bool CM_serialInterface::ESPOpen() {
         if (strstr(description, "CP210") != NULL) {
             //printf("ESP32 on port: %s\n", portName ? portName : "N/A");
             if(sp_get_port_by_name(portName, &this->ESPPort) != SP_OK){
-                std::cout << "CM: Failed to find the ESP32 device " << std::endl;
+                LOG(ERROR) << "CM: Failed to find the ESP32 device ";
                 return 1;
             }
         }
     }
 
     if (sp_open(this->ESPPort, SP_MODE_READ_WRITE) != SP_OK) {
-        std::cout << "CM: Failed to open ESP32 in read/write" << std::endl;
+        LOG(ERROR) << "CM: Failed to open ESP32 in read/write";
         return 1;
     } else {
         sp_set_baudrate(this->ESPPort, 115200);
@@ -394,7 +391,7 @@ bool CM_serialInterface::ESPWrite(char* message){
         // Write the message to the serial port
         int bytes_written = sp_blocking_write(this->ESPPort, message, strlen(message), this->timeout);
         if (bytes_written < 0) {
-            std::cerr << "Failed to write to ESP" << std::endl;
+            LOG(ERROR) << "Failed to write to ESP";
             return 1;   // Failed to write to ESP
         }
     }

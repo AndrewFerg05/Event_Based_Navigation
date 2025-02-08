@@ -64,7 +64,7 @@ int main(int argc, char* argv[])
     auto data_queues = std::make_shared<DataQueues>(input_queue_size);
     std::string config_path = "../config/blank_config.yaml";
     DavisDriver driver(config_path, data_queues);   //Starts driver to add data to input queues
-    std::cout << "Driver setup..." << std::endl;
+    LOG(INFO) << "MAIN: Driver setup...";
     
     
     // Create atomic control flags
@@ -79,27 +79,27 @@ int main(int argc, char* argv[])
     std::shared_ptr<CommunicationManager> comms_interface = std::make_shared<CommunicationManager>(test_queue_capacity, test_queue_capacity, test_queue_capacity);
 
     // Perform initial setup
-    std::cout << "Setting up..." << std::endl;
+    LOG(INFO) << "MAIN: Setting up...";
 
     // Initialise camera
 
     // Initialise WiFi
     if (CM_initNet() != 0) 
     {
-        printf("WiFi Initialisation Failure\n");
+        LOG(ERROR) << "MAIN: WiFi Setup Failed";
         return 0;
     }
-    printf("WiFi Initialised\n");
+    LOG(INFO) << "MAIN: WiFi Initialised";
     
 
     // // Initialise serial
     CM_serialInterface serial;
     // Prepare ESP for connection
     if (serial.ESPOpen() != 0){
-        printf("Failed to open ESP32\n");
+        LOG(ERROR) << "MAIN: Failed to open ESP32";
     }
     else{
-        printf("ESP32 Serial Connection Initialised\n");
+        LOG(INFO) << "MAIN: ESP32 Serial Initialised";
     }
  
     // Start threads
@@ -115,7 +115,7 @@ int main(int argc, char* argv[])
             comms_interface,
             &serial);
 
-    printf("CM Thread Ended\n");
+    LOG(INFO) << "MAIN: CM Thread Ended";
 
     // Wait for other threads to exit
     // data_aquire_thread.join();
@@ -126,17 +126,17 @@ int main(int argc, char* argv[])
     // std::cout << "BE Thread Ended" << std::endl;
 
     // // Perform cleanup
-    std::cout << "Cleaning up..." << std::endl;
+    LOG(INFO) << "MAIN: Cleaning up...";
     
     // // Close WiFi
     CM_cleanupNet();
-    printf("WiFi Closed\n");
+    LOG(INFO) << "MAIN: WiFi closed";
 
     // Close ESP connection
     serial.ESPClose();
-    printf("Serial closed\n");
+    LOG(INFO) << "MAIN: Serial closed";
 
-    std::cout << "Program ended" << std::endl;
+    LOG(INFO) << "MAIN: Program ended";
 
     return 0;
 }

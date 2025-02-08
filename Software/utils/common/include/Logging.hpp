@@ -53,7 +53,7 @@ inline void initLogging(char* argv0) {
 
 
     // Specifies the directory where logs should be stored.
-    FLAGS_log_dir = "./logs"; 
+    FLAGS_log_dir = "../logs"; 
 
     //    0 - logs only go to log files
     //    1 - logs to both log files and console

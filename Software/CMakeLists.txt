@@ -60,6 +60,9 @@ else()
 
     # Find Eigen3 on macOS/Linux
     find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+
+    # Find Google glog
+    find_package(glog REQUIRED)
 endif()
 
 # Add the library path for linking
@@ -87,8 +90,15 @@ else()
     target_include_directories(${PROJECT_NAME} PRIVATE ${EIGEN3_INCLUDE_DIRS})
 endif()
 
+# Link required libraries
 if (WIN32)
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBCAER_LIBRARIES} ${OPENCV_LIBRARIES} ${LIBSERIAL_LIBRARIES} ws2_32)
+    target_link_libraries(${PROJECT_NAME} PRIVATE 
+        ${LIBCAER_LIBRARIES} 
+        ${OPENCV_LIBRARIES} 
+        ${LIBSERIAL_LIBRARIES} 
+        ws2_32
+        glog::glog  # Link Google glog
+    )
 else()
     target_link_libraries(${PROJECT_NAME} PRIVATE 
         ${LIBCAER_LIBRARIES} 
@@ -96,5 +106,6 @@ else()
         ${LIBSERIAL_LIBRARIES} 
         ${OpenCV_LIBS}  # Correctly links OpenCV components
         yaml-cpp        # Add YAML support
+        glog::glog      # Link Google glog
     )
 endif()

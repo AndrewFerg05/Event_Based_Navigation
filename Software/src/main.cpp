@@ -36,6 +36,7 @@ CM - Communication
 #include  "DataAcquisition.hpp"
 #include  "FrontEnd.hpp"
 #include "DavisDriver.hpp"
+#include "Logging.hpp"
 
 
 //==============================================================================
@@ -54,8 +55,11 @@ CM - Communication
 //==============================================================================
 // Functions
 //------------------------------------------------------------------------------
-int main() 
+int main(int argc, char* argv[]) 
 {
+    initLogging(argv[0]);
+
+
     size_t input_queue_size = 10; //Actually manually set in constructor
     auto data_queues = std::make_shared<DataQueues>(input_queue_size);
     std::string config_path = "../config/blank_config.yaml";

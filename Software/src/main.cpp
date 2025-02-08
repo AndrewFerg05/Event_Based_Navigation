@@ -57,7 +57,8 @@ CM - Communication
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[]) 
 {
-    initLogging(argv[0]);
+    static AlignedLogSink sink;
+    initLogging(argv[0], &sink);
 
 
     size_t input_queue_size = 10; //Actually manually set in constructor
@@ -137,6 +138,8 @@ int main(int argc, char* argv[])
     LOG(INFO) << "MAIN: Serial closed";
 
     LOG(INFO) << "MAIN: Program ended";
+
+    endLogging(&sink);
 
     return 0;
 }

@@ -1,13 +1,9 @@
 /*
-Filename    : Software/include/TypeAliases.hpp
+Filename    : Software/include/Logging.hpp
 Author      : Andrew Ferguson
 Project     : Event Based Navigation
-Date        : 14/1/25
+Date        : 8/2/25
 Description : 
---------------------------------------------------------------------------------
-Change History
---------------------------------------------------------------------------------
-11-JAN-2025 AF created
 --------------------------------------------------------------------------------
 */
 
@@ -24,6 +20,12 @@ Change History
 // https://github.com/google/glog/pull/33
 #include <glog/logging.h>
 #pragma diagnostic pop
+
+#include <glog/logging.h>
+#include <iostream>
+#include <iomanip>
+#include <sstream>
+#include <fstream>
 
 //! @file logging.hpp
 //! Includes Glog framework and defines macros for DEBUG_CHECK_* which
@@ -45,15 +47,54 @@ Change History
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------
+class AlignedLogSink : public google::LogSink {
+    public:
+        std::ofstream logFile;
+    
+        AlignedLogSink() {
+            logFile.open("../logs/full_log.txt", std::ios::app); // Change path if needed
+            if (logFile.is_open()) {
+                std::time_t now = std::time(nullptr);
+                logFile << "======================================PROGRAM=START=" << std::put_time(std::localtime(&now), "%Y-%m-%d %H:%M:%S") << "======================================" << std::endl;
+            }
+        }
+    
+        ~AlignedLogSink() {
+            if (logFile.is_open()) {
+                logFile.close();
+            }
+        }
+    
+        void send(google::LogSeverity severity, const char* full_filename, 
+                  const char* base_filename, int line, 
+                  const struct ::tm* tm_time, const char* message, size_t message_len) override {
+            std::ostringstream formatted_log;
+            formatted_log << google::GetLogSeverityName(severity)[0]
+                          << google::GetLogSeverityName(severity)[1]
+                          << google::GetLogSeverityName(severity)[2]
+                          << " "
+                          << std::put_time(tm_time, "%Y%m%d %H:%M:%S")  // Timestamp
+                          << " " << std::setw(20) << std::left << base_filename  // Pad filenames to 20 chars
+                          << "Line:" << std::setw(4) << line  // Pad line numbers to 4 digits
+                          << " " << std::string(message, message_len) << std::endl;
+    
+            std::cerr << formatted_log.str();  // Send to stderr
+    
+            if (logFile.is_open()) {
+                logFile << formatted_log.str();  // Write to custom log file
+            }
+        }
+    };
 
 // Function to initialize Google Logging
-inline void initLogging(char* argv0) {
+inline void initLogging(char* argv0, AlignedLogSink* sink) {
 
     google::InitGoogleLogging(argv0);
 
-
     // Specifies the directory where logs should be stored.
     FLAGS_log_dir = "../logs"; 
+
+    FLAGS_log_prefix = false;  // Disable default log format
 
     //    0 - logs only go to log files
     //    1 - logs to both log files and console
@@ -70,10 +111,15 @@ inline void initLogging(char* argv0) {
     //    1 - logs are printed to stderr
     FLAGS_logtostderr = 0;
 
+    google::AddLogSink(sink);  // Register custom log sink
+}
+
+inline void endLogging(AlignedLogSink* sink){
+    google::RemoveLogSink(sink);
 }
 
 
 
-#endif  // TYPE_ALIASES_HPP
+#endif  // LOGGING_HPP
 //==============================================================================
-// End of File :  Software/include/TYPE_ALIASES_HPP.hpp
+// End of File :  Software/include/Logging.hpp

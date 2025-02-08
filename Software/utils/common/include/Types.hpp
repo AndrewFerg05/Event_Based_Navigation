@@ -26,11 +26,11 @@ Change History
 //      Classes
 //------------------------------------------------------------------------------
 
-
 struct Header {
     uint64_t stamp;  // Equivalent to ROS Header timestamp
     std::string frame_id;   // Frame of reference
 };
+//------------------------------------------------------------------------------
 
 struct IMUData {
     Header header; // Timestamp and frame information
@@ -51,6 +51,7 @@ struct IMUData {
     }
 };
 
+//------------------------------------------------------------------------------
 struct Event {
     uint16_t x;
     uint16_t y;
@@ -69,8 +70,7 @@ struct EventData {
 
     EventData(int w, int h) : width(w), height(h) {}
 };
-
-
+//------------------------------------------------------------------------------
 struct ImageData {
     Header header;   // Header containing timestamp and frame_id
     uint32_t width;       // Image width
@@ -83,15 +83,6 @@ struct ImageData {
     // Constructor
     ImageData() = default;
 };
-
-
-//==============================================================================
-//      Function Prototypes
-//------------------------------------------------------------------------------
-
-
-
-
 
 
 #endif  // TYPE_ALIASES_HPP

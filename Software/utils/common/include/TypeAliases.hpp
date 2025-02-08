@@ -57,21 +57,61 @@ ZE_MAKE_EIGEN_MATRIX_TYPEDEFS(7,7);
 ZE_MAKE_EIGEN_MATRIX_TYPEDEFS(8,8);
 ZE_MAKE_EIGEN_MATRIX_TYPEDEFS(9,9);
 
+// Typedef arbitary length vector and arbitrary sized matrix.
+using VectorX = Eigen::Matrix<real_t, Eigen::Dynamic, 1>;
 using MatrixX = Eigen::Matrix<real_t, Eigen::Dynamic, Eigen::Dynamic>;
-// used for testing will be replaced with actual later
-using InputDataSync = uint8_t;
-using TrackedFrames = uint8_t;
-using OtherData = uint8_t;
+using VectorXi = Eigen::VectorXi;
 
+// Commonly used fixed size vectors.
+using Vector1 = Eigen::Matrix<real_t, 1, 1>;
+using Vector2 = Eigen::Matrix<real_t, 2, 1>;
+using Vector3 = Eigen::Matrix<real_t, 3, 1>;
+using Vector4 = Eigen::Matrix<real_t, 4, 1>;
+using Vector5 = Eigen::Matrix<real_t, 5, 1>;
+using Vector6 = Eigen::Matrix<real_t, 6, 1>;
+using Vector7 = Eigen::Matrix<real_t, 7, 1>;
+using Vector8 = Eigen::Matrix<real_t, 8, 1>;
+using Vector9 = Eigen::Matrix<real_t, 9, 1>;
+using Vector2i = Eigen::Vector2i;
 
+//------------------------------------------------------------------------------
+// Feature containers.
+using Keypoint    = Vector2;
+using Bearing     = Vector3;
+using Position    = Vector3;
+using HomPosition = Vector4;
+using Gradient    = Vector2;
+using Seed        = Vector4;
+using LineMeasurement = Vector3;
+using Keypoints   = Matrix2X;
+using Bearings    = Matrix3X;
+using Positions   = Matrix3X;
+using HomPositions = Matrix4X;
+using Gradients   = Matrix2X;
+using Seeds       = Matrix4X;
 
-// Dummy structs for data streams can change later
+// Normal vector on line end-points bearings
+using LineMeasurements = Matrix3X;
+using KeypointLevel = int8_t;
+using KeypointType  = int8_t;
+using KeypointIndex = uint16_t;
+using KeypointLevels = Eigen::Matrix<KeypointLevel, Eigen::Dynamic, 1>;
+using KeypointTypes  = Eigen::Matrix<KeypointType, Eigen::Dynamic, 1>;
+using KeypointAngles = VectorX;
+using KeypointScores = VectorX;
+using KeypointSizes  = VectorX;
+using KeypointIndices  = Eigen::Matrix<KeypointIndex, Eigen::Dynamic, 1>;
+using Descriptors = Eigen::Matrix<uint8_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>;
 
-using CameraInfoData = uint16_t;
-using ExposureData = uint16_t;
+//------------------------------------------------------------------------------
+// Inertial containers.
+using ImuStamps = Eigen::Matrix<int64_t, Eigen::Dynamic, 1>;
+using ImuAccGyrContainer = Matrix6X;
+// Order: Accelerometer, Gyroscope
+using ImuAccGyr = Vector6;
+//------------------------------------------------------------------------------
 
-
-// Event Data
+// Event Containers
 using EventArray = std::vector<Event>;
 using EventQueue = EventArray;
 using EventArrayPtr = std::shared_ptr<EventArray>;
@@ -79,28 +119,26 @@ using StampedEventArray = std::pair<int64_t, EventArrayPtr>;
 using StampedEventArrays = std::vector<StampedEventArray>;
 using EventBuffer = std::deque<Event>;
 
-
-
-using Vector3 = Eigen::Matrix<real_t, 3, 1>;
-using Vector6 = Eigen::Matrix<real_t, 6, 1>;
-
-
-using ImuStamps = Eigen::Matrix<int64_t, Eigen::Dynamic, 1>;
-using ImuAccGyrContainer = Matrix6X;
-
+//------------------------------------------------------------------------------
+// Callbacks
 using ImuCallback =
   std::function<void (int64_t /*timestamp*/,
                       const Vector3& /*acc*/,
                       const Vector3& /*gyr*/)>;
 
 
+//------------------------------------------------------------------------------
+// Testing Types - Will be Changed
+using InputDataSync = uint8_t;
+using TrackedFrames = uint8_t;
+using OtherData = uint8_t;
+using CameraInfoData = uint16_t;
+using ExposureData = uint16_t;
+
+
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------
-
-
-
-
 
 
 #endif  // TYPE_ALIASES_HPP

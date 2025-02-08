@@ -43,6 +43,7 @@ Change History
 #include "TypeAliases.hpp"
 #include "Types.hpp"
 #include "Flags.hpp"
+#include "Logging.hpp"
 //==============================================================================
 //      Classes
 //------------------------------------------------------------------------------
@@ -74,7 +75,7 @@ public:
     void push(const T& value) {
         std::lock_guard<std::mutex> lock(queue_mutex);
         if (queue.size() >= max_size) {
-            std::cerr << "[WARNING] Queue overflow: " << queue_name << std::endl;
+            LOG(WARNING) << "Queue overflow: " << queue_name;
             queue.pop_front();  // Remove oldest element
         }
         queue.push_back(value);

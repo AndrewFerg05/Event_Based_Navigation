@@ -38,6 +38,8 @@ if (WIN32)
     set(YAML_LIBRARY_DIRS "C:/msys64/mingw64/lib")
     set(YAML_LIBRARIES "yaml-cpp")
 
+    find_package(glog REQUIRED)
+
     # Find Eigen3 on Windows
     find_path(EIGEN3_INCLUDE_DIR NAMES Eigen/Core PATHS "C:/msys64/mingw64/include/eigen3")
     if(NOT EIGEN3_INCLUDE_DIR)
@@ -104,7 +106,7 @@ if (WIN32)
         ${OpenCV_LIBRARIES} 
         ${LIBSERIAL_LIBRARIES} 
         ws2_32
-        glog::glog  # Link Google glog
+        glog::glog
         ${YAML_LIBRARIES}
     )
 else()

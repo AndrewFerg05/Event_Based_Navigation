@@ -86,20 +86,20 @@ int main(int argc, char* argv[])
     // Initialise WiFi
     if (CM_initNet() != 0) 
     {
-        error("MAIN", "WiFi Initialisation Failure");
+        printf("WiFi Initialisation Failure\n");
         return 0;
     }
-    message("MAIN", "WiFi Initialised");
+    printf("WiFi Initialised\n");
     
 
     // // Initialise serial
     CM_serialInterface serial;
     // Prepare ESP for connection
-    if (serial.ESPOpen() == 0){
-        error("MAIN","Failed to open ESP32");
+    if (serial.ESPOpen() != 0){
+        printf("Failed to open ESP32\n");
     }
     else{
-        message("MAIN","ESP32 Serial Connection Initialised");
+        printf("ESP32 Serial Connection Initialised\n");
     }
  
     // Start threads
@@ -115,7 +115,7 @@ int main(int argc, char* argv[])
             comms_interface,
             &serial);
 
-    message("MAIN","CM Thread Ended");
+    printf("CM Thread Ended\n");
 
     // Wait for other threads to exit
     // data_aquire_thread.join();
@@ -130,11 +130,11 @@ int main(int argc, char* argv[])
     
     // // Close WiFi
     CM_cleanupNet();
-    message("MAIN","WiFi Closed");
+    printf("WiFi Closed\n");
 
     // Close ESP connection
     serial.ESPClose();
-    message("MAIN","Serial closed");
+    printf("Serial closed\n");
 
     std::cout << "Program ended" << std::endl;
 

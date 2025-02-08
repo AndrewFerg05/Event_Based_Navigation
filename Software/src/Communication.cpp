@@ -67,7 +67,7 @@ void CM_loop(
 	
     cv::Mat frame = cv::imread(TEST_IMAGE);
     if (frame.empty()) {
-        error("CM", "Failed to load test image.");
+        std::cout << "CM: Failed to load test image. " << std::endl;
         command = STOP;
     }
 
@@ -82,7 +82,7 @@ void CM_loop(
         if (command == RUN) {
 
             if(state_change_called){
-                message("CM","Changing to Run state");
+                std::cout << "CM: Changed to run state " << std::endl;
                 data_sync_state = ThreadState::Run;
                 frontend_state = ThreadState::Run;
                 backend_state = ThreadState::Run;
@@ -124,7 +124,7 @@ void CM_loop(
         } else if (command == STOP) {
             // Stop Condition
             if(state_change_called){
-                message("CM","Changing to Stop state");
+                std::cout << "CM: Changed to stop state " << std::endl;
                 data_sync_state = ThreadState::Stop;
                 frontend_state = ThreadState::Stop;
                 backend_state = ThreadState::Stop;
@@ -137,7 +137,7 @@ void CM_loop(
         } else if (command == IDLE) {
             // Pause Condition
            if(state_change_called){
-                message("CM","Changing to Idle state");
+            std::cout << "CM: Changed to idle state " << std::endl;
                 data_sync_state = ThreadState::Idle;
                 frontend_state = ThreadState::Idle;
                 backend_state = ThreadState::Idle;
@@ -349,7 +349,7 @@ bool CM_serialInterface::ESPOpen() {
     struct sp_port **ports;
 
     if (sp_list_ports(&ports) != SP_OK) {
-        error("CM", "Failed to open serial ports.");
+        std::cout << "CM: Failed to open serial ports" << std::endl;
         return 1;
     }
 
@@ -362,14 +362,14 @@ bool CM_serialInterface::ESPOpen() {
         if (strstr(description, "CP210") != NULL) {
             //printf("ESP32 on port: %s\n", portName ? portName : "N/A");
             if(sp_get_port_by_name(portName, &this->ESPPort) != SP_OK){
-                error("CM", "Failed to find ESP32 port by name.");
+                std::cout << "CM: Failed to find the ESP32 device " << std::endl;
                 return 1;
             }
         }
     }
 
     if (sp_open(this->ESPPort, SP_MODE_READ_WRITE) != SP_OK) {
-        error("CM", "Failed to open ESP32 port in read/write mode.");
+        std::cout << "CM: Failed to open ESP32 in read/write" << std::endl;
         return 1;
     } else {
         sp_set_baudrate(this->ESPPort, 115200);

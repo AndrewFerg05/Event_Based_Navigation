@@ -42,7 +42,6 @@ Change History
 #include <condition_variable>
 #include <optional>
 
-#include "Logging.hpp"
 #include "TypeAliases.hpp"
 #include "Types.hpp"
 #include "Flags.hpp"

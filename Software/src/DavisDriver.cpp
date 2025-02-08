@@ -200,7 +200,7 @@ void DavisDriver::caerConnect()
 
         if (!device_is_running) {
             LOG(ERROR) << "Driver: Could not find DAVIS. Retrying every second...";
-            std::this_thread::sleep_for(std::chrono::microseconds(500));  // Wait before retrying
+            sleep_us(500);  // Wait before retrying
         }
 
         // Exit if the driver is manually stopped (replace with actual stopping condition)

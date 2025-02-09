@@ -18,6 +18,13 @@ file(GLOB SOURCES
     "utils/image/src/*.cpp"
 )
 
+# Set CMake Prefix Path for Homebrew installation of gflags and Kindr
+set(CMAKE_PREFIX_PATH "/opt/homebrew/Cellar/gflags/2.2.2;/usr/local" ${CMAKE_PREFIX_PATH})
+
+# Find Required Packages
+find_package(kindr REQUIRED)
+find_package(gflags REQUIRED)
+
 if (WIN32)
     message("Windows Device")
 
@@ -74,9 +81,7 @@ else()
 endif()
 
 # Add the library path for linking
-
 link_directories(${LIBCAER_LIBRARY_DIRS} ${LIBUSB_LIBRARY_DIRS} ${LIBSERIAL_LIBRARY_DIRS} ${OpenCV_LIBRARY_DIRS} ${YAML_LIBRARY_DIRS})
-
 
 # Add executable
 add_executable(${PROJECT_NAME} ${SOURCES})
@@ -94,6 +99,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${LIBSERIAL_INCLUDE_DIRS} 
     ${OpenCV_INCLUDE_DIRS}  # Use OpenCV's detected include directories
     ${YAML_INCLUDE_DIRS}
+    ${kindr_INCLUDE_DIRS}    # Include Kindr directories
+    "/usr/local/include"      # Manually ensure Kindr is included
 )
 
 # Add Eigen include directory
@@ -112,6 +119,7 @@ if (WIN32)
         ws2_32
         glog::glog
         ${YAML_LIBRARIES}
+        gflags::gflags  # Link gflags
     )
 else()
     target_link_libraries(${PROJECT_NAME} PRIVATE 
@@ -122,4 +130,11 @@ else()
         yaml-cpp        # Add YAML support
         glog::glog      # Link Google glog
     )
+
+    # Ensure gflags is linked correctly
+    if (TARGET gflags::gflags)
+        target_link_libraries(${PROJECT_NAME} PRIVATE gflags::gflags)
+    else()
+        target_link_libraries(${PROJECT_NAME} PRIVATE gflags)
+    endif()
 endif()

@@ -134,7 +134,8 @@ bool FrontEnd::addImuMeasurementsBetweenKeyframes(
 
 void FrontEnd::cleanupInactiveLandmarksFromLastIteration()
 {
-
+    landmarks_.cleanupInactiveLandmarks();
+    VLOG(40) << landmarks_.typesFormattedString();
 }
 
 //==============================================================================

@@ -5,8 +5,8 @@ cameras:
     label: dvs
     id: 0
     line-delay-nanoseconds: 0
-    image_height: 180
-    image_width: 240
+    image_height: 260
+    image_width: 346
     type: pinhole
     intrinsics:
       cols: 1
@@ -30,8 +30,8 @@ cameras:
     label: standard
     id: 1
     line-delay-nanoseconds: 0
-    image_height: 180
-    image_width: 240
+    image_height: 260
+    image_width: 346
     type: pinhole
     intrinsics:
       cols: 1

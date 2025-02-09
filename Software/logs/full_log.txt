@@ -13,3 +13,17 @@ INF 20250208 22:09:26 main.cpp            Line:130  MAIN: Cleaning up...
 INF 20250208 22:09:26 main.cpp            Line:134  MAIN: WiFi closed
 INF 20250208 22:09:26 main.cpp            Line:138  MAIN: Serial closed
 INF 20250208 22:09:26 main.cpp            Line:140  MAIN: Program ended
+======================================PROGRAM=START=2025-02-09 20:27:22======================================
+INF 20250209 20:27:22 DavisDriver.cpp     Line:152  Driver: Loaded parameters successfully from ../config/blank_config.yaml
+INF 20250209 20:27:22 main.cpp            Line:68   MAIN: Driver setup...
+INF 20250209 20:27:22 main.cpp            Line:83   MAIN: Setting up...
+INF 20250209 20:27:22 main.cpp            Line:93   MAIN: WiFi Initialised
+ERR 20250209 20:27:22 Communication.cpp   Line:387  CM: Failed to open ESP32 in read/write
+ERR 20250209 20:27:22 main.cpp            Line:100  MAIN: Failed to open ESP32
+INF 20250209 20:27:24 Communication.cpp   Line:91   CM: Changed to run state 
+INF 20250209 20:27:28 Communication.cpp   Line:145  CM: Changed to stop state 
+INF 20250209 20:27:28 main.cpp            Line:119  MAIN: CM Thread Ended
+INF 20250209 20:27:28 main.cpp            Line:130  MAIN: Cleaning up...
+INF 20250209 20:27:28 main.cpp            Line:134  MAIN: WiFi closed
+INF 20250209 20:27:28 main.cpp            Line:138  MAIN: Serial closed
+INF 20250209 20:27:28 main.cpp            Line:140  MAIN: Program ended

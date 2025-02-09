@@ -44,6 +44,7 @@ Change History
 
 #include "ThreadInterface.hpp"
 #include "TypeAliases.hpp"
+#include "Types.hpp"
 #include "Logging.hpp"
 //==============================================================================
 //      Classes
@@ -68,6 +69,10 @@ class CM_serialInterface{
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------
+cv::Mat CM_formatCameraFrame(ImageData image);
+
+cv::Mat CM_formatEventFrame(TrackedFrames image);
+
 int CM_initNet();
 
 void CM_cleanupNet();

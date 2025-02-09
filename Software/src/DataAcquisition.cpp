@@ -88,7 +88,7 @@ void DataAcquisition::initBuffers()
 
 void DataAcquisition::addImageData()
 {
-
+    // No image processing done here
 }
 
 
@@ -222,7 +222,8 @@ bool DataAcquisition::processDataQueues()
 
         auto image_data = input_data_queues_->image_queue->pop();
         if (image_data) {
-            addImageData();
+            addImageData();     // Does no processing
+            comms_interface_->queueFrameData(image_data.value());
             processed = true;
         }
         return processed;

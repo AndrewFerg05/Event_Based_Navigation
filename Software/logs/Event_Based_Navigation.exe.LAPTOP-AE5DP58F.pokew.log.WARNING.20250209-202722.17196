@@ -1,0 +1,6 @@
+Log file created at: 2025/02/09 20:27:22
+Running on machine: LAPTOP-AE5DP58F
+Running duration (h:mm:ss): 0:00:00
+Log line format: [IWEF]yyyymmdd hh:mm:ss.uuuuuu threadid file:line] msg
+CM: Failed to open ESP32 in read/write
+MAIN: Failed to open ESP32

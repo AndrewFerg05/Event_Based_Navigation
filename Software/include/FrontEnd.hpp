@@ -25,16 +25,55 @@ Change History
 //      Classes
 //------------------------------------------------------------------------------
 
+//Replace with actual classes]
+using CameraRig = uint16_t;
+using ImuIntegrator = uint16_t;
+using FeatureTracker = uint16_t;
+using FeatureInitializer = uint16_t;
+
+
+enum class FrontendStage : std::int8_t
+{
+  Paused,
+  AttitudeEstimation,
+  Initializing,
+  Running
+};
+
+
+class FrontEnd
+{
+
+
+public:
+EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+FrontEnd();
+~FrontEnd();
+
+ // Modules
+ std::shared_ptr<const CameraRig> rig_;
+ std::shared_ptr<ImuIntegrator> imu_integrator_;
+ std::shared_ptr<FeatureTracker> feature_tracker_;
+ std::shared_ptr<FeatureInitializer> feature_initializer_;
+
+ void processData(
+    const std::pair<int64_t, EventArrayPtr>& stamped_events,
+    const std::vector<ImuStamps>& imu_timestamps,
+    const std::vector<ImuAccGyrContainer>& imu_measurements);
+
+void addImuData(
+        int64_t stamp, 
+        const Vector3& acc, 
+        const Vector3& gyr, 
+        const uint32_t imu_idx);
+
+
+};
 
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------
-void FE_loop(std::atomic<ThreadState>& state,
-                    ThreadSafeFIFO<InputDataSync>* data_DA,
-                    CommunicationManager* comms);
-
-
-
 
 
 #endif  // FRONTEND_HPP

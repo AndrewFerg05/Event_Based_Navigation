@@ -52,6 +52,9 @@ void CommunicationManager::queueOther(OtherData data){
     from_backend.push(data);
 }
 
+void CommunicationManager::queueImage(ImageData data){
+    input_image.push(data);
+}
 
 
 

@@ -158,12 +158,14 @@ private:
     ThreadSafeFIFO<InputDataSync> from_camera;
     ThreadSafeFIFO<TrackedFrames> from_frontend;
     ThreadSafeFIFO<OtherData> from_backend;
+    ThreadSafeFIFO<ImageData> input_image;
 public:
     //Constructor sets size of each input queue
-    CommunicationManager(size_t queue_size_1, size_t queue_size_2, size_t queue_size_3)
+    CommunicationManager(size_t queue_size_1, size_t queue_size_2, size_t queue_size_3, size_t queue_size_4)
         : from_camera(queue_size_1, "Comms_1", false),
           from_frontend(queue_size_2, "Comms_2", false),
-          from_backend(queue_size_3, "Comms_3", false)
+          from_backend(queue_size_3, "Comms_3", false),
+          input_image(queue_size_4, "Comms_3", false)
     {}
     ~CommunicationManager() = default;
 
@@ -174,6 +176,7 @@ public:
     void queueInputData(InputDataSync data);
     void queueTrackedFrameData(TrackedFrames data);
     void queueOther(OtherData data);
+    void queueImage(ImageData data);
 
     template<typename T>
     void sendToExternal(const T& data) {

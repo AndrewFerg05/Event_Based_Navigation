@@ -194,11 +194,11 @@ void DataAcquisition::addImuData(const IMUData& imu_data)
     acc_gyr.head<3>() = acc;
     acc_gyr.tail<3>() = gyr;
     //stamp -= timeshift_cam_imu_;
-    imu_buffer_[1].insert(stamp, acc_gyr);
+    imu_buffer_[0].insert(stamp, acc_gyr);
 
     if (imu_callback_)
     {
-        imu_callback_(stamp, acc, gyr);
+        imu_callback_(stamp, acc, gyr,0);
     }
 
     checkImuDataAndCallback();
@@ -223,6 +223,7 @@ bool DataAcquisition::processDataQueues()
         auto image_data = input_data_queues_->image_queue->pop();
         if (image_data) {
             addImageData();
+            comms_interface_->queueImage(image_data.value());
             processed = true;
         }
         return processed;

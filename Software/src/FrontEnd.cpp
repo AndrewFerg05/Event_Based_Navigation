@@ -33,49 +33,32 @@ Change History
 //==============================================================================
 // Functions
 //------------------------------------------------------------------------------
-void FE_loop(std::atomic<ThreadState>& state,
-                    ThreadSafeFIFO<InputDataSync>* data_DA,
-                    CommunicationManager* comms) {
+FrontEnd::FrontEnd()
+//   : rig_(cameraRigFromGflags())
+//   , imu_integrator_(std::make_shared<ImuIntegrator>())
+//   , thread_pool_(rig_->size())
+//   , T_C_B_(rig_->T_C_B_vec())
+{
+//   initModules();
+//   initDvs();
+//   VLOG(1) << "Initialized frontend with camera:\n" << *rig_;
+}
+
+FrontEnd::~FrontEnd(){}
+
+
+void FrontEnd::processData(
+    const std::pair<int64_t, EventArrayPtr>& stamped_events,
+    const std::vector<ImuStamps>& imu_stamps_vec,
+    const std::vector<ImuAccGyrContainer>& imu_accgyr_vec)
+{
+
+}
+
+void FrontEnd::addImuData(
+    int64_t stamp, const Vector3& acc, const Vector3& gyr, const uint32_t imu_idx)
+{
     
-    int bufferSize = 0;
-    int readData = 0;
-    int processedData = 0;
-
-    // while (true) {
-    //     if (state == ThreadState::Stopped) {
-    //         break;
-    //     }
-
-    //     if (state == ThreadState::Paused) {
-    //         //TODO - Wait while some condition
-    //         sleep_ms(100);
-    //         continue;
-    //     }
-
-    //     if (state == ThreadState::Reset) {
-    //         //TODO call reset function then set running again
-    //         state = ThreadState::Running; 
-    //     }
-
-    //     if (state == ThreadState::Running) {
-            
-    //         //TODO
-    //         // Check buffer can be read
-    //         auto item_DA = data_DA->pop(); // Get data from queue
-    //         if (item_DA.has_value()) {
-    //             comms->queueTrackedFrameData(item_DA.value());
-    //             sleep_ms(30);
-    //         } else {
-    //             std::cout << "Queue returned no value (stopped or empty)." << std::endl;
-    //             sleep_ms(10);
-    //         }
-    //     }
-
-    //     if (state == ThreadState::Test) {
-    //         sleep_ms(100);
-    //         std::cout << "Frontend Testing" << std::endl; 
-    //     }
-    // }
 }
 
 

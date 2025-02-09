@@ -124,7 +124,8 @@ using EventBuffer = std::deque<Event>;
 using ImuCallback =
   std::function<void (int64_t /*timestamp*/,
                       const Vector3& /*acc*/,
-                      const Vector3& /*gyr*/)>;
+                      const Vector3& /*gyr*/,
+                      uint32_t /*imu-idx*/)>;
 
 
 //------------------------------------------------------------------------------

@@ -59,25 +59,48 @@ int main(int argc, char* argv[])
 {
     initLogging(argv[0]);
 
+    std::atomic<ThreadState> DA_state(ThreadState::Idle);
+    std::atomic<ThreadState> FE_state(ThreadState::Idle);
+    std::atomic<ThreadState> BE_state(ThreadState::Idle);
 
     size_t input_queue_size = 10; //Actually manually set in constructor
     auto data_queues = std::make_shared<DataQueues>(input_queue_size);
+
     std::string config_path = "../config/blank_config.yaml";
+
     DavisDriver driver(config_path, data_queues);   //Starts driver to add data to input queues
     LOG(INFO) << "MAIN: Driver setup...";
-    
-    
-    // Create atomic control flags
-    std::atomic<ThreadState> data_aquire_state(ThreadState::Idle);
-    std::atomic<ThreadState> frontend_state(ThreadState::Idle);
-    std::atomic<ThreadState> backend_state(ThreadState::Idle);
 
     //Create data interfaces
     size_t test_queue_capacity = 10;
     ThreadSafeFIFO<InputDataSync> data_DA_to_FE(test_queue_capacity, "Sync_data", true);
     
-    std::shared_ptr<CommunicationManager> comms_interface = std::make_shared<CommunicationManager>(test_queue_capacity, test_queue_capacity, test_queue_capacity);
+    std::shared_ptr<CommunicationManager> comms_interface = std::make_shared<CommunicationManager>(test_queue_capacity, test_queue_capacity, test_queue_capacity, test_queue_capacity);
 
+    // Init Main Classes
+    DataAcquisition DataAquisition_(data_queues, std::ref(DA_state), comms_interface);
+    FrontEnd Frontend_;
+
+    // Bind Callbacks
+    DataAquisition_.registerCameraImuCallback(
+        std::bind(
+          static_cast<void(FrontEnd::*)(
+            const std::pair<int64_t, EventArrayPtr>& stamped_events,
+            const std::vector<ImuStamps>& imu_stamps_vec,
+            const std::vector<ImuAccGyrContainer>& imu_accgyr_vec
+            )>(&FrontEnd::processData),
+          &Frontend_,
+          std::placeholders::_1,
+          std::placeholders::_2,
+          std::placeholders::_3));
+
+    DataAquisition_.registerImuCallback(
+    std::bind(&FrontEnd::addImuData, &Frontend_,
+                std::placeholders::_1, std::placeholders::_2,
+                std::placeholders::_3, std::placeholders::_4));
+
+
+ 
     // Perform initial setup
     LOG(INFO) << "MAIN: Setting up...";
 
@@ -108,9 +131,9 @@ int main(int argc, char* argv[])
     // std::thread backend_thread(BE_loop, std::ref(backend_state), &comms_interface);
     
     // Start this thread
-    CM_loop(std::ref(data_aquire_state), 
-            std::ref(frontend_state), 
-            std::ref(backend_state),
+    CM_loop(std::ref(DA_state), 
+            std::ref(FE_state), 
+            std::ref(BE_state),
             &data_DA_to_FE,
             comms_interface,
             &serial);

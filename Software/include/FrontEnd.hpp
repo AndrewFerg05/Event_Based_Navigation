@@ -20,6 +20,7 @@ Change History
 #include "ThreadInterface.hpp"
 #include "TypeAliases.hpp"
 #include "Flags.hpp"
+#include "landmark_table.hpp"
 
 
 //==============================================================================
@@ -61,6 +62,9 @@ FrontEnd();
  //System state
  ImuStamps imu_stamps_since_lkf_;
  ImuAccGyrContainer imu_accgyr_since_lkf_;
+ LandmarkTable landmarks_;
+
+
  void processData(
     const std::pair<int64_t, EventArrayPtr>& stamped_events,
     const std::vector<ImuStamps>& imu_timestamps,

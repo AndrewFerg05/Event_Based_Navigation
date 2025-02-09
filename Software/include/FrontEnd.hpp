@@ -19,6 +19,7 @@ Change History
 //------------------------------------------------------------------------------
 #include "ThreadInterface.hpp"
 #include "TypeAliases.hpp"
+#include "Flags.hpp"
 
 
 //==============================================================================
@@ -57,6 +58,9 @@ FrontEnd();
  std::shared_ptr<FeatureTracker> feature_tracker_;
  std::shared_ptr<FeatureInitializer> feature_initializer_;
 
+ //System state
+ ImuStamps imu_stamps_since_lkf_;
+ ImuAccGyrContainer imu_accgyr_since_lkf_;
  void processData(
     const std::pair<int64_t, EventArrayPtr>& stamped_events,
     const std::vector<ImuStamps>& imu_timestamps,
@@ -67,8 +71,15 @@ void addImuData(
         const Vector3& acc, 
         const Vector3& gyr, 
         const uint32_t imu_idx);
+bool addImuMeasurementsBetweenKeyframes(
+    const ImuStamps& imu_stamps,
+    const ImuAccGyrContainer& imu_accgyr);
 
+void cleanupInactiveLandmarksFromLastIteration();
 
+  // Temporaries
+  int attitude_init_count_ = 0;       //!< Number of frames used for attitude estimation.
+  VioMotionType motion_type_ = VioMotionType::GeneralMotion;
 };
 
 //==============================================================================

@@ -83,6 +83,15 @@ struct ImageData {
     // Constructor
     ImageData() = default;
 };
+//------------------------------------------------------------------------------
+enum class VioMotionType : int8_t
+{
+  NotComputed,
+  Invalid,
+  RotationOnly,
+  NoMotion,
+  GeneralMotion
+};
 
 
 #endif  // TYPE_ALIASES_HPP

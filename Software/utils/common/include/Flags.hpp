@@ -47,6 +47,7 @@ inline bool FLAGS_data_use_time_interval = 0;
 inline uint64_t FLAGS_data_interval_between_event_packets = 15000; //number of frames in event packet/ ms between packets set which by above flag
 inline size_t FLAGS_data_size_augmented_event_packet = 15000;
 
+constexpr int FLAGS_num_imus = 1;
 
 //==============================================================================
 //      Function Prototypes

@@ -69,7 +69,8 @@ void FrontEnd::processData(
     if (states_.nframeKm1() &&
     FLAGS_vio_activate_backend && update_states_cb_)
     {
-        pollBackend(true);
+        pollBackend(true); // If optimizer has new result, this callback will copy them in our states.
+        retriangulateAllLandmarks(states_, T_C_B_, landmarks_);
     }
 
 

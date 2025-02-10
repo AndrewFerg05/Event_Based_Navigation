@@ -24,6 +24,7 @@ Change History
 #include "nframe_table.hpp"
 #include "RingBuffer.hpp"
 #include "imu_integrator.hpp"
+#include "landmark_triangulation.hpp"
 
 
 //==============================================================================
@@ -76,6 +77,7 @@ FrontEnd();
  ImuStamps imu_stamps_since_lkf_;
  ImuAccGyrContainer imu_accgyr_since_lkf_;
  LandmarkTable landmarks_;
+ const TransformationVector T_C_B_;
  NFrameTable states_;
  FrontendStage stage_ = FrontendStage::AttitudeEstimation;
 

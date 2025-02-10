@@ -42,6 +42,7 @@ Change History
 
 #include <libserialport.h>
 
+#include "DataAcquisition.hpp"
 #include "ThreadInterface.hpp"
 #include "TypeAliases.hpp"
 #include "Types.hpp"
@@ -88,6 +89,7 @@ void CM_loop(
     std::atomic<ThreadState>& frontend_state,
     std::atomic<ThreadState>& backend_state,
     ThreadSafeFIFO<InputDataSync>* data_DA,
+    DataAcquisition* dataAcquistion_,
     std::shared_ptr<CommunicationManager> comms,
     CM_serialInterface* serial);
 

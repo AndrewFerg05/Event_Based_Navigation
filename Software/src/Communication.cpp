@@ -33,10 +33,10 @@ Change History
 
 
 #define TEST_IMAGE  "../example.jpg"
-#define TEST_RUN_TIME 5
+#define TEST_RUN_TIME 15
 
 #define MAX_PACKET_SIZE 65507            // Max packet in bytes for UDP
-#define PC_IP           "192.168.43.245" // Change to base station IP (SARK's laptop)
+#define PC_IP           "10.12.125.174" // Change to base station IP (SARK's laptop)
 #define PC_PORT         5005             // Application address for base station
 #define ID_FRAME        0
 #define ID_EVENT        1
@@ -55,6 +55,7 @@ void CM_loop(
     std::atomic<ThreadState>& frontend_state,
     std::atomic<ThreadState>& backend_state,
     ThreadSafeFIFO<InputDataSync>* data_DA,
+    DataAcquisition* dataAcquistion_,
     std::shared_ptr<CommunicationManager> comms,
     CM_serialInterface* serial) {
 
@@ -68,11 +69,13 @@ void CM_loop(
     // Frames for transmitting
     ImageData frameCamera;
     TrackedFrames frameEvents;
-    cv::Mat frame = cv::imread(TEST_IMAGE);
-    if (frame.empty()) {
+    cv::Mat frameTest = cv::imread(TEST_IMAGE);
+    if (frameTest.empty()) {
         LOG(ERROR) << "CM: Failed to load test image. ";
         command = STOP;
     }
+
+    cv::Mat frame;
 
     // Found pose
     OtherData pose;
@@ -86,14 +89,14 @@ void CM_loop(
 
         // Thread control
         if (command == RUN) {
-
             if(state_change_called){
                 LOG(INFO) << "CM: Changed to run state ";
-                data_sync_state = ThreadState::Run;
+                dataAcquistion_->start();
                 frontend_state = ThreadState::Run;
                 backend_state = ThreadState::Run;
                 state_change_called = false;
             }
+            LOG(INFO) << "CM: Running";
 
             // ESP Receive code mode
             // commandReceived = CM_serialReceive(serial);
@@ -113,13 +116,18 @@ void CM_loop(
                 // No camera frame ready
             }
             else {
+                LOG(INFO) << "CM: Frame data made it to CM, formatting...";
                 frame = CM_formatCameraFrame(frameCamera);
+                LOG(INFO) << "CM: Frame formatted, sending...";
                 CM_transmitFrame(frame, 0);
             }
 
             frameEvents = comms->getTrackedFrameData();
             if (frameEvents.width == 0) {
                 // No camera frame ready
+                
+                // For testing send test frame to show working
+                CM_transmitFrame(frameTest, 1);
             }
             else {
                 frame = CM_formatEventFrame(frameEvents);
@@ -137,13 +145,23 @@ void CM_loop(
                 //Send to ESP32 position estimate from BE
                 CM_serialSendStatus(serial, pose, iterations);
             }
+            //Transmit position estimate from BE
+            CM_transmitStatus(iterations, iterations, 0, pose, iterations, iterations);
+
+            //Send to ESP32 position estimate from BE
+            CM_serialSendStatus(serial, pose, iterations);
+
+
+            sleep_ms(10);
 
             
         } else if (command == STOP) {
+            LOG(INFO) << "CM: STOP Looping";
+
             // Stop Condition
             if(state_change_called){
                 LOG(INFO) << "CM: Changed to stop state ";
-                data_sync_state = ThreadState::Stop;
+                dataAcquistion_->stop();
                 frontend_state = ThreadState::Stop;
                 backend_state = ThreadState::Stop;
                 state_change_called = false;
@@ -153,6 +171,8 @@ void CM_loop(
             break;
 
         } else if (command == IDLE) {
+            LOG(INFO) << "CM: IDLE Looping";
+
             // Pause Condition
            if(state_change_called){
             LOG(INFO) << "CM: Changed to idle state ";
@@ -173,6 +193,7 @@ void CM_loop(
             //(FOR TESTING WITHOUT ESP)
             if (elapsed > 1)
             {
+                LOG(INFO) << "CM: Transitioning to RUN";
                 state_change_called = true;
                 command = RUN;
             }
@@ -197,7 +218,7 @@ std::uint8_t CM_serialReceive(CM_serialInterface* serial){
 void CM_serialSendStatus(CM_serialInterface* serial, int32_t x, int32_t y){
 
     iterations++;
-    LOG(INFO) << "Iteration: ", std::to_string(iterations);
+    LOG(INFO) << "CM : Iteration " << std::to_string(iterations);
 
     if (serial->ESPCheckOpen() == 1)
     {

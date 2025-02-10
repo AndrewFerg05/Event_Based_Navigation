@@ -164,7 +164,7 @@ DavisDriver::DavisDriver(const std::string& config_path, std::shared_ptr<DataQue
      config_manager_(config_path)
 {
     config_manager_.loadConfig(config_path);
-    //caerConnect();
+    caerConnect();
     config_manager_.streaming_rate = 30;
     bias = config_manager_.getBias();
     delta_ = std::chrono::microseconds(static_cast<long>(1e6 / config_manager_.streaming_rate));
@@ -200,7 +200,7 @@ void DavisDriver::caerConnect()
 
         if (!device_is_running) {
             LOG(ERROR) << "Driver: Could not find DAVIS. Retrying every second...";
-            sleep_us(500);  // Wait before retrying
+            sleep_ms(500);  // Wait before retrying
         }
 
         // Exit if the driver is manually stopped (replace with actual stopping condition)
@@ -481,6 +481,7 @@ void DavisDriver::readout()
                     // time
                     image_data_.header.stamp = caerFrameEventGetTimestamp64(event, frame) * 1000;
 
+                    LOG(INFO) << "Driver: Got frame, pushing to queue";
                     data_queues_->image_queue->push(image_data_);
 
                     const int32_t exposure_time_microseconds = caerFrameEventGetExposureLength(event);

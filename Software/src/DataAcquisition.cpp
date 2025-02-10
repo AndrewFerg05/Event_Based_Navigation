@@ -52,6 +52,7 @@ DataAcquisition::~DataAcquisition() {
 }
 
 void DataAcquisition::start() {
+    LOG(INFO) << "DA: Thread started";
     if (acquisition_thread_.joinable()) return;  // Prevent multiple starts
     running_ = true;
     state_ = ThreadState::Run;
@@ -208,24 +209,33 @@ bool DataAcquisition::processDataQueues()
 {
         bool processed = false;
 
+        LOG(INFO) << "DA: Running";
+
+        
         auto imu_data = input_data_queues_->imu_queue->pop();
-        if (imu_data.has_value()) {
-            addImuData(imu_data.value());
-            processed = true;
-        }
+        // if (imu_data.has_value()) {
+        //     LOG(INFO) << "DA: IMU first data " << std::to_string(imu_data.value().angular_velocity.x);
+        //     addImuData(imu_data.value());
+        //     processed = true;
+        // }
+        // LOG(INFO) << "DA: IMU Queue Processed";
 
         auto event_data = input_data_queues_->event_queue->pop();
-        if (event_data.has_value()) {
-            addEventsData(event_data.value());
-            processed = true;
-        }
+        // if (event_data.has_value()) {
+        //     LOG(INFO) << "DA: Event height " << std::to_string(event_data.value().height);
+        //     addEventsData(event_data.value());
+        //     processed = true;
+        // }
+        // LOG(INFO) << "DA: Event Queue Processed";
 
         auto image_data = input_data_queues_->image_queue->pop();
         if (image_data) {
             addImageData();     // Does no processing
+            LOG(INFO) << "DA: Received frame with encoding: " << image_data.value().encoding;
             comms_interface_->queueFrameData(image_data.value());
             processed = true;
         }
+
         return processed;
 
 }
@@ -415,17 +425,17 @@ void DataAcquisition::run()
 
         if (state_ == ThreadState::Stop) 
         {
-            running_ = false;
             break;
         }
 
-        if (state_ ==ThreadState::Run)
+        if (state_ == ThreadState::Run)
         {
             if (!processDataQueues()) 
             {
-                sleep_ms(1);  // No data, sleep briefly
+                LOG(INFO) << "DA: No data in queues";
+                sleep_ms(100); 
             }
-
+            sleep_ms(50); 
         }
     }
 }

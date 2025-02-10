@@ -77,6 +77,7 @@ OtherData CommunicationManager::getOtherData()
 void CommunicationManager::queueFrameData(ImageData data)
 {
     from_camera.push(data);
+    LOG(INFO) << "DA: Frame pushed to CM";
 }
 
 

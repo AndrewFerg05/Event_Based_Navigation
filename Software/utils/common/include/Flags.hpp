@@ -73,6 +73,12 @@ constexpr bool FLAGS_vio_rescale_intrinsics_for_distortion = 1;
 constexpr bool FLAGS_vio_activate_backend = 1;
 
 constexpr double FLAGS_vio_landmark_triangulate_purge_floor = -1;
+constexpr double FLAGS_noise_event_rate = 20000;
+
+constexpr uint64_t FLAGS_vio_frame_size = 15000;
+
+constexpr bool FLAGS_vio_do_motion_correction = 1;
+constexpr double FLAGS_vio_frame_norm_factor = 3.0;
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------

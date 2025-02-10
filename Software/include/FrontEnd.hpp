@@ -25,7 +25,9 @@ Change History
 #include "RingBuffer.hpp"
 #include "imu_integrator.hpp"
 #include "landmark_triangulation.hpp"
+#include "image_cv.hpp"
 
+#include <opencv2/core/core.hpp>
 
 //==============================================================================
 //      Classes
@@ -62,24 +64,25 @@ class FrontEnd
   
 
 public:
-EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-FrontEnd();
-~FrontEnd();
+  FrontEnd();
+  ~FrontEnd();
 
- // Modules
- std::shared_ptr<const CameraRig> rig_;
- std::shared_ptr<ImuIntegrator> imu_integrator_;
- std::shared_ptr<FeatureTracker> feature_tracker_;
- std::shared_ptr<FeatureInitializer> feature_initializer_;
+  // Modules
+  std::shared_ptr<const CameraRig> rig_;
+  std::shared_ptr<ImuIntegrator> imu_integrator_;
+  std::shared_ptr<FeatureTracker> feature_tracker_;
+  std::shared_ptr<FeatureInitializer> feature_initializer_;
 
- //System state
- ImuStamps imu_stamps_since_lkf_;
- ImuAccGyrContainer imu_accgyr_since_lkf_;
- LandmarkTable landmarks_;
- const TransformationVector T_C_B_;
- NFrameTable states_;
- FrontendStage stage_ = FrontendStage::AttitudeEstimation;
+  //System state
+  ImuStamps imu_stamps_since_lkf_;
+  ImuAccGyrContainer imu_accgyr_since_lkf_;
+  LandmarkTable landmarks_;
+  const TransformationVector T_C_B_;
+  NFrameTable states_;
+  real_t scene_depth_;
+  FrontendStage stage_ = FrontendStage::AttitudeEstimation;
 
 
  void processData(
@@ -87,25 +90,39 @@ FrontEnd();
     const std::vector<ImuStamps>& imu_timestamps,
     const std::vector<ImuAccGyrContainer>& imu_measurements);
 
-void addImuData(
-        int64_t stamp, 
-        const Vector3& acc, 
-        const Vector3& gyr, 
-        const uint32_t imu_idx);
-bool addImuMeasurementsBetweenKeyframes(
-    const ImuStamps& imu_stamps,
-    const ImuAccGyrContainer& imu_accgyr);
+  void addImuData(
+          int64_t stamp, 
+          const Vector3& acc, 
+          const Vector3& gyr, 
+          const uint32_t imu_idx);
+  bool addImuMeasurementsBetweenKeyframes(
+      const ImuStamps& imu_stamps,
+      const ImuAccGyrContainer& imu_accgyr);
 
-void cleanupInactiveLandmarksFromLastIteration();
-bool pollBackend(bool block);
+  void cleanupInactiveLandmarksFromLastIteration();
+
+  bool pollBackend(bool block);
+
+  void drawEvents(
+    const EventArray::iterator& first,
+    const EventArray::iterator& last,
+    const int64_t& t0,
+    const int64_t& t1,
+    const Transformation& T_1_0,
+    cv::Mat &out);
+
+
   // Temporaries
   int attitude_init_count_ = 0;       //!< Number of frames used for attitude estimation.
   VioMotionType motion_type_ = VioMotionType::GeneralMotion;
 
+  private:
+    cv::Mat dvs_img_;
+
   protected:
-  UpdateStatesCallback update_states_cb_;
-  Odometry odom_;
-  Ringbuffer<real_t, 6, 1000> imu_buffer_;
+    UpdateStatesCallback update_states_cb_;
+    Odometry odom_;
+    Ringbuffer<real_t, 6, 1000> imu_buffer_;
 };
 
 //==============================================================================

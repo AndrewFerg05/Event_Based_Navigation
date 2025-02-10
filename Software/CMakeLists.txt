@@ -78,6 +78,9 @@ else()
 
     # Find Google glog
     find_package(glog REQUIRED)
+
+    # --- Add OpenGV ---
+    find_package(OpenGV REQUIRED)
 endif()
 
 # Add the library path for linking
@@ -101,6 +104,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${YAML_INCLUDE_DIRS}
     ${kindr_INCLUDE_DIRS}    # Include Kindr directories
     "/usr/local/include"      # Manually ensure Kindr is included
+    ${OpenGV_INCLUDE_DIRS}    # Include OpenGV
 )
 
 # Add Eigen include directory
@@ -120,6 +124,7 @@ if (WIN32)
         glog::glog
         ${YAML_LIBRARIES}
         gflags::gflags  # Link gflags
+        OpenGV          # Link OpenGV
     )
 else()
     target_link_libraries(${PROJECT_NAME} PRIVATE 
@@ -129,6 +134,7 @@ else()
         ${OpenCV_LIBS}  # Correctly links OpenCV components
         yaml-cpp        # Add YAML support
         glog::glog      # Link Google glog
+        OpenGV          # Link OpenGV
     )
 
     # Ensure gflags is linked correctly

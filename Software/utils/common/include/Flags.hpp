@@ -79,6 +79,12 @@ constexpr uint64_t FLAGS_vio_frame_size = 15000;
 
 constexpr bool FLAGS_vio_do_motion_correction = 1;
 constexpr double FLAGS_vio_frame_norm_factor = 3.0;
+
+constexpr uint32_t FLAGS_imp_detector_max_features_per_frame = 100; //Max featured per frame - Guess
+constexpr uint32_t FLAGS_vio_add_every_nth_frame_to_backend = -1; 
+
+extern const std::string FLAGS_vio_feature_tracker_patch_size_by8;
+constexpr double FLAGS_vio_feature_tracker_termcrit_min_update_squared = 0.03;
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------

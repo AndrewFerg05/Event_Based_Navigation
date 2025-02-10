@@ -26,6 +26,8 @@ Change History
 #include "imu_integrator.hpp"
 #include "landmark_triangulation.hpp"
 #include "image_cv.hpp"
+#include "feature_tracker.hpp"
+#include "landmark_utils.hpp"
 
 #include <opencv2/core/core.hpp>
 
@@ -36,7 +38,7 @@ Change History
 //Replace with actual classes]
 // using CameraRig = uint16_t;
 // using ImuIntegrator = uint16_t;
-using FeatureTracker = uint16_t;
+// using FeatureTracker = uint16_t;
 using FeatureInitializer = uint16_t;
 
 using TrackedNFrameCallback =
@@ -76,6 +78,7 @@ public:
   std::shared_ptr<FeatureInitializer> feature_initializer_;
 
   //System state
+  int frame_count_ = -1;                //!< Frame counter.
   ImuStamps imu_stamps_since_lkf_;
   ImuAccGyrContainer imu_accgyr_since_lkf_;
   LandmarkTable landmarks_;
@@ -111,6 +114,14 @@ public:
     const Transformation& T_1_0,
     cv::Mat &out);
 
+  std::pair<std::vector<real_t>, uint32_t> trackFrameKLT();
+
+  // Prieviously Derived Class Functions
+  void vio_processData(const Transformation& T_Bkm1_Bk);
+
+
+  std::shared_ptr<NFrame> createNFrame(
+      const std::vector<std::pair<int64_t, ImageBase::Ptr>>& stamped_images);
 
   // Temporaries
   int attitude_init_count_ = 0;       //!< Number of frames used for attitude estimation.

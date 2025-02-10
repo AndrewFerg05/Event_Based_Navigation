@@ -27,5 +27,6 @@ const std::string FLAGS_mask_cam0 = "";
 const std::string FLAGS_mask_cam1 = ""; 
 const std::string FLAGS_mask_cam2 = ""; 
 const std::string FLAGS_mask_cam3 = "";
+const std::string FLAGS_vio_feature_tracker_patch_size_by8 = "4,4";
 //==============================================================================
 // End of File :  Software/include/TYPE_ALIASES_HPP.hpp

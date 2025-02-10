@@ -153,6 +153,28 @@ void FrontEnd::processData(
     stamped_images.push_back(std::pair<int64_t, ImageBase::Ptr>(stamp, img_cv_ptr));
     //---------------------------------------------------------------------//
 
+    // Create new frame:
+    NFrame::Ptr nframe_k = createNFrame(stamped_images);
+    VLOG(3) << " =============== Frame " << nframe_k->seq() << " - "
+    << nframe_k->handle() << " ===============";
+
+    // Predict pose of current frame by integrating the gyroscope:
+    if (states_.nframeKm1())
+    {
+      states_.T_Bk_W() = T_Bkm1_Bk.inverse() * states_.T_Bkm1_W();
+    }
+    else
+    {
+      LOG(WARNING) << "Initialize T_Bk_W to identity.";
+      states_.T_Bk_W() = Transformation();
+    }
+
+    //
+    // Run tracking in derived class.
+    //
+    vio_processData(T_Bkm1_Bk);
+
+
 
 }
 
@@ -349,6 +371,119 @@ void FrontEnd::drawEvents(
       out.at<float>(y0+1, x0+1) += w[3];
     }
   }
+}
+
+std::shared_ptr<NFrame> FrontEnd::createNFrame(
+  const std::vector<std::pair<int64_t, ImageBase::Ptr>>& stamped_images)
+{
+++frame_count_;
+NFrame::Ptr nframe =
+    states_.makeAndStoreNewNFrame(stamped_images,
+                                  FLAGS_imp_detector_max_features_per_frame);
+nframe->setSeq(frame_count_);
+return nframe;
+}
+
+
+std::pair<std::vector<real_t>, uint32_t> FrontEnd::trackFrameKLT()
+{
+  NFrame::Ptr nframe_k   = states_.nframeK();
+  NFrame::Ptr nframe_km1 = states_.nframeKm1();
+  NFrame::Ptr nframe_lkf = states_.nframeLkf();
+
+  // Project landmarks in Nframe using klt.
+  {
+    feature_tracker_->trackFeaturesInNFrame(
+          states_.T_Bkm1_W(), states_.T_Bk_W(), *nframe_km1, *nframe_k);
+  }
+
+  // Outlier rejection using RANSAC.
+  std::vector<real_t> disparities_sq;
+  uint32_t num_outliers = 0u;
+  {
+    const Transformation T_Bk_Blkf = states_.T_Bk_W() * states_.T_Blkf_W().inverse();
+
+    //! @todo: should we compute the disparity w.r.t the last frame or keyframe?
+    std::tie(disparities_sq, num_outliers) =
+        feature_tracker_->outlierRemoval(*nframe_lkf, *nframe_k, T_Bk_Blkf);
+  }
+
+  // Set last observation in landmarks:
+  setLandmarksLastObservationInNFrame(*nframe_k, landmarks_);
+
+  return std::make_pair(disparities_sq, num_outliers);
+}
+
+//--------------------------------------------------------------------------
+//--------------------------------------------------------------------------
+// Prieviously Derived Class Functions
+
+void FrontEnd::vio_processData(const Transformation& T_Bkm1_Bk)
+{
+  NFrame::Ptr nframe_k   = states_.nframeK();
+  NFrame::Ptr nframe_lkf = states_.nframeLkf();
+  bool add_frame_to_backend = (frame_count_ % FLAGS_vio_add_every_nth_frame_to_backend == 0);
+
+  switch(stage_)
+  {
+    //--------------------------------------------------------------------------
+    case FrontendStage::Running:
+    {
+      CHECK_NOTNULL(nframe_lkf.get());
+
+      // KLT-Tracking of features and RANSAC:
+      std::vector<real_t> disparities_sq;
+      uint32_t num_outliers;
+      std::tie(disparities_sq, num_outliers) = trackFrameKLT();
+      uint32_t num_tracked = disparities_sq.size();
+
+      // motion_type_ = classifyMotion(disparities_sq, num_outliers);
+
+      // makeKeyframeIfNecessary(num_tracked);
+      break;
+    }
+    //--------------------------------------------------------------------------
+    // case FrontendStage::AttitudeEstimation:
+    // {
+    //   LOG(WARNING) << "Stage = AttitudeEstimation";
+    //   motion_type_ = VioMotionType::GeneralMotion;
+    //   if (add_frame_to_backend)
+    //   {
+    //     states_.setKeyframe(nframe_k->handle());
+    //   }
+    //   break;
+    // }
+    //--------------------------------------------------------------------------
+    // case FrontendStage::Initializing:
+    // {
+    //   LOG(WARNING) << "Stage = Initializing";
+    //   motion_type_ = VioMotionType::GeneralMotion;
+    //   CHECK(add_frame_to_backend);
+    //   for (size_t i = 0u; i < nframe_k->size(); ++i)
+    //   {
+    //     Frame& frame = nframe_k->at(i);
+    //     frame.min_depth_ = FLAGS_vio_min_depth;
+    //     frame.max_depth_ = FLAGS_vio_max_depth;
+    //     frame.median_depth_ = FLAGS_vio_median_depth;
+    //   }
+    //   feature_initializer_->detectAndInitializeNewFeatures(
+    //         *nframe_k, range(rig_->size()));
+
+    //   //if (rig_->size() > 1u)
+    //     //stereo_matcher_->matchStereoAndRejectOutliers(*nframe_k, states_.T_Bk_W());
+
+    //   // Add observations to landmarks.
+    //   addLandmarkObservations(*nframe_k, landmarks_);
+
+    //   // Switch state:
+    //   stage_ = FrontendStage::Running;
+    //   break;
+    // }
+    default:
+      LOG(FATAL) << "Case not implemented.";
+      break;
+  }
+
 }
 
 

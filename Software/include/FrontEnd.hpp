@@ -22,6 +22,8 @@ Change History
 #include "Flags.hpp"
 #include "landmark_table.hpp"
 #include "nframe_table.hpp"
+#include "RingBuffer.hpp"
+#include "imu_integrator.hpp"
 
 
 //==============================================================================
@@ -30,9 +32,19 @@ Change History
 
 //Replace with actual classes]
 // using CameraRig = uint16_t;
-using ImuIntegrator = uint16_t;
+// using ImuIntegrator = uint16_t;
 using FeatureTracker = uint16_t;
 using FeatureInitializer = uint16_t;
+
+using TrackedNFrameCallback =
+  std::function<void(const std::shared_ptr<NFrame>&,
+                     const ImuStamps& imu_stamps,
+                     const ImuAccGyrContainer& imu_accgyr,
+                     const VioMotionType,
+                     const std::vector<LandmarkHandle>& lm_opportunistic,
+                     const std::vector<LandmarkHandle>& lm_persistent_new,
+                     const std::vector<LandmarkHandle>& lm_persistent_continued)>;
+using UpdateStatesCallback = std::function<bool(const bool wait_for_backend)>;
 
 
 enum class FrontendStage : std::int8_t
@@ -46,7 +58,7 @@ enum class FrontendStage : std::int8_t
 
 class FrontEnd
 {
-
+  
 
 public:
 EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -65,6 +77,7 @@ FrontEnd();
  ImuAccGyrContainer imu_accgyr_since_lkf_;
  LandmarkTable landmarks_;
  NFrameTable states_;
+ FrontendStage stage_ = FrontendStage::AttitudeEstimation;
 
 
  void processData(
@@ -82,10 +95,15 @@ bool addImuMeasurementsBetweenKeyframes(
     const ImuAccGyrContainer& imu_accgyr);
 
 void cleanupInactiveLandmarksFromLastIteration();
-
+bool pollBackend(bool block);
   // Temporaries
   int attitude_init_count_ = 0;       //!< Number of frames used for attitude estimation.
   VioMotionType motion_type_ = VioMotionType::GeneralMotion;
+
+  protected:
+  UpdateStatesCallback update_states_cb_;
+  Odometry odom_;
+  Ringbuffer<real_t, 6, 1000> imu_buffer_;
 };
 
 //==============================================================================

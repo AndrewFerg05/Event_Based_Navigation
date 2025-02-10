@@ -78,6 +78,9 @@ int main(int argc, char* argv[])
 
     // Init Main Classes
     DataAcquisition DataAquisition_(data_queues, std::ref(DA_state), comms_interface);
+
+    DataAquisition_.start();
+    
     FrontEnd Frontend_;
 
     // Bind Callbacks

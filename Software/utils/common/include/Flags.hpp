@@ -70,6 +70,7 @@ constexpr uint64_t FLAGS_vio_frame_pyramid_levels = 3;
 constexpr bool FLAGS_vio_use_events_and_images = 0;
 constexpr bool FLAGS_vio_use_events = 1;
 constexpr bool FLAGS_vio_rescale_intrinsics_for_distortion = 1;
+constexpr bool FLAGS_vio_activate_backend = 1;
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------

@@ -57,14 +57,21 @@ void FrontEnd::processData(
     CHECK(!imu_accgyr_vec.empty()) << "FE: There are no IMU measurements";
 
     if (!addImuMeasurementsBetweenKeyframes(imu_stamps_vec.at(0),
-    imu_accgyr_vec.at(0))
-    && FLAGS_num_imus > 0)
+                                            imu_accgyr_vec.at(0))
+                                            && FLAGS_num_imus > 0)
     {
         LOG(ERROR) << "FE: No IMU messages provided.";
         return;
     }
 
     cleanupInactiveLandmarksFromLastIteration();
+
+    if (states_.nframeKm1() &&
+    FLAGS_vio_activate_backend && update_states_cb_)
+    {
+        pollBackend(true);
+    }
+
 
 }
 
@@ -138,5 +145,43 @@ void FrontEnd::cleanupInactiveLandmarksFromLastIteration()
     VLOG(40) << landmarks_.typesFormattedString();
 }
 
+bool FrontEnd::pollBackend(bool block)
+{
+  // Return false if no updates from backend are available.
+  if (!update_states_cb_(block))
+    return false;
+
+  // Backend states somehow are not normalized.
+  states_.T_Bk_W().getRotation().normalize();
+
+  // Reset integration point using newest result from backend.
+  odom_.v_W = states_.v_W(states_.nframeHandleK());
+
+  ImuStamps imu_timestamps;
+  ImuAccGyrContainer imu_measurements;
+
+  std::tie(imu_timestamps, imu_measurements) =
+    imu_buffer_.getBetweenValuesInterpolated(
+      states_.nframeK()->timestamp(),
+      odom_.stamp);
+
+  Transformation T_Bkm1_Bk =
+    imu_integrator_->integrateImu(
+      imu_timestamps,
+      imu_measurements,
+      states_.T_Bk_W(),
+      odom_.v_W);
+
+  odom_.T_W_B = states_.T_Bk_W().inverse() * T_Bkm1_Bk;
+
+  // Attitude is estimated from the IMU in the backend.
+  // Hence, continue to Initializing stage when first update has arrived.
+  if (stage_ == FrontendStage::AttitudeEstimation)
+  {
+      stage_ = FrontendStage::Initializing;
+  }
+
+  return true;
+}
 //==============================================================================
 // End of File : Software/src/DataAcquisition.cpp

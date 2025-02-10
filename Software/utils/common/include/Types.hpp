@@ -93,6 +93,26 @@ enum class VioMotionType : int8_t
   GeneralMotion
 };
 
+enum class InterpolationMode
+{
+  Point,
+  Linear,
+  Cubic,
+  CubicSpline
+};
+
+enum class MemoryType
+{
+  Undefined,
+  Cpu,
+  CpuAligned,
+  Gpu,
+  GpuAligned,
+  Unified,
+  UnifiedAligned,
+  Managed,
+  ManagedAligned
+};
 
 #endif  // TYPE_ALIASES_HPP
 //==============================================================================

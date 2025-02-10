@@ -21,6 +21,7 @@ Change History
 #include "TypeAliases.hpp"
 #include "Flags.hpp"
 #include "landmark_table.hpp"
+#include "nframe_table.hpp"
 
 
 //==============================================================================
@@ -28,7 +29,7 @@ Change History
 //------------------------------------------------------------------------------
 
 //Replace with actual classes]
-using CameraRig = uint16_t;
+// using CameraRig = uint16_t;
 using ImuIntegrator = uint16_t;
 using FeatureTracker = uint16_t;
 using FeatureInitializer = uint16_t;
@@ -63,6 +64,7 @@ FrontEnd();
  ImuStamps imu_stamps_since_lkf_;
  ImuAccGyrContainer imu_accgyr_since_lkf_;
  LandmarkTable landmarks_;
+ NFrameTable states_;
 
 
  void processData(

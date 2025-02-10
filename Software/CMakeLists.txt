@@ -16,6 +16,7 @@ file(GLOB SOURCES
     "utils/backend/src/*.cpp"
     "utils/camera/src/*.cpp"
     "utils/image/src/*.cpp"
+    "utils/external/src/*.cpp"
 )
 
 # Set CMake Prefix Path for Homebrew installation of gflags and Kindr
@@ -97,6 +98,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     utils/backend/include
     utils/camera/include
     utils/image/include
+    utils/external/include
     ${LIBCAER_INCLUDE_DIRS} 
     ${LIBUSB_INCLUDE_DIRS} 
     ${LIBSERIAL_INCLUDE_DIRS} 

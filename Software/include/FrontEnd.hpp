@@ -28,9 +28,12 @@ Change History
 #include "image_cv.hpp"
 #include "feature_tracker.hpp"
 #include "landmark_utils.hpp"
-
+#include "statistics.hpp"
 #include <opencv2/core/core.hpp>
-
+#include "nframe_utils.hpp"
+#include "keyframe_selection.hpp"
+#include "landmarks_reprojector.hpp"
+#include "feature_initializer.hpp"
 //==============================================================================
 //      Classes
 //------------------------------------------------------------------------------
@@ -39,7 +42,7 @@ Change History
 // using CameraRig = uint16_t;
 // using ImuIntegrator = uint16_t;
 // using FeatureTracker = uint16_t;
-using FeatureInitializer = uint16_t;
+//using FeatureInitializer = uint16_t;
 
 using TrackedNFrameCallback =
   std::function<void(const std::shared_ptr<NFrame>&,
@@ -76,6 +79,7 @@ public:
   std::shared_ptr<ImuIntegrator> imu_integrator_;
   std::shared_ptr<FeatureTracker> feature_tracker_;
   std::shared_ptr<FeatureInitializer> feature_initializer_;
+  std::shared_ptr<LandmarksReprojector> reprojector_;
 
   //System state
   int frame_count_ = -1;                //!< Frame counter.
@@ -116,9 +120,13 @@ public:
 
   std::pair<std::vector<real_t>, uint32_t> trackFrameKLT();
 
+  VioMotionType classifyMotion(
+    std::vector<real_t>& disparities_sq,
+    const uint32_t num_outliers);
+
   // Prieviously Derived Class Functions
   void vio_processData(const Transformation& T_Bkm1_Bk);
-
+  void vio_makeKeyframeIfNecessary(const uint32_t num_tracked);
 
   std::shared_ptr<NFrame> createNFrame(
       const std::vector<std::pair<int64_t, ImageBase::Ptr>>& stamped_images);

@@ -414,6 +414,50 @@ std::pair<std::vector<real_t>, uint32_t> FrontEnd::trackFrameKLT()
   return std::make_pair(disparities_sq, num_outliers);
 }
 
+VioMotionType FrontEnd::classifyMotion(
+  std::vector<real_t>& disparities_sq,
+  const uint32_t num_outliers)
+{
+if (motion_type_ == VioMotionType::NoMotion)
+{
+  return VioMotionType::NoMotion;
+}
+
+const uint32_t num_inliers = disparities_sq.size();
+
+// Check if we have enough features:
+if (num_inliers < 20u)
+{
+  LOG(WARNING) << "Motion Type: INVALID (tracking " << num_inliers
+               << " features, < 20)";
+  return VioMotionType::Invalid;
+}
+
+// Check that we have X% inliers:
+const real_t inlier_ratio =
+    static_cast<real_t>(num_inliers) / (num_inliers + num_outliers);
+if (inlier_ratio < 0.6)
+{
+  LOG(WARNING) << "Motion Type: INVALID (inlier ratio = "
+               << inlier_ratio * 100.0 << "%)";
+  return VioMotionType::Invalid;
+}
+
+// Check disparity:
+real_t median_disparity = std::sqrt(median(disparities_sq).first);
+VLOG(10) << "Median Disparity = " << median_disparity;
+if (median_disparity < FLAGS_vio_disparity_median_for_static_motion_classification)
+{
+  VLOG(10) << "Motion Type: ROTATION ONLY";
+  return VioMotionType::RotationOnly;
+}
+else
+{
+  VLOG(10) << "Motion Type: GENERAL";
+  return VioMotionType::GeneralMotion;
+}
+}
+
 //--------------------------------------------------------------------------
 //--------------------------------------------------------------------------
 // Prieviously Derived Class Functions
@@ -437,7 +481,7 @@ void FrontEnd::vio_processData(const Transformation& T_Bkm1_Bk)
       std::tie(disparities_sq, num_outliers) = trackFrameKLT();
       uint32_t num_tracked = disparities_sq.size();
 
-      // motion_type_ = classifyMotion(disparities_sq, num_outliers);
+      motion_type_ = classifyMotion(disparities_sq, num_outliers);
 
       // makeKeyframeIfNecessary(num_tracked);
       break;
@@ -486,6 +530,105 @@ void FrontEnd::vio_processData(const Transformation& T_Bkm1_Bk)
 
 }
 
+void FrontEnd::vio_makeKeyframeIfNecessary(const uint32_t num_tracked)
+{
+  NFrame::Ptr nframe_k   = states_.nframeK();
+  NFrame::Ptr nframe_lkf = states_.nframeLkf();
+
+  // Set last observation in landmarks:
+  setLandmarksLastObservationInNFrame(*nframe_k, landmarks_);
+
+  // Remove old landmarks.
+    removeOldLandmarks(FLAGS_vio_max_landmarks, nframe_k->seq(), landmarks_);
+
+  // Compute scene depth statistics.
+    setSceneDepthInNFrame(*nframe_k, landmarks_, states_.T_Bk_W(), T_C_B_,
+                          FLAGS_vio_min_depth, FLAGS_vio_max_depth,
+                          FLAGS_vio_median_depth);
+
+  // Select new keyframe.
+  if (!needNewKeyframe(
+        *nframe_k, *nframe_lkf, states_, states_.T_Bk_W(), T_C_B_, num_tracked))
+  {
+    return; // No new keyframe.
+  }
+
+  // Don't detect features close to existing features.
+  feature_initializer_->setOccupancyGrid(reprojector_->gridVec());
+
+  // // Mark all features in keyframe as opportunistic.
+  // setTypeOfConvergedSeedsInNFrame(
+  //       *nframe_k, LandmarkType::Opportunistic, landmarks_);
+
+  // // Detect new features.
+  // if (num_tracked < FLAGS_vio_min_tracked_features_total)
+  // {
+  //   auto t = timers_[Timer::initialize_features].timeScope();
+
+  //   // If critical, we extract in all frames features and match stereo.
+  //   // otherwise, just detect features in camera with least features.
+  //   if (num_tracked < FLAGS_vio_kfselect_numfts_lower_thresh
+  //       && rig_->stereoPairs().size() > 0u)
+  //   {
+  //     LOG(WARNING) << "Critical: Force stereo triangulation";
+  //     std::vector<uint32_t> frame_idx_vec = range(rig_->size());
+  //     feature_initializer_->detectAndInitializeNewFeatures(*nframe_k, frame_idx_vec);
+
+  //     std::vector<std::pair<uint32_t, std::vector<uint32_t>>> stereo_matches =
+  //         stereo_matcher_->matchStereoAndRejectOutliers(*nframe_k, states_.T_Bk_W());
+
+  //     // Set all stereo observations to opportunistic.
+  //     for (const std::pair<uint32_t, std::vector<uint32_t>>& it : stereo_matches)
+  //     {
+  //       const Frame& ref_frame = nframe_k->at(it.first);
+  //       for (const uint32_t i : it.second)
+  //       {
+  //         DEBUG_CHECK_LT(i, ref_frame.landmark_handles_.size());
+  //         const LandmarkHandle lm_h = ref_frame.landmark_handles_[i];
+  //         if (isValidLandmarkHandle(lm_h)
+  //             && landmarks_.type(lm_h) == LandmarkType::Seed)
+  //         {
+  //           landmarks_.type(lm_h) = LandmarkType::Opportunistic;
+  //         }
+  //       }
+  //     }
+
+  //     uint32_t num_inliers = 0u;
+  //     for (auto it : stereo_matches)
+  //     {
+  //       num_inliers += it.second.size();
+  //     }
+  //     VLOG(3) << "Upgraded " << num_inliers << " stereo landmarks to opportunistic.";
+  //   }
+  //   else
+  //   {
+  //     auto t = timers_[Timer::detect_features].timeScope();
+  //     for (size_t i = 0u; i < nframe_k->size(); ++i)
+  //     {
+  //       Frame& frame = nframe_k->at(i);
+  //       frame.min_depth_ = FLAGS_vio_min_depth;
+  //       frame.max_depth_ = FLAGS_vio_max_depth;
+  //       frame.median_depth_ = scene_depth_ > FLAGS_vio_min_depth ?
+  //                             scene_depth_ : FLAGS_vio_median_depth;
+  //     }
+  //     feature_initializer_->detectAndInitializeNewFeatures(
+  //           *nframe_k, range(rig_->size()));
+
+  //     //if (rig_->size() > 1u)
+  //       //stereo_matcher_->matchStereoAndRejectOutliers(*nframe_k, states_.T_Bk_W());
+  //   }
+  // }
+
+  // // Store frame as keyframe. Must be before seed update to do inter-frame updates.
+  // states_.setKeyframe(states_.nframeHandleK());
+  // addLandmarkObservations(*nframe_k, landmarks_);
+
+  // // Optimize landmarks.
+  // {
+  //   auto t = timers_[Timer::optimize_landmarks].timeScope();
+  //   optimizeLandmarks(*rig_, states_, *nframe_k, landmarks_);
+  // }
+}
 
 //==============================================================================
 // End of File : Software/src/DataAcquisition.cpp

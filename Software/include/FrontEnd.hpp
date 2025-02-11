@@ -79,6 +79,9 @@ public:
   FrontEnd();
   ~FrontEnd();
 
+  void start();
+  void idle();
+  void stop();
   // Modules
   std::shared_ptr<const CameraRig> rig_;
   std::shared_ptr<ImuIntegrator> imu_integrator_;

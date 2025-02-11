@@ -39,8 +39,6 @@ FrontEnd::FrontEnd()
    , thread_pool_(rig_->size())
    , T_C_B_(rig_->T_C_B_vec())
 {
-  initModules();
-  initDvs();
   VLOG(1) << "Initialized frontend with camera:\n" << *rig_;
 }
 
@@ -75,7 +73,22 @@ void FrontEnd::initModules()
 }
 
 
+void FrontEnd::start()
+{
+  stage_ = FrontendStage::AttitudeEstimation;
+}
 
+void FrontEnd::idle()
+{
+  stage_ = FrontendStage::Paused;
+  initModules();
+  initDvs();
+  //Clear queues
+}
+void FrontEnd::stop()
+{
+  stage_ = FrontendStage::Paused;
+}
 
 
 void FrontEnd::processData(

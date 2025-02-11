@@ -1,5 +1,5 @@
 /*
-Filename    : Software/include/TypeAliases.hpp
+Filename    : Software/include/Flags.hpp
 Author      : Andrew Ferguson
 Project     : Event Based Navigation
 Date        : 14/1/25

@@ -34,34 +34,7 @@ Change History
 // Functions
 //------------------------------------------------------------------------------
 
-void BE_loop(std::atomic<ThreadState>& state, CommunicationManager* comms) {
-    // while (true) {
-    //     if (state == ThreadState::Stopped) {
-    //         break;
-    //     }
 
-    //     if (state == ThreadState::Paused) {
-    //         //TODO - Wait while some condition
-    //         sleep_ms(100);
-    //         continue;
-    //     }
-
-    //     if (state == ThreadState::Reset) {
-    //         //TODO call reset function then set running again
-    //         state = ThreadState::Running; 
-    //     }
-
-    //     if (state == ThreadState::Running) {
-    //         comms->queueOther(69);
-    //         sleep_ms(30);
-    //     }
-
-    //     if (state == ThreadState::Test) {
-    //         sleep_ms(100);
-    //         std::cout << "Backend Testing" << std::endl; 
-    //     }
-    // }
-}
 
 //==============================================================================
 // End of File : Software/src/BackEnd.cpp

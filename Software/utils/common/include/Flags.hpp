@@ -140,6 +140,40 @@ inline bool FLAGS_vio_delayed_nframe_processing = 0; // Guess and might change
 // Relative pose RANSAC reprojection error threshold [px].
 inline double FLAGS_vio_ransac_relpose_thresh_px = 2;
 inline bool FLAGS_vio_use_5pt_ransac = false;
+//==============================================================================
+// Backend
+// Main
+inline bool FLAGS_vio_ceres_verbose = false; // Output ceres optimization progress.
+inline bool FLAGS_vio_ceres_marginalize = true; // Apply marginalization?
+inline int FLAGS_vio_ceres_iterations = 3; // Maximum number of iterations.
+inline int FLAGS_vio_ceres_sliding_window_size = 3; // Sliding window size of ceres backend.
+inline int FLAGS_vio_ceres_numkeyframes = 5; // Number of keyframes of ceres backend.
+inline int FLAGS_vio_ceres_num_threads = 1; // Number of threads in ceres backend.
+
+// Backend
+inline double FLAGS_swe_imu_rate = 200.0; // IMU Rate [Hz]
+inline double FLAGS_vio_ceres_accel_saturation = 176.0; // Acceleration saturation [m/s^2]
+inline double FLAGS_vio_ceres_gyro_saturation = 7.8; // Gyro saturation [rad/s]
+inline double FLAGS_gyro_noise_density = 12.0e-4; // Gyro noise density [rad/s/sqrt(Hz)]
+inline double FLAGS_gyro_bias_random_walk = 0.03; // Gyro bias prior noise density [rad/s]
+inline double FLAGS_acc_noise_density = 8.0e-3; // Accelerometer noise density [m/s^2/sqrt(Hz)]
+inline double FLAGS_acc_bias_random_walk = 0.1; // Accelerometer bias prior noise density [m/s^2]
+inline double FLAGS_vio_ceres_sigma_gyro_drift = 4.0e-6; // Gyro drift noise density [rad/s^2/sqrt(Hz)]
+inline double FLAGS_vio_ceres_sigma_accel_drift = 4.0e-5; // Accelerometer drift noise density [m/s^3/sqrt(Hz)]
+inline double FLAGS_vio_ceres_gravity = 9.81; // Earth gravitational acceleration [m/s^2]
+inline bool FLAGS_vio_ceres_add_velocity_prior = false; // Add velocity priors. [Experimental]
+inline double FLAGS_extrinsics_sigma_abs_translation = 0.0; // Absolute translation sigma of camera extrinsics w.r.t IMU Frame
+inline double FLAGS_extrinsics_sigma_abs_orientation = 0.0; // Absolute orientation sigma of camera extrinsics w.r.t IMU Frame
+inline double FLAGS_extrinsics_sigma_rel_translation = 0.0; // Relative translation sigma (temporal) of camera extrinsics
+inline double FLAGS_extrinsics_sigma_rel_orientation = 0.0; // Relative orientation sigma (temporal) of camera extrinsics
+inline double FLAGS_vio_ceres_max_optimization_time = -1.0; // Maximum optimization time [s]. Negative value means use max iterations.
+
+
+
+
+
+
+
 
 
 

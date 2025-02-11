@@ -86,8 +86,10 @@ public:
   std::shared_ptr<FeatureInitializer> feature_initializer_;
   std::shared_ptr<LandmarksReprojector> reprojector_;
   std::shared_ptr<StereoMatcher> stereo_matcher_;
+  ThreadPool thread_pool_;
 
   //System state
+  int imu_meas_count_ = -1;
   int frame_count_ = -1;                //!< Frame counter.
   ImuStamps imu_stamps_since_lkf_;
   ImuAccGyrContainer imu_accgyr_since_lkf_;
@@ -114,7 +116,7 @@ public:
 
   void cleanupInactiveLandmarksFromLastIteration();
 
-  bool pollBackend(bool block);
+  bool pollBackend(bool block=false);
 
   void drawEvents(
     const EventArray::iterator& first,
@@ -143,6 +145,8 @@ public:
 
   private:
     cv::Mat dvs_img_;
+    void initModules();
+    void initDvs();
 
   protected:
     UpdateStatesCallback update_states_cb_;

@@ -21,8 +21,7 @@ Change History
 //      Variables
 //------------------------------------------------------------------------------
 
-// Define the variables in only one file
-const std::string FLAGS_calib_filename = ""; 
+const std::string FLAGS_calib_filename = "../config/DAVIS-example.yaml"; 
 const std::string FLAGS_mask_cam0 = ""; 
 const std::string FLAGS_mask_cam1 = ""; 
 const std::string FLAGS_mask_cam2 = ""; 

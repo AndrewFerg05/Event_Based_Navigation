@@ -135,7 +135,9 @@ constexpr double FLAGS_vio_min_parallax_deg = 0.5;
 constexpr bool FLAGS_vio_favor_equal_number_of_tracks_per_frame = false;
 constexpr bool FLAGS_vio_delayed_nframe_processing = 0; //Guess and feel like might be changed somewhere
 
- 
+//Relative pose RANSAC reprojection error threshold [px].
+constexpr double FLAGS_vio_ransac_relpose_thresh_px = 2;
+constexpr bool FLAGS_vio_use_5pt_ransac = false;
 
 
 

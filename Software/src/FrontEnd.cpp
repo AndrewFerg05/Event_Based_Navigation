@@ -34,17 +34,48 @@ Change History
 // Functions
 //------------------------------------------------------------------------------
 FrontEnd::FrontEnd()
-//   : rig_(cameraRigFromGflags())
-//   , imu_integrator_(std::make_shared<ImuIntegrator>())
-//   , thread_pool_(rig_->size())
-//   , T_C_B_(rig_->T_C_B_vec())
+   : rig_(cameraRigFromGflags())
+   , imu_integrator_(std::make_shared<ImuIntegrator>())
+   , thread_pool_(rig_->size())
+   , T_C_B_(rig_->T_C_B_vec())
 {
-//   initModules();
-//   initDvs();
-//   VLOG(1) << "Initialized frontend with camera:\n" << *rig_;
+  initModules();
+  initDvs();
+  VLOG(1) << "Initialized frontend with camera:\n" << *rig_;
 }
 
 FrontEnd::~FrontEnd(){}
+
+void FrontEnd::initDvs() {
+  Camera::Ptr dvs_cam;
+  if (rig_->getDvsCamera(&dvs_cam)) {
+    // Initialize dvs_img_ to black.
+    dvs_img_ = cv::Mat::zeros(dvs_cam->height(), dvs_cam->width(), CV_8U);
+  }
+}
+
+void FrontEnd::initModules()
+{
+  EpipolarMatcherOptions options;
+  stereo_matcher_ =
+  std::make_shared<StereoMatcher>(
+    *rig_, FLAGS_imp_detector_border_margin, FLAGS_vio_ransac_relpose_thresh_px,
+    landmarks_);
+
+  feature_tracker_ =
+    std::make_shared<FeatureTracker>(
+      *rig_, FLAGS_imp_detector_border_margin, FLAGS_vio_ransac_relpose_thresh_px,
+      FLAGS_vio_use_5pt_ransac, *stereo_matcher_, landmarks_);
+  feature_initializer_ =
+    std::make_shared<FeatureInitializer>(
+      *rig_, FLAGS_imp_detector_border_margin, landmarks_);
+  reprojector_ = std::make_shared<LandmarksReprojector>(
+    *rig_, FLAGS_imp_detector_border_margin,
+    FLAGS_imp_detector_grid_size, landmarks_, states_);
+}
+
+
+
 
 
 void FrontEnd::processData(
@@ -220,7 +251,7 @@ void FrontEnd::processData(
           0u //! @todo: return num tracked keypoints!
           );
   }
-  
+
   // if (FLAGS_vio_log_performance)
   // {
   //   logNumTrackedFeatures(*nframe_k, landmarks_);
@@ -231,7 +262,31 @@ void FrontEnd::processData(
 void FrontEnd::addImuData(
     int64_t stamp, const Vector3& acc, const Vector3& gyr, const uint32_t imu_idx)
 {
-    
+    if (imu_idx != 0)
+    return;
+
+  // Add measurement to buffer
+  Vector6 acc_gyr;
+  acc_gyr.head<3>() = acc;
+  acc_gyr.tail<3>() = gyr;
+  imu_buffer_.insert(stamp, acc_gyr);
+  ++imu_meas_count_;
+
+  real_t dt = nanosecToSecTrunc(stamp - odom_.stamp);
+  odom_.stamp = stamp;
+
+  if (stage_ == FrontendStage::Running)
+  {
+    if (!pollBackend())
+    {
+      imu_integrator_->propagate(
+            odom_.T_W_B.getRotation(), odom_.T_W_B.getPosition(), odom_.v_W,
+            acc, gyr, dt);
+    }
+
+    odom_.omega_B = gyr - imu_integrator_->getGyrBias();
+    // visualizer_->publishOdometry(odom_);
+  }
 }
 
 bool FrontEnd::addImuMeasurementsBetweenKeyframes(

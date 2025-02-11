@@ -36,9 +36,17 @@ Change History
 #include "feature_initializer.hpp"
 #include "stereo_matcher.hpp"
 #include "refinement.hpp"
+#include "track_extractor.hpp"
 //==============================================================================
 //      Classes
 //------------------------------------------------------------------------------
+enum class FrontendStage : std::int8_t
+{
+  Paused,
+  AttitudeEstimation,
+  Initializing,
+  Running
+};
 
 
 using TrackedNFrameCallback =
@@ -49,16 +57,16 @@ using TrackedNFrameCallback =
                      const std::vector<LandmarkHandle>& lm_opportunistic,
                      const std::vector<LandmarkHandle>& lm_persistent_new,
                      const std::vector<LandmarkHandle>& lm_persistent_continued)>;
+
 using UpdateStatesCallback = std::function<bool(const bool wait_for_backend)>;
 
+using VisualOdometryCallback =
+  std::function<void(const int64_t timestamp,
+                     const Eigen::Quaterniond& orientation,
+                     const Eigen::Vector3d& position,
+                     const FrontendStage stage,
+                     const uint32_t num_tracked_features)>;
 
-enum class FrontendStage : std::int8_t
-{
-  Paused,
-  AttitudeEstimation,
-  Initializing,
-  Running
-};
 
 
 class FrontEnd
@@ -138,6 +146,8 @@ public:
 
   protected:
     UpdateStatesCallback update_states_cb_;
+    TrackedNFrameCallback tracked_nframe_cb_;
+    VisualOdometryCallback result_cb_;
     Odometry odom_;
     Ringbuffer<real_t, 6, 1000> imu_buffer_;
 };

@@ -70,7 +70,7 @@ constexpr uint64_t FLAGS_vio_frame_pyramid_levels = 3;
 constexpr bool FLAGS_vio_use_events_and_images = 0;
 constexpr bool FLAGS_vio_use_events = 1;
 constexpr bool FLAGS_vio_rescale_intrinsics_for_distortion = 1;
-constexpr bool FLAGS_vio_activate_backend = 1;
+constexpr bool FLAGS_vio_activate_backend = 1; //Feel like this might also change
 
 constexpr double FLAGS_vio_landmark_triangulate_purge_floor = -1;
 constexpr double FLAGS_noise_event_rate = 20000;
@@ -124,8 +124,18 @@ constexpr uint32_t FLAGS_imp_detector_threshold = 10;
 
 constexpr uint32_t FLAGS_vio_min_tracked_features_total = 20; //Guess
 
+// Track Extracter
+// Max number of landmarks to add to back-end optimization per keyframe.
+constexpr uint32_t FLAGS_vio_max_num_tracks_per_update = 50;
+// Number of observations in feature-track to classify landmark as persistent
+constexpr uint32_t FLAGS_vio_num_obs_for_persistent = 10;
+// Minimum parallax threshold to use a landmark in the back-end optimization
+constexpr double FLAGS_vio_min_parallax_deg = 0.5;
+// Favor a n equal number of new persistent tracks in every frame.
+constexpr bool FLAGS_vio_favor_equal_number_of_tracks_per_frame = false;
+constexpr bool FLAGS_vio_delayed_nframe_processing = 0; //Guess and feel like might be changed somewhere
 
-
+ 
 
 
 

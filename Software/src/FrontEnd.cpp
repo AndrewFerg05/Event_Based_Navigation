@@ -174,7 +174,57 @@ void FrontEnd::processData(
 
     //ProcessCallbacks
 
+    if (tracked_nframe_cb_
+      && (nframe_k->isKeyframe()
+          || (FLAGS_vio_add_every_nth_frame_to_backend > 0
+              && nframe_k->seq() % FLAGS_vio_add_every_nth_frame_to_backend == 0)))
+  {
+    std::vector<LandmarkHandle> lm_opportunistic;
+    std::vector<LandmarkHandle> lm_persistent_new;
+    std::vector<LandmarkHandle> lm_persistent_continued;
 
+    if (stage_ == FrontendStage::Running && nframe_k->isKeyframe())
+    {
+      // Extract feature tracks to be processed by backend.
+      DEBUG_CHECK(motion_type_ != VioMotionType::NotComputed);
+      selectLandmarksForBackend(
+            motion_type_, T_C_B_, states_, *nframe_k, landmarks_,
+            lm_opportunistic, lm_persistent_new, lm_persistent_continued);
+    }
+    feature_initializer_->extractFeatureDescriptors(*nframe_k);
+
+    if (FLAGS_vio_activate_backend)
+    {
+      // Run optimization.
+      tracked_nframe_cb_(
+            nframe_k, imu_stamps_since_lkf_, imu_accgyr_since_lkf_, motion_type_,
+            lm_opportunistic, lm_persistent_new, lm_persistent_continued);
+    }
+  }
+
+  if (nframe_k->isKeyframe())
+  {
+    states_.setKeyframe(nframe_k->handle());
+    imu_stamps_since_lkf_.resize(0);
+    imu_accgyr_since_lkf_.resize(6,0);
+  }
+
+  if (result_cb_)
+  {
+    const Transformation T_W_B = states_.T_Bk_W().inverse();
+    result_cb_(
+          nframe_k->timestamp(),
+          T_W_B.getEigenQuaternion().cast<double>(),
+          T_W_B.getPosition().cast<double>(),
+          stage_,
+          0u //! @todo: return num tracked keypoints!
+          );
+  }
+  
+  // if (FLAGS_vio_log_performance)
+  // {
+  //   logNumTrackedFeatures(*nframe_k, landmarks_);
+  // }
 
 }
 

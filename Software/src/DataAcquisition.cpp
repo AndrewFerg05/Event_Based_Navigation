@@ -91,7 +91,6 @@ void DataAcquisition::addImageData()
 
 }
 
-
 void DataAcquisition::onlyEventsNoImagesLogic()
 {
     int64_t interval_between_packets;

@@ -83,6 +83,9 @@ void FrontEnd::idle()
   stage_ = FrontendStage::Paused;
   initModules();
   initDvs();
+  imu_meas_count_ = -1;
+  frame_count_ = -1;
+  imu_integrator_ = std::make_shared<ImuIntegrator>();
   //Clear queues
 }
 void FrontEnd::stop()

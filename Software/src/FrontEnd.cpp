@@ -169,10 +169,8 @@ void FrontEnd::processData(
       states_.T_Bk_W() = Transformation();
     }
 
-    //
     // Run tracking in derived class.
-    //
-    vio_processData(T_Bkm1_Bk);
+    vio_processData(T_Bkm1_Bk); //LKT/RANSAC/FAST
 
 
 
@@ -483,46 +481,46 @@ void FrontEnd::vio_processData(const Transformation& T_Bkm1_Bk)
 
       motion_type_ = classifyMotion(disparities_sq, num_outliers);
 
-      // makeKeyframeIfNecessary(num_tracked);
+      vio_makeKeyframeIfNecessary(num_tracked);
       break;
     }
     //--------------------------------------------------------------------------
-    // case FrontendStage::AttitudeEstimation:
-    // {
-    //   LOG(WARNING) << "Stage = AttitudeEstimation";
-    //   motion_type_ = VioMotionType::GeneralMotion;
-    //   if (add_frame_to_backend)
-    //   {
-    //     states_.setKeyframe(nframe_k->handle());
-    //   }
-    //   break;
-    // }
+    case FrontendStage::AttitudeEstimation:
+    {
+      LOG(WARNING) << "Stage = AttitudeEstimation";
+      motion_type_ = VioMotionType::GeneralMotion;
+      if (add_frame_to_backend)
+      {
+        states_.setKeyframe(nframe_k->handle());
+      }
+      break;
+    }
     //--------------------------------------------------------------------------
-    // case FrontendStage::Initializing:
-    // {
-    //   LOG(WARNING) << "Stage = Initializing";
-    //   motion_type_ = VioMotionType::GeneralMotion;
-    //   CHECK(add_frame_to_backend);
-    //   for (size_t i = 0u; i < nframe_k->size(); ++i)
-    //   {
-    //     Frame& frame = nframe_k->at(i);
-    //     frame.min_depth_ = FLAGS_vio_min_depth;
-    //     frame.max_depth_ = FLAGS_vio_max_depth;
-    //     frame.median_depth_ = FLAGS_vio_median_depth;
-    //   }
-    //   feature_initializer_->detectAndInitializeNewFeatures(
-    //         *nframe_k, range(rig_->size()));
+    case FrontendStage::Initializing:
+    {
+      LOG(WARNING) << "Stage = Initializing";
+      motion_type_ = VioMotionType::GeneralMotion;
+      CHECK(add_frame_to_backend);
+      for (size_t i = 0u; i < nframe_k->size(); ++i)
+      {
+        Frame& frame = nframe_k->at(i);
+        frame.min_depth_ = FLAGS_vio_min_depth;
+        frame.max_depth_ = FLAGS_vio_max_depth;
+        frame.median_depth_ = FLAGS_vio_median_depth;
+      }
+      feature_initializer_->detectAndInitializeNewFeatures(
+            *nframe_k, range(rig_->size()));
 
-    //   //if (rig_->size() > 1u)
-    //     //stereo_matcher_->matchStereoAndRejectOutliers(*nframe_k, states_.T_Bk_W());
+      //if (rig_->size() > 1u)
+        //stereo_matcher_->matchStereoAndRejectOutliers(*nframe_k, states_.T_Bk_W());
 
-    //   // Add observations to landmarks.
-    //   addLandmarkObservations(*nframe_k, landmarks_);
+      // Add observations to landmarks.
+      addLandmarkObservations(*nframe_k, landmarks_);
 
-    //   // Switch state:
-    //   stage_ = FrontendStage::Running;
-    //   break;
-    // }
+      // Switch state:
+      stage_ = FrontendStage::Running;
+      break;
+    }
     default:
       LOG(FATAL) << "Case not implemented.";
       break;
@@ -557,77 +555,73 @@ void FrontEnd::vio_makeKeyframeIfNecessary(const uint32_t num_tracked)
   feature_initializer_->setOccupancyGrid(reprojector_->gridVec());
 
   // // Mark all features in keyframe as opportunistic.
-  // setTypeOfConvergedSeedsInNFrame(
-  //       *nframe_k, LandmarkType::Opportunistic, landmarks_);
+  setTypeOfConvergedSeedsInNFrame(
+        *nframe_k, LandmarkType::Opportunistic, landmarks_);
 
   // // Detect new features.
-  // if (num_tracked < FLAGS_vio_min_tracked_features_total)
-  // {
-  //   auto t = timers_[Timer::initialize_features].timeScope();
+  if (num_tracked < FLAGS_vio_min_tracked_features_total)
+  {
+   
 
-  //   // If critical, we extract in all frames features and match stereo.
-  //   // otherwise, just detect features in camera with least features.
-  //   if (num_tracked < FLAGS_vio_kfselect_numfts_lower_thresh
-  //       && rig_->stereoPairs().size() > 0u)
-  //   {
-  //     LOG(WARNING) << "Critical: Force stereo triangulation";
-  //     std::vector<uint32_t> frame_idx_vec = range(rig_->size());
-  //     feature_initializer_->detectAndInitializeNewFeatures(*nframe_k, frame_idx_vec);
+    // If critical, we extract in all frames features and match stereo.
+    // otherwise, just detect features in camera with least features.
+    if (num_tracked < FLAGS_vio_kfselect_numfts_lower_thresh
+        && rig_->stereoPairs().size() > 0u)
+    {
+      LOG(WARNING) << "Critical: Force stereo triangulation";
+      std::vector<uint32_t> frame_idx_vec = range(rig_->size());
+      feature_initializer_->detectAndInitializeNewFeatures(*nframe_k, frame_idx_vec);
 
-  //     std::vector<std::pair<uint32_t, std::vector<uint32_t>>> stereo_matches =
-  //         stereo_matcher_->matchStereoAndRejectOutliers(*nframe_k, states_.T_Bk_W());
+      std::vector<std::pair<uint32_t, std::vector<uint32_t>>> stereo_matches =
+          stereo_matcher_->matchStereoAndRejectOutliers(*nframe_k, states_.T_Bk_W());
 
-  //     // Set all stereo observations to opportunistic.
-  //     for (const std::pair<uint32_t, std::vector<uint32_t>>& it : stereo_matches)
-  //     {
-  //       const Frame& ref_frame = nframe_k->at(it.first);
-  //       for (const uint32_t i : it.second)
-  //       {
-  //         DEBUG_CHECK_LT(i, ref_frame.landmark_handles_.size());
-  //         const LandmarkHandle lm_h = ref_frame.landmark_handles_[i];
-  //         if (isValidLandmarkHandle(lm_h)
-  //             && landmarks_.type(lm_h) == LandmarkType::Seed)
-  //         {
-  //           landmarks_.type(lm_h) = LandmarkType::Opportunistic;
-  //         }
-  //       }
-  //     }
+      // Set all stereo observations to opportunistic.
+      for (const std::pair<uint32_t, std::vector<uint32_t>>& it : stereo_matches)
+      {
+        const Frame& ref_frame = nframe_k->at(it.first);
+        for (const uint32_t i : it.second)
+        {
+          DEBUG_CHECK_LT(i, ref_frame.landmark_handles_.size());
+          const LandmarkHandle lm_h = ref_frame.landmark_handles_[i];
+          if (isValidLandmarkHandle(lm_h)
+              && landmarks_.type(lm_h) == LandmarkType::Seed)
+          {
+            landmarks_.type(lm_h) = LandmarkType::Opportunistic;
+          }
+        }
+      }
 
-  //     uint32_t num_inliers = 0u;
-  //     for (auto it : stereo_matches)
-  //     {
-  //       num_inliers += it.second.size();
-  //     }
-  //     VLOG(3) << "Upgraded " << num_inliers << " stereo landmarks to opportunistic.";
-  //   }
-  //   else
-  //   {
-  //     auto t = timers_[Timer::detect_features].timeScope();
-  //     for (size_t i = 0u; i < nframe_k->size(); ++i)
-  //     {
-  //       Frame& frame = nframe_k->at(i);
-  //       frame.min_depth_ = FLAGS_vio_min_depth;
-  //       frame.max_depth_ = FLAGS_vio_max_depth;
-  //       frame.median_depth_ = scene_depth_ > FLAGS_vio_min_depth ?
-  //                             scene_depth_ : FLAGS_vio_median_depth;
-  //     }
-  //     feature_initializer_->detectAndInitializeNewFeatures(
-  //           *nframe_k, range(rig_->size()));
+      uint32_t num_inliers = 0u;
+      for (auto it : stereo_matches)
+      {
+        num_inliers += it.second.size();
+      }
+      VLOG(3) << "Upgraded " << num_inliers << " stereo landmarks to opportunistic.";
+    }
+    else
+    {
+      for (size_t i = 0u; i < nframe_k->size(); ++i)
+      {
+        Frame& frame = nframe_k->at(i);
+        frame.min_depth_ = FLAGS_vio_min_depth;
+        frame.max_depth_ = FLAGS_vio_max_depth;
+        frame.median_depth_ = scene_depth_ > FLAGS_vio_min_depth ?
+                              scene_depth_ : FLAGS_vio_median_depth;
+      }
+      feature_initializer_->detectAndInitializeNewFeatures(
+            *nframe_k, range(rig_->size()));
 
-  //     //if (rig_->size() > 1u)
-  //       //stereo_matcher_->matchStereoAndRejectOutliers(*nframe_k, states_.T_Bk_W());
-  //   }
-  // }
+      //if (rig_->size() > 1u)
+        //stereo_matcher_->matchStereoAndRejectOutliers(*nframe_k, states_.T_Bk_W());
+    }
+  }
 
-  // // Store frame as keyframe. Must be before seed update to do inter-frame updates.
-  // states_.setKeyframe(states_.nframeHandleK());
-  // addLandmarkObservations(*nframe_k, landmarks_);
+  // Store frame as keyframe. Must be before seed update to do inter-frame updates.
+  states_.setKeyframe(states_.nframeHandleK());
+  addLandmarkObservations(*nframe_k, landmarks_);
 
-  // // Optimize landmarks.
-  // {
-  //   auto t = timers_[Timer::optimize_landmarks].timeScope();
-  //   optimizeLandmarks(*rig_, states_, *nframe_k, landmarks_);
-  // }
+  // Optimize landmarks.
+    optimizeLandmarks(*rig_, states_, *nframe_k, landmarks_);
 }
 
 //==============================================================================

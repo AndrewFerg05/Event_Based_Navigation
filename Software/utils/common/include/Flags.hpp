@@ -122,6 +122,8 @@ constexpr uint32_t FLAGS_imp_brisk_uniformity_radius = 0;
 constexpr uint32_t FLAGS_imp_brisk_absolute_threshold = 45;
 constexpr uint32_t FLAGS_imp_detector_threshold = 10;
 
+constexpr uint32_t FLAGS_vio_min_tracked_features_total = 20; //Guess
+
 
 
 

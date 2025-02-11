@@ -34,15 +34,12 @@ Change History
 #include "keyframe_selection.hpp"
 #include "landmarks_reprojector.hpp"
 #include "feature_initializer.hpp"
+#include "stereo_matcher.hpp"
+#include "refinement.hpp"
 //==============================================================================
 //      Classes
 //------------------------------------------------------------------------------
 
-//Replace with actual classes]
-// using CameraRig = uint16_t;
-// using ImuIntegrator = uint16_t;
-// using FeatureTracker = uint16_t;
-//using FeatureInitializer = uint16_t;
 
 using TrackedNFrameCallback =
   std::function<void(const std::shared_ptr<NFrame>&,
@@ -80,6 +77,7 @@ public:
   std::shared_ptr<FeatureTracker> feature_tracker_;
   std::shared_ptr<FeatureInitializer> feature_initializer_;
   std::shared_ptr<LandmarksReprojector> reprojector_;
+  std::shared_ptr<StereoMatcher> stereo_matcher_;
 
   //System state
   int frame_count_ = -1;                //!< Frame counter.

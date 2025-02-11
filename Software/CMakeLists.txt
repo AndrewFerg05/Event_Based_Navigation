@@ -25,6 +25,8 @@ set(CMAKE_PREFIX_PATH "/opt/homebrew/Cellar/gflags/2.2.2;/usr/local" ${CMAKE_PRE
 # Find Required Packages
 find_package(kindr REQUIRED)
 find_package(gflags REQUIRED)
+find_package(glog REQUIRED)
+find_package(Ceres REQUIRED)
 
 if (WIN32)
     message("Windows Device")
@@ -47,8 +49,6 @@ if (WIN32)
     set(YAML_INCLUDE_DIRS "C:/msys64/mingw64/include")
     set(YAML_LIBRARY_DIRS "C:/msys64/mingw64/lib")
     set(YAML_LIBRARIES "yaml-cpp")
-
-    find_package(glog REQUIRED)
 
     # Find Eigen3 on Windows
     find_path(EIGEN3_INCLUDE_DIR NAMES Eigen/Core PATHS "C:/msys64/mingw64/include/eigen3")
@@ -77,9 +77,6 @@ else()
     # Find Eigen3 on macOS/Linux
     find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
-    # Find Google glog
-    find_package(glog REQUIRED)
-
     # --- Add OpenGV ---
     find_package(OpenGV REQUIRED)
 endif()
@@ -107,6 +104,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${kindr_INCLUDE_DIRS}    # Include Kindr directories
     "/usr/local/include"      # Manually ensure Kindr is included
     ${OpenGV_INCLUDE_DIRS}    # Include OpenGV
+    ${CERES_INCLUDE_DIRS}     # Include Ceres Solver directories
 )
 
 # Add Eigen include directory
@@ -123,10 +121,11 @@ if (WIN32)
         ${OpenCV_LIBRARIES} 
         ${LIBSERIAL_LIBRARIES} 
         ws2_32
-        glog::glog
+        glog::glog  # Ensure glog is linked first
         ${YAML_LIBRARIES}
         gflags::gflags  # Link gflags
         OpenGV          # Link OpenGV
+        Ceres::ceres    # Link Ceres Solver
     )
 else()
     target_link_libraries(${PROJECT_NAME} PRIVATE 
@@ -135,8 +134,9 @@ else()
         ${LIBSERIAL_LIBRARIES} 
         ${OpenCV_LIBS}  # Correctly links OpenCV components
         yaml-cpp        # Add YAML support
-        glog::glog      # Link Google glog
+        glog::glog      # Ensure glog is linked first
         OpenGV          # Link OpenGV
+        Ceres::ceres    # Link Ceres Solver
     )
 
     # Ensure gflags is linked correctly

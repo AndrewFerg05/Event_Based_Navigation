@@ -170,6 +170,12 @@ inline double FLAGS_vio_ceres_max_optimization_time = -1.0; // Maximum optimizat
 
 
 
+inline double FLAGS_vio_acc_bias_init_x = 0;
+inline double FLAGS_vio_acc_bias_init_y = 0;
+inline double FLAGS_vio_acc_bias_init_z= 0;
+inline double FLAGS_vio_gyr_bias_init_x = 0;
+inline double FLAGS_vio_gyr_bias_init_y = 0;
+inline double FLAGS_vio_gyr_bias_init_z = 0;
 
 
 

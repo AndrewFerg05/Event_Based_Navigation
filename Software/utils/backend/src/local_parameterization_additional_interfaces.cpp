@@ -51,8 +51,8 @@ namespace nlls {
 bool LocalParamizationAdditionalInterfaces::verify(
     const double* x_raw, double purturbation_magnitude) const
 {
-  const ceres::LocalParameterization* casted =
-      dynamic_cast<const ceres::LocalParameterization*>(this);
+  const ceres::Manifold* casted =
+      dynamic_cast<const ceres::Manifold*>(this);
   if (!casted)
   {
     return false;

@@ -675,7 +675,7 @@ bool Map::resetParameterization(uint64_t parameter_block_id,
 // Set the (local) parameterisation of a parameter block.
 bool Map::setParameterization(
     uint64_t parameter_block_id,
-    ceres::LocalParameterization* local_parameterization)
+    ceres::Manifold* local_parameterization)
 {
   if (!parameterBlockExists(parameter_block_id))
   {

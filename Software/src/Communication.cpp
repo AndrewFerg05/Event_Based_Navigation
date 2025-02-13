@@ -33,10 +33,10 @@ Change History
 
 
 #define TEST_IMAGE  "../example.jpg"
-#define TEST_RUN_TIME 15
+#define TEST_RUN_TIME 30
 
 #define MAX_PACKET_SIZE 65507            // Max packet in bytes for UDP
-#define PC_IP           "10.12.125.174" // Change to base station IP (SARK's laptop)
+#define PC_IP           "192.168.43.245" // Change to base station IP (SARK's laptop)
 #define PC_PORT         5005             // Application address for base station
 #define ID_FRAME        0
 #define ID_EVENT        1
@@ -96,7 +96,6 @@ void CM_loop(
                 backend_state = ThreadState::Run;
                 state_change_called = false;
             }
-            LOG(INFO) << "CM: Running";
 
             // ESP Receive code mode
             // commandReceived = CM_serialReceive(serial);
@@ -120,6 +119,16 @@ void CM_loop(
                 frame = CM_formatCameraFrame(frameCamera);
                 LOG(INFO) << "CM: Frame formatted, sending...";
                 CM_transmitFrame(frame, 0);
+
+                if (frame.empty())
+                {
+
+                }
+                else
+                {
+                    cv::imshow("Display", frame);
+                    cv::waitKey(1);
+                }
             }
 
             frameEvents = comms->getTrackedFrameData();
@@ -127,6 +136,7 @@ void CM_loop(
                 // No camera frame ready
                 
                 // For testing send test frame to show working
+                LOG(INFO) << "CM: Frame formatted, sending...";
                 CM_transmitFrame(frameTest, 1);
             }
             else {
@@ -150,9 +160,6 @@ void CM_loop(
 
             //Send to ESP32 position estimate from BE
             CM_serialSendStatus(serial, pose, iterations);
-
-
-            sleep_ms(10);
 
             
         } else if (command == STOP) {
@@ -359,6 +366,8 @@ void CM_transmitFrame(cv::Mat frame, int frameId) {
             break;
         }
     }
+
+    LOG(INFO) << "CM: Sent frame";
 
     // Clean up
     close(sockfd);

@@ -6,7 +6,7 @@
 
 void setupMotors();
 void controlMotors(int throttleVal, int steeringVal);
-void move_motor(int forward, int rpm, int pwm, int direct_1, int direct_2, int &prevDirection);
-void stop_motor(int pwm, int direct_1, int direct_2);
+void move_motor(int forward, int rpm, int pwm, int direct_2, int direct_1, int &prevDirection);
+void stop_motor(int pwm, int direct_2, int direct_1);
 
 #endif

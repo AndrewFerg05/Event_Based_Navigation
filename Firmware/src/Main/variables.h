@@ -27,4 +27,7 @@ extern HardwareSerial& ibusRcSerial; // Serial port used for communication
 
 extern const int ledPin;  // Onboard LED pin
 
+extern int prevLeftDirection;
+extern int prevRightDirection;
+
 #endif

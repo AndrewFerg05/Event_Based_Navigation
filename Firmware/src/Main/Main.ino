@@ -10,6 +10,7 @@ void setup() {
     setupMotors();  // Call function from motor_control.cpp
     ibusRc.begin(ibusRcSerial);
     pinMode(ledPin, OUTPUT);
+    digitalWrite(ledPin, LOW);
 }
 
 void loop() {
@@ -21,6 +22,7 @@ void loop() {
     if (throttleVal == 0) {
         digitalWrite(ledPin, HIGH);
     }
-    delay(100);
+    delay(50);
     digitalWrite(ledPin, LOW);
+    delay(50);
 }

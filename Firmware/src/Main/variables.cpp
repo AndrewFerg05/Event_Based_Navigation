@@ -14,3 +14,6 @@ IBusBM ibusRc;  // IBus communication object
 HardwareSerial& ibusRcSerial = Serial2;  // Use Serial2 for IBus communication
 
 const int ledPin = 2;  // Define the onboard LED pin
+
+int prevRightDirection = 1;
+int prevLeftDirection = 1;

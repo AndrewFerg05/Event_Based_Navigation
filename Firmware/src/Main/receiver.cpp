@@ -1,6 +1,5 @@
 #include "receiver.h"
-
-extern IBusBM ibusRc;
+#include "variables.h"
 
 int readChannel(byte channelInput, int minLimit, int maxLimit, int defaultValue) {
     uint16_t ch = ibusRc.readChannel(channelInput);

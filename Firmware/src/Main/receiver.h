@@ -1,5 +1,5 @@
 #ifndef RECEIVER_H
-#define RECEIVER.H
+#define RECEIVER_H
 
 #include <Arduino.h>
 #include <IBusBM.h>

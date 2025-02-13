@@ -1,11 +1,9 @@
 #include "motor_control.h"
-
-extern PCF8575 pcf8575;
-extern const MotorDriver motorDrivers[];
+#include "variables.h"
 
 void setupMotors() {
     pcf8575.begin();
-    for (int i = 0; i < sizeof(motorDrivers) / sizeof(motorDrivers[0]); i++) {
+    for (int i = 0; i < NUM_MOTOR_DRIVERS; i++) {
         pcf8575.pinMode(motorDrivers[i].standby, OUTPUT);
         pcf8575.digitalWrite(motorDrivers[i].standby, LOW);
         pinMode(motorDrivers[i].pwma, OUTPUT);
@@ -15,7 +13,7 @@ void setupMotors() {
         pcf8575.pinMode(motorDrivers[i].bin1, OUTPUT);
         pcf8575.pinMode(motorDrivers[i].bin2, OUTPUT);
     }
-    for (int i = 0; i < sizeof(motorDrivers) / sizeof(motorDrivers[0]); i++) {
+    for (int i = 0; i < NUM_MOTOR_DRIVERS; i++) {
         pcf8575.digitalWrite(motorDrivers[i].standby, HIGH);
     }
 }

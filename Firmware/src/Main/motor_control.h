@@ -3,17 +3,6 @@
 
 #include <Arduino.h>
 #include "PCF8575.h"
-struct MotorDriver {
-    const int standby;
-    const int pwma;
-    const int ain1;
-    const int ain2;
-    const int pwmb;
-    const int bin1;
-    const int bin2;
-};
-
-extern const MotorDriver motorDrivers[];
 
 void setupMotors();
 void controlMotors(int throttleVal, int steeringVal);

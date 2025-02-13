@@ -19,25 +19,30 @@ void ibusTask(void *pvParameters) {
 // Perform an action every 10 ticks.
 void motorControlTask( void * pvParameters )
 {
-  for( ;; ) {
+  TickType_t xLastWakeTime;
+  const TickType_t xFrequency = 100/ portTICK_PERIOD_MS;
 
-      // Read throttle and steering values from receiver
-      int throttleVal = readChannel(3, -255, 255, 0);
-      int steeringVal = readChannel(1, -255, 255, 0);
+    xLastWakeTime = xTaskGetTickCount ();
 
-      // Control motors based on these values
-      controlMotors(throttleVal, steeringVal);
+    for( ;; ) {
+        // delays until exactly 100 ms since the last call
+        vTaskDelayUntil( &xLastWakeTime, xFrequency );
 
-      // LED control based on throttle value
-      if (throttleVal == 0) {
-          digitalWrite(ledPin, HIGH);  // Turn on LED if throttle is zero
-      } else {
-          digitalWrite(ledPin, LOW);   // Turn off LED otherwise
-      }
+        // Read throttle and steering values from receiver
+        int throttleVal = readChannel(3, -255, 255, 0);
+        int steeringVal = readChannel(1, -255, 255, 0);
 
-      vTaskDelay(100/ portTICK_PERIOD_MS);
-      
-  }
+        // Control motors based on these values
+        controlMotors(throttleVal, steeringVal);
+
+        // LED control based on throttle value
+        if (throttleVal == 0) {
+            digitalWrite(ledPin, HIGH);  // Turn on LED if throttle is zero
+        } else {
+            digitalWrite(ledPin, LOW);   // Turn off LED otherwise
+        }
+        
+    }
 }
 
 

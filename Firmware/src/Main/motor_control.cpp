@@ -82,7 +82,6 @@ int preDirection is the previous direction of the motor, need this to check if t
 void move_motor(int forward, int rpm, int pwm, int direct_2, int direct_1, int &prevDirection) {
     if (forward != prevDirection) {
         stop_motor(pwm, direct_1, direct_2);
-        delay(50);
     }
     if (forward == 1) {
         pcf8575.digitalWrite(direct_1, HIGH);

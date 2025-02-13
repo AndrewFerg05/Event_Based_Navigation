@@ -195,37 +195,34 @@ void DataAcquisition::addImuData(const IMUData& imu_data)
     acc_gyr.head<3>() = acc;
     acc_gyr.tail<3>() = gyr;
     //stamp -= timeshift_cam_imu_;
-    imu_buffer_[1].insert(stamp, acc_gyr);
+    // imu_buffer_[0].insert(stamp, acc_gyr);
 
-    if (imu_callback_)
-    {
-        imu_callback_(stamp, acc, gyr);
-    }
+    // if (imu_callback_)
+    // {
+    //     imu_callback_(stamp, acc, gyr);
+    // }
 
-    checkImuDataAndCallback();
+    // checkImuDataAndCallback();
 }
 
 bool DataAcquisition::processDataQueues()
 {
         bool processed = false;
 
-        LOG(INFO) << "DA: Running";
-
-        
         auto imu_data = input_data_queues_->imu_queue->pop();
-        // if (imu_data.has_value()) {
-        //     LOG(INFO) << "DA: IMU first data " << std::to_string(imu_data.value().angular_velocity.x);
-        //     addImuData(imu_data.value());
-        //     processed = true;
-        // }
+        if (imu_data.has_value()) {
+            LOG(INFO) << "DA: IMU first data " << std::to_string(imu_data.value().angular_velocity.x);
+            addImuData(imu_data.value());
+            processed = true;
+        }
         // LOG(INFO) << "DA: IMU Queue Processed";
 
         auto event_data = input_data_queues_->event_queue->pop();
-        // if (event_data.has_value()) {
-        //     LOG(INFO) << "DA: Event height " << std::to_string(event_data.value().height);
-        //     addEventsData(event_data.value());
-        //     processed = true;
-        // }
+        if (event_data.has_value()) {
+            LOG(INFO) << "DA: Event height " << std::to_string(event_data.value().height);
+            addEventsData(event_data.value());
+            processed = true;
+        }
         // LOG(INFO) << "DA: Event Queue Processed";
 
         auto image_data = input_data_queues_->image_queue->pop();
@@ -433,9 +430,8 @@ void DataAcquisition::run()
             if (!processDataQueues()) 
             {
                 LOG(INFO) << "DA: No data in queues";
-                sleep_ms(100); 
+                sleep_ms(10);
             }
-            sleep_ms(50); 
         }
     }
 }

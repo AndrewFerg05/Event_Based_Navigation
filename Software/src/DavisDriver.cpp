@@ -164,7 +164,7 @@ DavisDriver::DavisDriver(const std::string& config_path, std::shared_ptr<DataQue
      config_manager_(config_path)
 {
     config_manager_.loadConfig(config_path);
-    caerConnect();
+    //caerConnect();
     config_manager_.streaming_rate = 30;
     bias = config_manager_.getBias();
     delta_ = std::chrono::microseconds(static_cast<long>(1e6 / config_manager_.streaming_rate));
@@ -208,6 +208,8 @@ void DavisDriver::caerConnect()
             LOG(WARNING) << "Driver: Driver stopped. Exiting startup loop.";
             return;
         }
+
+        break;  //for testing
     }
 
     std::cout << "Out of while loop" << std::endl;
@@ -235,8 +237,10 @@ void DavisDriver::caerConnect()
     running_ = true; // Check this Runs
 
     //parameter_thread_ = std::thread(&DavisDriver::changeDvsParameters, this); //Add while loop back into function if calling in other thread
-    changeDvsParameters(); // Might not need to run in other thread if not dynamicall configuring 
+    // changeDvsParameters(); // Might not need to run in other thread if not dynamicall configuring 
     readout_thread_ = std::thread(&DavisDriver::readout, this);
+
+    LOG(WARNING) << "Thread started";
 
     sleep_ms(500);
 
@@ -330,6 +334,8 @@ void DavisDriver::readout()
             }
             int32_t packetNum = caerEventPacketContainerGetEventPacketsNumber(packetContainer);
 
+            LOG(WARNING) << "Driver: Event packet arrived";
+
             for (int32_t i = 0; i < packetNum; i++)
             {
                 caerEventPacketHeader packetHeader = caerEventPacketContainerGetEventPacket(packetContainer, i);
@@ -346,8 +352,6 @@ void DavisDriver::readout()
                     {
                         event_array_msg = std::make_shared<EventData>(davis_info_.dvsSizeX, davis_info_.dvsSizeY);
                     }
-                    
-
                     caerPolarityEventPacket polarity = (caerPolarityEventPacket) packetHeader;
                     const int numEvents = caerEventPacketHeaderGetEventNumber(packetHeader);
                 
@@ -355,6 +359,7 @@ void DavisDriver::readout()
                     {
                         // Get full timestamp and addresses of first event.
                         caerPolarityEvent event = caerPolarityEventPacketGetEvent(polarity, j);
+
                         Event e(
                         caerPolarityEventGetX(event),
                         caerPolarityEventGetY(event),

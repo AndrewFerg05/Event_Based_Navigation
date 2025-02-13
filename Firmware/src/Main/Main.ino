@@ -8,6 +8,28 @@
 // Task handle for motor control
 TaskHandle_t motorControlTaskHandle = NULL;
 TaskHandle_t ibusTaskHandle = NULL;
+TaskHandle_t wifiTaskHandle = NULL;
+
+void wifiTask(void *pvParameters) {
+  TickType_t xLastWakeTime_wifi;
+  const TickType_t xFrequency_wifi = 100/ portTICK_PERIOD_MS;
+
+    xLastWakeTime_wifi = xTaskGetTickCount ();
+    for( ;; ) {
+
+      // delays until exactly 100 ms since the last call
+      vTaskDelayUntil( &xLastWakeTime_wifi, xFrequency_wifi );
+
+      // put Wifi code here (will operate exactly once every 100 ms)
+      // will probabily mess around will that timing but as a starting point
+      // since this will eventually be multithreaded 
+      // will probs need to figure out how to safely acess the values to send over wifi 
+      // but ignore that for the minute (unless you already know how to do it)
+           
+    }
+
+}
+
 
 void ibusTask(void *pvParameters) {
     for (;;) {
@@ -36,12 +58,13 @@ void motorControlTask( void * pvParameters )
         controlMotors(throttleVal, steeringVal);
 
         // LED control based on throttle value
+        
         if (throttleVal == 0) {
             digitalWrite(ledPin, HIGH);  // Turn on LED if throttle is zero
         } else {
             digitalWrite(ledPin, LOW);   // Turn off LED otherwise
         }
-        
+               
     }
 }
 
@@ -72,6 +95,16 @@ void setup() {
         NULL,                      // Task parameters
         1,                         // Task priority (1 is low)
         &ibusTaskHandle    // Task handle
+    );
+
+        // Create the ibus coms task
+    xTaskCreate(
+        wifiTask,          // Task function
+        "wifi task",      // Task name
+        8192,                      // Stack size (adjust as needed)
+        NULL,                      // Task parameters
+        1,                         // Task priority (1 is low)
+        &wifiTaskHandle    // Task handle
     );
 
 }

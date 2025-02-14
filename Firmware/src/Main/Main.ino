@@ -53,36 +53,31 @@ void wifiComsTask(void *pvParameters) {
 
 }
 
+// Task to check Wifi connection and reconnect if connection was lost
 void wifiCheckConnectionTask(void *pvParameters) {
-  TickType_t xLastWakeTime_wifi_con;
-  // every 1 second
-  const TickType_t xFrequency_wifi_con = 1000/ portTICK_PERIOD_MS;
+  for (;;) {
+    if(WiFi.status() == WL_CONNECTED) {
+      Serial.println("Connected");
+      vTaskDelay(1000 / portTICK_PERIOD_MS);  // Run every 1 second
 
-    xLastWakeTime_wifi_con = xTaskGetTickCount ();
-    for( ;; ) {
+    } else {
+      Serial.println("Connection Lost");
+      WiFi.disconnect();
+      WiFi.reconnect();
 
-      // delays until exactly 100 ms since the last call
-      vTaskDelayUntil( &xLastWakeTime_wifi_con, xFrequency_wifi_con);
-
-      if(WiFi.status() != WL_CONNECTED) {
-        Serial.println("Connection Lost");
-        // do something about it
-        // start another task to try and establish connection again
-        // in the meantime stop transmitting data
-        
-      } else {
-        Serial.println("Stil Connected");
-      }
+      vTaskDelay(10 / portTICK_PERIOD_MS);  // Run every 1 second
     }
+  }
 
 }
 
 
 void ibusTask(void *pvParameters) {
-    for (;;) {
-        ibusRc.loop();  // Process incoming data
-        vTaskDelay(10 / portTICK_PERIOD_MS);  // Run every 10ms
-    }
+
+  for (;;) {
+      ibusRc.loop();  // Process incoming data
+      vTaskDelay(10 / portTICK_PERIOD_MS);  // Run every 10ms
+  }
 }
 
 // Perform an action every 10 ticks.

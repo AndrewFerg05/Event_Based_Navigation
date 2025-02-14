@@ -3,16 +3,28 @@
 #include "receiver.h"
 #include "PCF8575.h"
 #include <IBusBM.h>
+#include <WiFi.h>
+#include <WiFiUdp.h>
 
+// WiFi credentials
+const char* ssid = "SARK";
+const char* password = "samsamsam802";
+
+// UDP configuration
+WiFiUDP udp;
+const char* udpAddress = "192.168.43.132";  // Doug's laptop
+const int udpPort = 5005;  // Receiver port
 
 // Task handle for motor control
 TaskHandle_t motorControlTaskHandle = NULL;
 TaskHandle_t ibusTaskHandle = NULL;
-TaskHandle_t wifiTaskHandle = NULL;
+TaskHandle_t wifiComsTaskHandle = NULL;
+TaskHandle_t wifiCheckConnectionTaskHandle = NULL;
 
-void wifiTask(void *pvParameters) {
+void wifiComsTask(void *pvParameters) {
   TickType_t xLastWakeTime_wifi;
-  const TickType_t xFrequency_wifi = 100/ portTICK_PERIOD_MS;
+  // every 100 ms
+  const TickType_t xFrequency_wifi = 1000/ portTICK_PERIOD_MS;
 
     xLastWakeTime_wifi = xTaskGetTickCount ();
     for( ;; ) {
@@ -25,7 +37,42 @@ void wifiTask(void *pvParameters) {
       // since this will eventually be multithreaded 
       // will probs need to figure out how to safely acess the values to send over wifi 
       // but ignore that for the minute (unless you already know how to do it)
-           
+          // Data ID (Leave as 3) / Number of bytes to send (4*4) / 32-bit ints to send
+      int32_t numbers[6] = {3, 16, 30, 40, 50, 60};
+
+      uint8_t buffer[24];  // 6 integers * 4 bytes each = 24 bytes
+      memcpy(buffer, numbers, sizeof(numbers));  // Copy data into buffer
+
+      // Send UDP message
+      udp.beginPacket(udpAddress, udpPort);
+      udp.write(buffer, sizeof(buffer));  // Send 24-byte buffer
+      udp.endPacket();
+    
+      Serial.println("UDP packet sent!");     
+    }
+
+}
+
+void wifiCheckConnectionTask(void *pvParameters) {
+  TickType_t xLastWakeTime_wifi_con;
+  // every 1 second
+  const TickType_t xFrequency_wifi_con = 1000/ portTICK_PERIOD_MS;
+
+    xLastWakeTime_wifi_con = xTaskGetTickCount ();
+    for( ;; ) {
+
+      // delays until exactly 100 ms since the last call
+      vTaskDelayUntil( &xLastWakeTime_wifi_con, xFrequency_wifi_con);
+
+      if(WiFi.status() != WL_CONNECTED) {
+        Serial.println("Connection Lost");
+        // do something about it
+        // start another task to try and establish connection again
+        // in the meantime stop transmitting data
+        
+      } else {
+        Serial.println("Stil Connected");
+      }
     }
 
 }
@@ -75,6 +122,17 @@ void setup() {
     pinMode(ledPin, OUTPUT);
     digitalWrite(ledPin, LOW);
     ibusRc.begin(ibusRcSerial, IBUSBM_NOTIMER);
+
+    Serial.begin(115200);
+    
+    // Connect to WiFi
+    WiFi.begin(ssid, password);
+    Serial.print("Connecting to WiFi");
+    while (WiFi.status() != WL_CONNECTED) {
+        Serial.print(".");
+        delay(500);
+    }
+    Serial.println("\nConnected to WiFi!");
     
 
     // Create the motor control task
@@ -97,14 +155,24 @@ void setup() {
         &ibusTaskHandle    // Task handle
     );
 
-        // Create the ibus coms task
+        // Create the wifi coms task
     xTaskCreate(
-        wifiTask,          // Task function
-        "wifi task",      // Task name
+        wifiCheckConnectionTask,          // Task function
+        "wifi Check Connection Task",      // Task name
         8192,                      // Stack size (adjust as needed)
         NULL,                      // Task parameters
         1,                         // Task priority (1 is low)
-        &wifiTaskHandle    // Task handle
+        &wifiComsTaskHandle    // Task handle
+    );
+
+            // Create the wifi connection check task
+    xTaskCreate(
+        wifiComsTask,          // Task function
+        "wifi Coms task",      // Task name
+        8192,                      // Stack size (adjust as needed)
+        NULL,                      // Task parameters
+        1,                         // Task priority (1 is low)
+        &wifiCheckConnectionTaskHandle    // Task handle
     );
 
 }

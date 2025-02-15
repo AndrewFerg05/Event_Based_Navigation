@@ -20,7 +20,7 @@ imu_gyro_scale: 3
 
 exposure: 4000
 
-autoexposure_desired_intensity: 70.0  # Default intensity target - Check
+autoexposure_desired_intensity: 75.0  # Default intensity target - Check
 autoexposure_gain: 100.0  # Default gain factor - Check
 
 

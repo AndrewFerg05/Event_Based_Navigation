@@ -34,6 +34,39 @@ Change History
 //==============================================================================
 // Functions
 //------------------------------------------------------------------------------
+void showImage(const ImageData& imgData) {
+    static cv::Mat lastFrame;  // Store last valid frame
+    static bool windowCreated = false;
+
+    // Ensure the window is created only once
+    if (!windowCreated) {
+        cv::namedWindow("Camera Stream", cv::WINDOW_AUTOSIZE);
+        windowCreated = true;
+    }
+
+    cv::Mat frame;
+    
+    // Convert image based on encoding
+    if (imgData.encoding == "mono8") {
+        frame = cv::Mat(imgData.height, imgData.width, CV_8UC1, (void*)imgData.data.data()).clone();
+    } else if (imgData.encoding == "rgb8") {
+        frame = cv::Mat(imgData.height, imgData.width, CV_8UC3, (void*)imgData.data.data()).clone();
+        cv::cvtColor(frame, frame, cv::COLOR_RGB2BGR); // OpenCV uses BGR
+    } else {
+        std::cerr << "Unsupported encoding format: " << imgData.encoding << std::endl;
+        return;
+    }
+
+    // Update last valid frame
+    lastFrame = frame;
+
+    // Display the last valid frame
+    if (!lastFrame.empty()) {
+        cv::imshow("Camera Stream", lastFrame);
+    }
+
+    cv::waitKey(1); // Needed to update window
+}
 
 
 DataAcquisition::DataAcquisition(std::shared_ptr<DataQueues> data_queues, std::atomic<ThreadState>& state, std::shared_ptr<CommunicationManager> comms)
@@ -56,7 +89,8 @@ void DataAcquisition::start() {
     if (acquisition_thread_.joinable()) return;  // Prevent multiple starts
     running_ = true;
     state_ = ThreadState::Run;
-    acquisition_thread_ = std::thread(&DataAcquisition::run, this);
+    // acquisition_thread_ = std::thread(&DataAcquisition::run, this);
+    run();
 }
 
 void DataAcquisition::idle() {
@@ -141,6 +175,7 @@ bool DataAcquisition::processDataQueues()
 
         auto image_data = input_data_queues_->image_queue->pop();
         if (image_data) {
+            showImage(image_data.value());
             addImageData();
             processed = true;
         }
@@ -256,6 +291,7 @@ void DataAcquisition::run()
         }
     }
 }
+
 
 
 //==============================================================================

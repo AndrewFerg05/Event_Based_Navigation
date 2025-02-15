@@ -164,7 +164,7 @@ DavisDriver::DavisDriver(const std::string& config_path, std::shared_ptr<DataQue
      config_manager_(config_path)
 {
     config_manager_.loadConfig(config_path);
-    //caerConnect();
+    caerConnect();
     config_manager_.streaming_rate = 30;
     bias = config_manager_.getBias();
     delta_ = std::chrono::microseconds(static_cast<long>(1e6 / config_manager_.streaming_rate));
@@ -180,6 +180,58 @@ DavisDriver::~DavisDriver()
         readout_thread_.join();
     }
 }
+
+void DavisDriver::start()
+{
+    if (running_) {
+        LOG(WARNING) << "Driver already running!";
+        return;  // Prevent multiple starts
+    }
+
+    running_ = true;  
+    idle_ = false; // Ensure we are not idling
+
+    //parameter_thread_ = std::thread(&DavisDriver::changeDvsParameters, this); //Add while loop back into function if calling in other thread
+    changeDvsParameters(); // Might not need to run in other thread if not dynamicall configuring
+
+    // Ensure a new thread is created only if needed
+    readout_thread_ = std::thread(&DavisDriver::readout, this);
+
+    LOG(INFO) << "Thread started";
+    sleep_ms(500);
+}
+
+
+void DavisDriver::stop()
+{
+    LOG(INFO) << "Stopping driver...";
+    
+    running_ = false;
+
+    if (readout_thread_.joinable()) {
+        readout_thread_.join();  // Ensure thread exits before proceeding
+    }
+
+    caerDeviceDataStop(davis_handle_);       //CASUES SEGMENTATION FAULT CHECK ON PI
+    caerDeviceClose(&davis_handle_);
+    
+    LOG(INFO) << "Driver stopped successfully";
+}
+
+void DavisDriver::idle()
+{
+    LOG(INFO) << "Idling driver...";
+    
+    running_ = false;
+
+    if (readout_thread_.joinable()) {
+        readout_thread_.join();  // Ensure thread exits before proceeding
+    }
+
+    caerDeviceDataStop(davis_handle_);       //CASUES SEGMENTATION FAULT CHECK ON PI    
+    LOG(INFO) << "Driver idled successfully";
+}
+
 
 void DavisDriver::caerConnect()
 {
@@ -212,8 +264,6 @@ void DavisDriver::caerConnect()
         break;  //for testing
     }
 
-    std::cout << "Out of while loop" << std::endl;
-
     // Retrieve device information
     davis_info_ = caerDavisInfoGet(davis_handle_);
     config_manager_.device_id_ = "DAVIS-" + std::string(davis_info_.deviceString).substr(14, 8);
@@ -233,17 +283,6 @@ void DavisDriver::caerConnect()
 
     parameter_bias_update_required_ = true;
     parameter_update_required_ = true;
-
-    running_ = true; // Check this Runs
-
-    //parameter_thread_ = std::thread(&DavisDriver::changeDvsParameters, this); //Add while loop back into function if calling in other thread
-    // changeDvsParameters(); // Might not need to run in other thread if not dynamicall configuring 
-    readout_thread_ = std::thread(&DavisDriver::readout, this);
-
-    LOG(WARNING) << "Thread started";
-
-    sleep_ms(500);
-
 }
 
 void DavisDriver::updateImuBias()
@@ -334,7 +373,7 @@ void DavisDriver::readout()
             }
             int32_t packetNum = caerEventPacketContainerGetEventPacketsNumber(packetContainer);
 
-            LOG(WARNING) << "Driver: Event packet arrived";
+            LOG(INFO) << "Driver: Event packet arrived";
 
             for (int32_t i = 0; i < packetNum; i++)
             {
@@ -377,8 +416,8 @@ void DavisDriver::readout()
                     config_manager_.streaming_rate == 0 ||
                     (config_manager_.max_events != 0 && event_array_msg->events.size() > config_manager_.max_events))
                     {
-                        data_queues_->event_queue->push(*event_array_msg);
-                            
+                        // data_queues_->event_queue->push(*event_array_msg);
+                        LOG(INFO) << "Driver: IMU";   
                         if (config_manager_.streaming_rate > 0)
                         {
                             next_send_time += delta_;
@@ -442,7 +481,7 @@ void DavisDriver::readout()
                         imu_data.angular_velocity.z -= bias.angular_velocity.z;
 
                         // Push to the IMU queue
-                        data_queues_->imu_queue->push(imu_data);
+                        // data_queues_->imu_queue->push(imu_data);
                     }
                 }
                 else if (type == FRAME_EVENT)
@@ -487,7 +526,7 @@ void DavisDriver::readout()
                     image_data_.header.stamp = caerFrameEventGetTimestamp64(event, frame) * 1000;
 
                     LOG(INFO) << "Driver: Got frame, pushing to queue";
-                    data_queues_->image_queue->push(image_data_);
+                    // data_queues_->image_queue->push(image_data_);
 
                     const int32_t exposure_time_microseconds = caerFrameEventGetExposureLength(event);
                     // Removed exposure publishing
@@ -510,7 +549,7 @@ void DavisDriver::readout()
 
         }
     }
-    caerDeviceDataStop(davis_handle_);
+    // caerDeviceDataStop(davis_handle_);
 }
 
 void DavisDriver::changeDvsParameters()

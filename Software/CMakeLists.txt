@@ -21,7 +21,7 @@ if (WIN32)
 
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_TIMESPEC_DEFINED")
 
-    # Paths to MSYS compiler installation
+    # Windows paths for dependencies
     set(LIBCAER_INCLUDE_DIRS "C:/msys64/mingw64/include")
     set(LIBCAER_LIBRARY_DIRS "C:/msys64/mingw64/lib")
     set(LIBCAER_LIBRARIES "libcaer")
@@ -34,9 +34,8 @@ if (WIN32)
     set(LIBSERIAL_LIBRARY_DIRS "C:/msys64/mingw64/lib")
     set(LIBSERIAL_LIBRARIES "libserialport")
 
-    set(YAML_INCLUDE_DIRS "C:/msys64/mingw64/include")
-    set(YAML_LIBRARY_DIRS "C:/msys64/mingw64/lib")
-    set(YAML_LIBRARIES "yaml-cpp")
+    set(YAML_CPP_INCLUDE_DIR "C:/msys64/mingw64/include")
+    set(YAML_CPP_LIB "C:/msys64/mingw64/lib/libyaml-cpp.a")
 
     find_package(glog REQUIRED)
 
@@ -55,9 +54,6 @@ else()
     pkg_check_modules(LIBCAER REQUIRED libcaer)
     pkg_check_modules(LIBUSB REQUIRED libusb-1.0)
     pkg_check_modules(LIBSERIAL REQUIRED libserialport)
-    find_package(yaml-cpp REQUIRED)
-
-    # Find OpenCV the correct way
     find_package(OpenCV REQUIRED)
     
     # Ensure OpenCV include directories are used
@@ -69,12 +65,16 @@ else()
 
     # Find Google glog
     find_package(glog REQUIRED)
+
+    # 🔥 Manually Set YAML-CPP Paths
+    set(YAML_CPP_INCLUDE_DIR /opt/homebrew/include)
+    set(YAML_CPP_LIB /opt/homebrew/lib/libyaml-cpp.dylib)
+
+    include_directories(${YAML_CPP_INCLUDE_DIR})
 endif()
 
 # Add the library path for linking
-
-link_directories(${LIBCAER_LIBRARY_DIRS} ${LIBUSB_LIBRARY_DIRS} ${LIBSERIAL_LIBRARY_DIRS} ${OpenCV_LIBRARY_DIRS} ${YAML_LIBRARY_DIRS})
-
+link_directories(${LIBCAER_LIBRARY_DIRS} ${LIBUSB_LIBRARY_DIRS} ${LIBSERIAL_LIBRARY_DIRS} ${OpenCV_LIBRARY_DIRS})
 
 # Add executable
 add_executable(${PROJECT_NAME} ${SOURCES})
@@ -89,7 +89,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${LIBUSB_INCLUDE_DIRS} 
     ${LIBSERIAL_INCLUDE_DIRS} 
     ${OpenCV_INCLUDE_DIRS}  # Use OpenCV's detected include directories
-    ${YAML_INCLUDE_DIRS}
+    ${YAML_CPP_INCLUDE_DIR}
 )
 
 # Add Eigen include directory
@@ -107,7 +107,7 @@ if (WIN32)
         ${LIBSERIAL_LIBRARIES} 
         ws2_32
         glog::glog
-        ${YAML_LIBRARIES}
+        ${YAML_CPP_LIB}
     )
 else()
     target_link_libraries(${PROJECT_NAME} PRIVATE 
@@ -115,7 +115,7 @@ else()
         ${LIBUSB_LIBRARIES}
         ${LIBSERIAL_LIBRARIES} 
         ${OpenCV_LIBS}  # Correctly links OpenCV components
-        yaml-cpp        # Add YAML support
+        ${YAML_CPP_LIB}  # ✅ Manually linked YAML-CPP
         glog::glog      # Link Google glog
     )
 endif()

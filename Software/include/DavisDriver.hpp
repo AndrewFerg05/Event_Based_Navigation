@@ -123,6 +123,9 @@ public:
   DavisDriver(const std::string& config_path, std::shared_ptr<DataQueues> data_queues);
   ~DavisDriver();
   static void onDisconnectUSB(void*);
+  void start();
+  void stop();
+  void idle();
 private:
 
   void caerConnect();
@@ -143,7 +146,9 @@ private:
 
   caerDeviceHandle davis_handle_;
   struct caer_davis_info davis_info_;
-  volatile bool running_ = true;
+  
+  std::atomic<bool> running_{false};  
+  std::atomic<bool> idle_{false};   
 
   bool parameter_update_required_;
   bool parameter_bias_update_required_;

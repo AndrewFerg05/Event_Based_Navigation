@@ -21,7 +21,7 @@ Change History
 #include "TypeAliases.hpp"
 #include "Types.hpp"
 #include "RingBuffer.hpp"
-
+#include <opencv2/opencv.hpp>
 
 
 //==============================================================================

@@ -125,11 +125,11 @@ int main(int argc, char* argv[])
             triggered_9s = true;
         }
 
-        // if (elapsed_time >= 12 && !triggered_12s) {
-        //     std::cout << "12 seconds elapsed!" << std::endl;
-        //     triggered_12s = true;
-        //     driver.idle();
-        // }
+        if (elapsed_time >= 12 && !triggered_12s) {
+            std::cout << "12 seconds elapsed!" << std::endl;
+            triggered_12s = true;
+            driver.idle();
+        }
 
         if (elapsed_time >= 15) {
             driver.stop();

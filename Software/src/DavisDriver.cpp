@@ -558,7 +558,6 @@ void DavisDriver::readout()
 
         }
     }
-    // caerDeviceDataStop(davis_handle_);
 }
 
 void DavisDriver::changeDvsParameters()

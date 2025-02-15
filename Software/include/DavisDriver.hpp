@@ -61,7 +61,7 @@ public:
     int imu_sample_rate_divider;
 
     // Hardware Filtering (DVS)
-    bool pixel_auto_train;
+    volatile bool pixel_auto_train;
     int pixel_0_row, pixel_0_column;
     int pixel_1_row, pixel_1_column;
     int pixel_2_row, pixel_2_column;
@@ -146,7 +146,7 @@ private:
 
   caerDeviceHandle davis_handle_;
   struct caer_davis_info davis_info_;
-  
+
   std::atomic<bool> running_{false};  
   std::atomic<bool> idle_{false};   
 

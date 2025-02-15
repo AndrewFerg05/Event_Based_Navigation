@@ -202,7 +202,6 @@ void DavisDriver::start()
     }
 }
 
-
 void DavisDriver::stop()
 {
     LOG(INFO) << "Stopping driver...";
@@ -245,7 +244,6 @@ void DavisDriver::idle()
     }
 }
 
-
 void DavisDriver::caerConnect()
 {
     bool device_is_running = false;
@@ -268,13 +266,6 @@ void DavisDriver::caerConnect()
             sleep_ms(500);  // Wait before retrying
         }
 
-        // Exit if the driver is manually stopped (replace with actual stopping condition)
-        if (!running_) {
-            LOG(WARNING) << "Driver: Driver stopped. Exiting startup loop.";
-            return;
-        }
-
-        break;  //for testing
     }
 
     // Retrieve device information
@@ -389,13 +380,16 @@ void DavisDriver::readout()
             for (int32_t i = 0; i < packetNum; i++)
             {
                 caerEventPacketHeader packetHeader = caerEventPacketContainerGetEventPacket(packetContainer, i);
+
+                
+
                 if (packetHeader == NULL)
                 {
                     continue; // Skip if nothing there.
                 }
 
                 const int type = caerEventPacketHeaderGetEventType(packetHeader);
-
+                
                 if (type == POLARITY_EVENT)
                 {
                     if (!event_array_msg) 
@@ -542,10 +536,10 @@ void DavisDriver::readout()
 
                     //Auto-exposure algorithm
                     // using the requested exposure instead of the actual, measured one gives more stable results
-                    // uint32_t current_exposure;
-                    // caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_APS, DAVIS_CONFIG_APS_EXPOSURE, &current_exposure);
-                    // const int new_exposure = computeNewExposure(image_data_.data, current_exposure);
-                    // caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_APS, DAVIS_CONFIG_APS_EXPOSURE, new_exposure);
+                    uint32_t current_exposure;
+                    caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_APS, DAVIS_CONFIG_APS_EXPOSURE, &current_exposure);
+                    const int new_exposure = computeNewExposure(image_data_.data, current_exposure);
+                    caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_APS, DAVIS_CONFIG_APS_EXPOSURE, new_exposure);
                 }
 
             }
@@ -676,7 +670,6 @@ void DavisDriver::changeDvsParameters()
                   if (config_manager_.pixel_auto_train)
                   {
                     LOG(INFO) << "Driver: Auto-training hot-pixel filter...";
-
                     while(config_manager_.pixel_auto_train)
                     {
                       sleep_ms(100);
@@ -699,7 +692,6 @@ void DavisDriver::changeDvsParameters()
                     caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_6_COLUMN, (uint32_t*)&config_manager_.pixel_6_column);
                     caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_7_ROW, (uint32_t*)&config_manager_.pixel_7_row);
                     caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_7_COLUMN, (uint32_t*)&config_manager_.pixel_7_column);
-                    
                     
                     LOG(INFO) << "Driver: Completed auto-training hot-pixel";
 
@@ -736,10 +728,10 @@ void DavisDriver::changeDvsParameters()
                 
                 if (davis_info_.dvsHasROIFilter)
                 {
-                  caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_ROI_START_COLUMN, config_manager_.roi_start_column);
-                  caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_ROI_START_ROW, config_manager_.roi_start_row);
-                  caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_ROI_END_COLUMN, config_manager_.roi_end_column);
-                  caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_ROI_END_ROW, config_manager_.roi_end_row);
+                //   caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_ROI_START_COLUMN, config_manager_.roi_start_column);
+                //   caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_ROI_START_ROW, config_manager_.roi_start_row);
+                //   caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_ROI_END_COLUMN, config_manager_.roi_end_column);
+                //   caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_ROI_END_ROW, config_manager_.roi_end_row);
                 }
                 
                 if (davis_info_.dvsHasSkipFilter)
@@ -773,7 +765,8 @@ void DavisDriver::changeDvsParameters()
 void DavisDriver::onDisconnectUSB(void* driver)
 {
     LOG(ERROR) << "Driver: USB connection lost with DVS!";
-    static_cast<DavisDriver*>(driver)->caerConnect(); 
+    static_cast<DavisDriver*>(driver)->caerConnect();
+    static_cast<DavisDriver*>(driver)->start(); 
 }
 //==============================================================================
 // End of File : Software/src/DavisDriver.cpp

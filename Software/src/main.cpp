@@ -63,7 +63,7 @@ int main(int argc, char* argv[])
 
     size_t input_queue_size = 100; //Actually manually set in constructor
     auto data_queues = std::make_shared<DataQueues>(input_queue_size);
-    std::string config_path = "../config/blank_config.yaml";
+    std::string config_path = "../config/camera_configuration.yaml";
     DavisDriver driver(config_path, data_queues);   //Starts driver to add data to input queues
 
     
@@ -105,40 +105,8 @@ int main(int argc, char* argv[])
     // Start threads
     DataAcquisition DataAquistion_(data_queues, std::ref(DA_state), comms_interface);
     driver.start();
-    // DataAquistion_.start();
-    auto start_time = std::chrono::steady_clock::now();
-    bool triggered_3s = false, triggered_6s = false, triggered_9s = false, triggered_12s = false;
-
-    while (true) {
-        auto current_time = std::chrono::steady_clock::now();
-        auto elapsed_time = std::chrono::duration_cast<std::chrono::seconds>(current_time - start_time).count();
-
-        if (elapsed_time >= 3 && !triggered_3s) {
-            std::cout << "3 seconds elapsed!" << std::endl;
-            driver.idle();
-            triggered_3s = true;
-        }
-
-        if (elapsed_time >= 9 && !triggered_9s) {
-            std::cout << "9 seconds elapsed!" << std::endl;
-            driver.start();
-            triggered_9s = true;
-        }
-
-        if (elapsed_time >= 12 && !triggered_12s) {
-            std::cout << "12 seconds elapsed!" << std::endl;
-            triggered_12s = true;
-            driver.idle();
-        }
-
-        if (elapsed_time >= 15) {
-            driver.stop();
-            std::cout << "Stopping timer loop." << std::endl;
-            break;
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));  // Prevent CPU overload
-    }
-    
+    DataAquistion_.start();
+  
     //std::thread frontend_thread(FE_loop, std::ref(frontend_state), &data_DA_to_FE, &comms_interface);
     //std::thread backend_thread(BE_loop, std::ref(backend_state), &comms_interface);
     
@@ -155,7 +123,7 @@ int main(int argc, char* argv[])
     // LOG(INFO) << "MAIN: CM Thread Ended";
 
     // // Wait for other threads to exit
-    DataAquistion_.stop();
+    // DataAquistion_.stop();
     // LOG(INFO) << "MAIN: DA Thread Ended";
 
     // // // Close WiFi

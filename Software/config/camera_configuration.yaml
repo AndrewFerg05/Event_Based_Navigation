@@ -20,9 +20,8 @@ imu_gyro_scale: 3
 
 exposure: 4000
 
-autoexposure_desired_intensity: 75.0  # Default intensity target - Check
-autoexposure_gain: 100.0  # Default gain factor - Check
-
+autoexposure_desired_intensity: 100
+autoexposure_gain: 4.0  
 
 frame_delay: 0
 max_events: 0
@@ -51,14 +50,15 @@ PrSFBp_fine: 199
 RefrBp_coarse: 3
 RefrBp_fine: 7
 
-# DAVIS346 Params Set in Code - Not sure where specified - andrews attempt to keep everything off below
+# DAVIS346 Params Set in Code - Not sure where specified - Andrew's attempt to keep everything off below
 frame_mode: 0
 frame_interval: 0
 mu_low_pass_filter: 3  # ON (Choose between 1-6)
 imu_sample_rate_divider: 0  # Keep at 0 when LPF is enabled
 
-# Hardware Filtering (DVS) - Default OFF
+# Hardware Filtering (DVS) - Default OFF - Doesn't Work yet
 pixel_auto_train: false
+# If pixel_auto_train disabled - Will manually ignore the pixels below
 pixel_0_row: 0
 pixel_0_column: 0
 pixel_1_row: 0
@@ -87,8 +87,8 @@ refractory_period_time: 0
 # ROI Filter (Defaults to full frame)
 roi_start_column: 0
 roi_start_row: 0
-roi_end_column: 0
-roi_end_row: 0
+roi_end_column: 346
+roi_end_row: 260
 
 # Skip Events Filter (Default OFF)
 skip_enabled: false
@@ -102,5 +102,5 @@ polarity_suppress_type: 0
 # APS Region of Interest (Default: Disabled)
 aps_roi_start_column: 0
 aps_roi_start_row: 0
-aps_roi_end_column: 0
-aps_roi_end_row: 0
+aps_roi_end_column: 259
+aps_roi_end_row: 345

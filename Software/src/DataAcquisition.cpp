@@ -286,7 +286,7 @@ void DataAcquisition::run()
             if (!processDataQueues()) 
             {
                 LOG(INFO) << "DA: No data in queues";
-                sleep_ms(10);
+                sleep_ms(100);
             }
         }
     }

@@ -65,81 +65,72 @@ int main(int argc, char* argv[])
     auto data_queues = std::make_shared<DataQueues>(input_queue_size);
     std::string config_path = "../config/blank_config.yaml";
     DavisDriver driver(config_path, data_queues);   //Starts driver to add data to input queues
-    LOG(INFO) << "MAIN: Driver setup...";
-    
+
     
     // Create atomic control flags
-    std::atomic<ThreadState> data_aquire_state(ThreadState::Idle);
-    std::atomic<ThreadState> frontend_state(ThreadState::Idle);
-    std::atomic<ThreadState> backend_state(ThreadState::Idle);
+    std::atomic<ThreadState> DA_state(ThreadState::Idle);
+    // std::atomic<ThreadState> frontend_state(ThreadState::Idle);
+    // std::atomic<ThreadState> backend_state(ThreadState::Idle);
 
-    //Create data interfaces
+    // //Create data interfaces
     size_t test_queue_capacity = 100;
-    ThreadSafeFIFO<InputDataSync> data_DA_to_FE(test_queue_capacity, "Sync_data", true);
+    // ThreadSafeFIFO<InputDataSync> data_DA_to_FE(test_queue_capacity, "Sync_data", true);
     
     std::shared_ptr<CommunicationManager> comms_interface = std::make_shared<CommunicationManager>(test_queue_capacity, test_queue_capacity, test_queue_capacity);
 
     // Perform initial setup
-    LOG(INFO) << "MAIN: Setting up...";
+    // LOG(INFO) << "MAIN: Setting up...";
 
     // Initialise camera
 
     // Initialise WiFi
-    if (CM_initNet() != 0) 
-    {
-        LOG(ERROR) << "MAIN: WiFi Setup Failed";
-        return 0;
-    }
-    LOG(INFO) << "MAIN: WiFi Initialised";
+    // if (CM_initNet() != 0) 
+    // {
+    //     LOG(ERROR) << "MAIN: WiFi Setup Failed";
+    //     return 0;
+    // }
+    // LOG(INFO) << "MAIN: WiFi Initialised";
     
 
     // // Initialise serial
-    CM_serialInterface serial;
+    // CM_serialInterface serial;
     // Prepare ESP for connection
-    if (serial.ESPOpen() != 0){
-        LOG(ERROR) << "MAIN: Failed to open ESP32";
-    }
-    else{
-        LOG(INFO) << "MAIN: ESP32 Serial Initialised";
-    }
+    // if (serial.ESPOpen() != 0){
+    //     LOG(ERROR) << "MAIN: Failed to open ESP32";
+    // }
+    // else{
+    //     LOG(INFO) << "MAIN: ESP32 Serial Initialised";
+    // }
  
     // Start threads
-    DataAcquisition DataAquistion_(data_queues, std::ref(data_aquire_state), comms_interface);
+    DataAcquisition DataAquistion_(data_queues, std::ref(DA_state), comms_interface);
     //std::thread frontend_thread(FE_loop, std::ref(frontend_state), &data_DA_to_FE, &comms_interface);
     //std::thread backend_thread(BE_loop, std::ref(backend_state), &comms_interface);
     
     // Start this thread
-    CM_loop(std::ref(data_aquire_state), 
-            std::ref(frontend_state), 
-            std::ref(backend_state),
-            &data_DA_to_FE,
-            &DataAquistion_,
-            comms_interface,
-            &serial);
+    // CM_loop(std::ref(data_aquire_state), 
+    //         std::ref(frontend_state), 
+    //         std::ref(backend_state),
+    //         &data_DA_to_FE,
+    //         &DataAquistion_,
+    //         comms_interface,
+    //         &serial);
 
     LOG(INFO) << "MAIN: CM Thread Ended";
 
     // Wait for other threads to exit
     DataAquistion_.stop();
     LOG(INFO) << "MAIN: DA Thread Ended";
-    // frontend_thread.join();
-    LOG(INFO) << "MAIN: FE Thread Ended";
-    // backend_thread.join();
-    LOG(INFO) << "MAIN: BE Thread Ended";
 
-    // // Perform cleanup
-    LOG(INFO) << "MAIN: Cleaning up...";
-    
-    // // Close WiFi
-    CM_cleanupNet();
-    LOG(INFO) << "MAIN: WiFi closed";
+    // // // Close WiFi
+    // CM_cleanupNet();
+    // LOG(INFO) << "MAIN: WiFi closed";
 
-    // Close ESP connection
-    serial.ESPClose();
-    LOG(INFO) << "MAIN: Serial closed";
+    // // Close ESP connection
+    // serial.ESPClose();
+    // LOG(INFO) << "MAIN: Serial closed";
 
     LOG(INFO) << "MAIN: Program ended";
-
     endLogging(&sink);
 
     return 0;

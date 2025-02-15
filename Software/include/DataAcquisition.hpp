@@ -56,8 +56,7 @@ public:
     void addImageData();
     void addEventsData(const EventData& event_data);
     void addImuData(const IMUData& imu_data);
-    void onlyEventsNoImagesLogic();
-
+;
     void registerImuCallback(const ImuCallback& imu_callback)
     {
         imu_callback_ = imu_callback;

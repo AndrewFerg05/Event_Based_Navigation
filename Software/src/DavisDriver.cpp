@@ -183,22 +183,23 @@ DavisDriver::~DavisDriver()
 
 void DavisDriver::start()
 {
-    if (running_) {
-        LOG(WARNING) << "Driver already running!";
-        return;  // Prevent multiple starts
+    if (!running_) 
+    {
+        running_ = true;  
+        idle_ = false;
+
+        //parameter_thread_ = std::thread(&DavisDriver::changeDvsParameters, this); //Add while loop back into function if calling in other thread
+        changeDvsParameters(); // Might not need to run in other thread if not dynamicall configuring
+
+        readout_thread_ = std::thread(&DavisDriver::readout, this);
+
+        LOG(INFO) << "Thread started";
+        sleep_ms(500);
     }
-
-    running_ = true;  
-    idle_ = false; // Ensure we are not idling
-
-    //parameter_thread_ = std::thread(&DavisDriver::changeDvsParameters, this); //Add while loop back into function if calling in other thread
-    changeDvsParameters(); // Might not need to run in other thread if not dynamicall configuring
-
-    // Ensure a new thread is created only if needed
-    readout_thread_ = std::thread(&DavisDriver::readout, this);
-
-    LOG(INFO) << "Thread started";
-    sleep_ms(500);
+    else
+    {
+        LOG(WARNING) << "Driver already running!";
+    }
 }
 
 
@@ -212,24 +213,36 @@ void DavisDriver::stop()
         readout_thread_.join();  // Ensure thread exits before proceeding
     }
 
-    caerDeviceDataStop(davis_handle_);       //CASUES SEGMENTATION FAULT CHECK ON PI
+    if(!idle_)
+    {
+        caerDeviceDataStop(davis_handle_);
+    }
     caerDeviceClose(&davis_handle_);
+    
     
     LOG(INFO) << "Driver stopped successfully";
 }
 
 void DavisDriver::idle()
 {
-    LOG(INFO) << "Idling driver...";
-    
-    running_ = false;
+    if(!idle_)
+    {
+        LOG(INFO) << "Idling driver...";
+        
+        running_ = false;
+        idle_ = true;
 
-    if (readout_thread_.joinable()) {
-        readout_thread_.join();  // Ensure thread exits before proceeding
+        if (readout_thread_.joinable()) {
+            readout_thread_.join();
+        }
+
+        caerDeviceDataStop(davis_handle_);    
+        LOG(INFO) << "Driver idled successfully";
     }
-
-    caerDeviceDataStop(davis_handle_);       //CASUES SEGMENTATION FAULT CHECK ON PI    
-    LOG(INFO) << "Driver idled successfully";
+    else
+    {
+        LOG(WARNING) << "Driver already idled!";
+    }
 }
 
 
@@ -373,8 +386,6 @@ void DavisDriver::readout()
             }
             int32_t packetNum = caerEventPacketContainerGetEventPacketsNumber(packetContainer);
 
-            LOG(INFO) << "Driver: Event packet arrived";
-
             for (int32_t i = 0; i < packetNum; i++)
             {
                 caerEventPacketHeader packetHeader = caerEventPacketContainerGetEventPacket(packetContainer, i);
@@ -416,8 +427,8 @@ void DavisDriver::readout()
                     config_manager_.streaming_rate == 0 ||
                     (config_manager_.max_events != 0 && event_array_msg->events.size() > config_manager_.max_events))
                     {
-                        // data_queues_->event_queue->push(*event_array_msg);
-                        LOG(INFO) << "Driver: IMU";   
+                        data_queues_->event_queue->push(*event_array_msg);
+
                         if (config_manager_.streaming_rate > 0)
                         {
                             next_send_time += delta_;
@@ -481,7 +492,7 @@ void DavisDriver::readout()
                         imu_data.angular_velocity.z -= bias.angular_velocity.z;
 
                         // Push to the IMU queue
-                        // data_queues_->imu_queue->push(imu_data);
+                        data_queues_->imu_queue->push(imu_data);
                     }
                 }
                 else if (type == FRAME_EVENT)
@@ -525,18 +536,16 @@ void DavisDriver::readout()
                     // time
                     image_data_.header.stamp = caerFrameEventGetTimestamp64(event, frame) * 1000;
 
-                    LOG(INFO) << "Driver: Got frame, pushing to queue";
-                    // data_queues_->image_queue->push(image_data_);
+                    data_queues_->image_queue->push(image_data_);
 
                     const int32_t exposure_time_microseconds = caerFrameEventGetExposureLength(event);
-                    // Removed exposure publishing
 
                     //Auto-exposure algorithm
                     // using the requested exposure instead of the actual, measured one gives more stable results
-                    uint32_t current_exposure;
-                    caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_APS, DAVIS_CONFIG_APS_EXPOSURE, &current_exposure);
-                    const int new_exposure = computeNewExposure(image_data_.data, current_exposure);
-                    caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_APS, DAVIS_CONFIG_APS_EXPOSURE, new_exposure);
+                    // uint32_t current_exposure;
+                    // caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_APS, DAVIS_CONFIG_APS_EXPOSURE, &current_exposure);
+                    // const int new_exposure = computeNewExposure(image_data_.data, current_exposure);
+                    // caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_APS, DAVIS_CONFIG_APS_EXPOSURE, new_exposure);
                 }
 
             }

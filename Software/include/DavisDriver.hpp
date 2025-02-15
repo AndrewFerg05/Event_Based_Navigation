@@ -15,11 +15,14 @@ Description : Header file for the Davis Camera Driver
 //==============================================================================
 // External Files
 //------------------------------------------------------------------------------
+
+// Local
 #include "ThreadInterface.hpp"
 #include "TypeAliases.hpp"
 #include "Types.hpp"
 #include "Logging.hpp"
 
+// External
 #include <libcaer/libcaer.h>
 #include <libcaer/devices/davis.h>
 #include <yaml-cpp/yaml.h>
@@ -29,7 +32,6 @@ Description : Header file for the Davis Camera Driver
 //==============================================================================
 //      Classes
 //------------------------------------------------------------------------------
-
 
 
 class ConfigManager {
@@ -114,7 +116,6 @@ public:
 
 private:
     std::string config_file_path; // Path to YAML file
-    std::mutex config_mutex;      // Thread safety for updates
 };
 
 
@@ -141,7 +142,6 @@ private:
   ConfigManager config_manager_;
   std::chrono::microseconds delta_;
 
-  std::thread parameter_thread_;
   std::thread readout_thread_;    
 
   caerDeviceHandle davis_handle_;

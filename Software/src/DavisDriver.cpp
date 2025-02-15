@@ -15,10 +15,11 @@ Description : Source file for the Davis Camera Driver
 // Local
 #include "DavisDriver.hpp"
 
-
 //==============================================================================
 // MACROS
 //------------------------------------------------------------------------------
+
+//Course-fine Bias Macros
 #define CF_N_TYPE(COARSE, FINE) (struct caer_bias_coarsefine) \
 { .coarseValue = (uint8_t)(COARSE), .fineValue = (uint8_t)(FINE), \
     .enabled = true, .sexN = true, \
@@ -35,6 +36,7 @@ Description : Source file for the Davis Camera Driver
 
 #define VDAC(VOLT, CURR) (struct caer_bias_vdac) \
 { .voltageValue = (uint8_t)(VOLT), .currentValue = (uint8_t)(CURR) }
+
 //==============================================================================
 // Functions
 //------------------------------------------------------------------------------
@@ -42,8 +44,10 @@ Description : Source file for the Davis Camera Driver
 ConfigManager::ConfigManager(const std::string& config_path) 
     : config_file_path(config_path) {}
 
-void ConfigManager::loadConfig(const std::string& config_path){  
+void ConfigManager::loadConfig(const std::string& config_path){ 
+    LOG(INFO) << "Driver: Loading camer parameters...";
     try {
+        // Load Camera Configuration from YAML file
         YAML::Node config = YAML::LoadFile(config_path);
 
         // Device ID
@@ -59,7 +63,7 @@ void ConfigManager::loadConfig(const std::string& config_path){
         bias_.angular_velocity.y = config["imu_bias"]["wy"] ? config["imu_bias"]["wy"].as<double>() : 0.0;
         bias_.angular_velocity.z = config["imu_bias"]["wz"] ? config["imu_bias"]["wz"].as<double>() : 0.0;
 
-        // Camera
+        // Enable Data Streams
         aps_enabled = config["aps_enabled"] ? config["aps_enabled"].as<bool>() : true;
         dvs_enabled = config["dvs_enabled"] ? config["dvs_enabled"].as<bool>() : true;
         imu_enabled = config["imu_enabled"] ? config["imu_enabled"].as<bool>() : true;
@@ -67,22 +71,20 @@ void ConfigManager::loadConfig(const std::string& config_path){
         // Auto-exposure parameters
         autoexposure_desired_intensity = config["autoexposure_desired_intensity"] ? config["autoexposure_desired_intensity"].as<float>() : 128.0f;
         autoexposure_gain = config["autoexposure_gain"] ? config["autoexposure_gain"].as<float>() : 100.0f;
+        exposure = config["exposure"] ? config["exposure"].as<int>() : 4000;       
 
-
+        // Streaming modes and rates
         frame_mode = config["frame_mode"] ? config["frame_mode"].as<int>() : 0;
         frame_interval = config["frame_interval"] ? config["frame_interval"].as<int>() : 0;
-
-        exposure = config["exposure"] ? config["exposure"].as<int>() : 4000;
         frame_delay = config["frame_delay"] ? config["frame_delay"].as<int>() : 0;
         max_events = config["max_events"] ? config["max_events"].as<int>() : 0;
         streaming_rate = config["streaming_rate"] ? config["streaming_rate"].as<int>() : 30;
 
+        // IMU scale and LP filter
         imu_acc_scale = config["imu_acc_scale"] ? config["imu_acc_scale"].as<int>() : 3;
         imu_gyro_scale = config["imu_gyro_scale"] ? config["imu_gyro_scale"].as<int>() : 3;
         imu_low_pass_filter = config["imu_low_pass_filter"] ? config["imu_low_pass_filter"].as<int>() : 0;
         imu_sample_rate_divider = (imu_low_pass_filter == 0) ? 7 : 0;
-
-
 
         // ADC Parameters
         ADC_RefHigh_volt = config["ADC_RefHigh_volt"] ? config["ADC_RefHigh_volt"].as<int>() : 24;
@@ -109,7 +111,7 @@ void ConfigManager::loadConfig(const std::string& config_path){
         RefrBp_coarse = config["RefrBp_coarse"] ? config["RefrBp_coarse"].as<int>() : 3;
         RefrBp_fine = config["RefrBp_fine"] ? config["RefrBp_fine"].as<int>() : 7;
 
-         // Hardware Filters (DVS)
+         // Hardware Filters (Hot-Pixel)
         pixel_auto_train = config["pixel_auto_train"] ? config["pixel_auto_train"].as<bool>() : false;
         pixel_0_row = config["pixel_0_row"] ? config["pixel_0_row"].as<int>() : 0;
         pixel_0_column = config["pixel_0_column"] ? config["pixel_0_column"].as<int>() : 0;
@@ -120,25 +122,25 @@ void ConfigManager::loadConfig(const std::string& config_path){
         pixel_3_row = config["pixel_3_row"] ? config["pixel_3_row"].as<int>() : 0;
         pixel_3_column = config["pixel_3_column"] ? config["pixel_3_column"].as<int>() : 0;
 
-        // Background Activity Filter (OFF)
+        // Background Activity Filter
         background_activity_filter_enabled = config["background_activity_filter_enabled"] ? config["background_activity_filter_enabled"].as<bool>() : false;
         background_activity_filter_time = config["background_activity_filter_time"] ? config["background_activity_filter_time"].as<int>() : 0;
 
-        // Refractory Period Filter (OFF)
+        // Refractory Period Filter
         refractory_period_enabled = config["refractory_period_enabled"] ? config["refractory_period_enabled"].as<bool>() : false;
         refractory_period_time = config["refractory_period_time"] ? config["refractory_period_time"].as<int>() : 0;
 
-        // ROI Filter (Defaults to full frame)
+        // ROI Filter
         roi_start_column = config["roi_start_column"] ? config["roi_start_column"].as<int>() : 0;
         roi_start_row = config["roi_start_row"] ? config["roi_start_row"].as<int>() : 0;
-        roi_end_column = config["roi_end_column"] ? config["roi_end_column"].as<int>() : 0;
-        roi_end_row = config["roi_end_row"] ? config["roi_end_row"].as<int>() : 0;
+        roi_end_column = config["roi_end_column"] ? config["roi_end_column"].as<int>() : 346;
+        roi_end_row = config["roi_end_row"] ? config["roi_end_row"].as<int>() : 260;
 
-        // Skip Events Filter (OFF)
+        // Skip Events Filter
         skip_enabled = config["skip_enabled"] ? config["skip_enabled"].as<bool>() : false;
         skip_every = config["skip_every"] ? config["skip_every"].as<int>() : 1;
 
-        // Polarity Filter (OFF)
+        // Polarity Filter
         polarity_flatten = config["polarity_flatten"] ? config["polarity_flatten"].as<bool>() : false;
         polarity_suppress = config["polarity_suppress"] ? config["polarity_suppress"].as<bool>() : false;
         polarity_suppress_type = config["polarity_suppress_type"] ? config["polarity_suppress_type"].as<int>() : 0;
@@ -172,10 +174,7 @@ DavisDriver::DavisDriver(const std::string& config_path, std::shared_ptr<DataQue
 
 DavisDriver::~DavisDriver()
 {
-    running_ = false; // Stop the threads gracefully
-    if (parameter_thread_.joinable()) {
-        parameter_thread_.join();
-    }
+    running_ = false;
     if (readout_thread_.joinable()) {
         readout_thread_.join();
     }
@@ -185,48 +184,48 @@ void DavisDriver::start()
 {
     if (!running_) 
     {
+        LOG(INFO) << "Driver: Starting Driver...";
         running_ = true;  
         idle_ = false;
 
-        //parameter_thread_ = std::thread(&DavisDriver::changeDvsParameters, this); //Add while loop back into function if calling in other thread
-        changeDvsParameters(); // Might not need to run in other thread if not dynamicall configuring
+        changeDvsParameters();  //Set camera parameters
 
-        readout_thread_ = std::thread(&DavisDriver::readout, this);
+        readout_thread_ = std::thread(&DavisDriver::readout, this);     //Start readout
+        LOG(INFO) << "Driver started successfully!";
 
-        LOG(INFO) << "Thread started";
         sleep_ms(500);
     }
     else
     {
-        LOG(WARNING) << "Driver already running!";
+        LOG(WARNING) << "Driver: Driver already running!";
     }
 }
 
 void DavisDriver::stop()
 {
-    LOG(INFO) << "Stopping driver...";
+    LOG(INFO) << "Driver: Stopping driver...";
     
     running_ = false;
 
-    if (readout_thread_.joinable()) {
-        readout_thread_.join();  // Ensure thread exits before proceeding
+    if (readout_thread_.joinable()) 
+    {
+        readout_thread_.join();
     }
 
     if(!idle_)
     {
-        caerDeviceDataStop(davis_handle_);
+        caerDeviceDataStop(davis_handle_); 
     }
     caerDeviceClose(&davis_handle_);
     
-    
-    LOG(INFO) << "Driver stopped successfully";
+    LOG(INFO) << "Driver: Driver stopped successfully";
 }
 
 void DavisDriver::idle()
 {
     if(!idle_)
     {
-        LOG(INFO) << "Idling driver...";
+        LOG(INFO) << "Driver: Idling driver...";
         
         running_ = false;
         idle_ = true;
@@ -236,24 +235,22 @@ void DavisDriver::idle()
         }
 
         caerDeviceDataStop(davis_handle_);    
-        LOG(INFO) << "Driver idled successfully";
+        LOG(INFO) << "Driver: Driver idled successfully";
     }
     else
     {
-        LOG(WARNING) << "Driver already idled!";
+        LOG(WARNING) << "Driver: Driver already idled!";
     }
 }
 
 void DavisDriver::caerConnect()
 {
+    LOG(INFO) << "Driver: Connecting to camera... ";
+
     bool device_is_running = false;
 
     while (!device_is_running) {
         const char* serial_number_restrict = (config_manager_.device_id_.empty()) ? nullptr : config_manager_.device_id_.c_str();
-
-        if (serial_number_restrict) {
-            LOG(INFO) << "Driver: Requested serial number: " << config_manager_.device_id_;
-        }
 
         // Attempt to open the DAVIS camera
         davis_handle_ = caerDeviceOpen(1, CAER_DEVICE_DAVIS, 0, 0, serial_number_restrict);
@@ -273,6 +270,7 @@ void DavisDriver::caerConnect()
     config_manager_.device_id_ = "DAVIS-" + std::string(davis_info_.deviceString).substr(14, 8);
 
     // Print device info
+    LOG(INFO) << "Driver: Connected to camera successfully!";
     LOG(INFO) << "Driver: " << davis_info_.deviceString << "--- ID: " << davis_info_.deviceID
     << ", Master: " << davis_info_.deviceIsMaster
     << ", DVS X: " << davis_info_.dvsSizeX
@@ -342,6 +340,7 @@ void DavisDriver::triggerImuCalibration()
 
 int DavisDriver::computeNewExposure(const std::vector<uint8_t>& img_data, const uint32_t current_exposure) const
 {
+    //Computes new exposure value based on the intensity in the received image
     const float desired_intensity = static_cast<float>(config_manager_.autoexposure_desired_intensity);
     static constexpr int min_exposure = 10;
     static constexpr int max_exposure = 25000;
@@ -359,6 +358,7 @@ int DavisDriver::computeNewExposure(const std::vector<uint8_t>& img_data, const 
 
 void DavisDriver::readout()
 {
+    LOG(INFO) << "Driver: Starting Device readout...";
     caerDeviceConfigSet(davis_handle_, CAER_HOST_CONFIG_DATAEXCHANGE, CAER_HOST_CONFIG_DATAEXCHANGE_BLOCKING, true);
     caerDeviceDataStart(davis_handle_, NULL, NULL, NULL, &DavisDriver::onDisconnectUSB, this);
     
@@ -380,9 +380,7 @@ void DavisDriver::readout()
             for (int32_t i = 0; i < packetNum; i++)
             {
                 caerEventPacketHeader packetHeader = caerEventPacketContainerGetEventPacket(packetContainer, i);
-
                 
-
                 if (packetHeader == NULL)
                 {
                     continue; // Skip if nothing there.
@@ -552,214 +550,222 @@ void DavisDriver::readout()
 
         }
     }
+    LOG(INFO) << "Driver: Device readout ended!";
 }
 
 void DavisDriver::changeDvsParameters()
 {
-    // while(running_)
-    // {
-        try
+    LOG(INFO) << "Driver: Setting device parameters...";
+    try
+    {
+        if (parameter_update_required_)
         {
-            if (parameter_update_required_)
-            {
-                parameter_update_required_ = false;
+            parameter_update_required_ = false;
 
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_APS, DAVIS_CONFIG_APS_EXPOSURE, config_manager_.exposure);
-                
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_APS, DAVIS_CONFIG_APS_FRAME_MODE, config_manager_.frame_mode);
-                //caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_APS, DAVIS_CONFIG_APS_FRAME_INTERVAL, config_manager_.frame_interval);
-
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_APS, DAVIS_CONFIG_APS_RUN, config_manager_.aps_enabled);
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_RUN, config_manager_.dvs_enabled);
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_IMU, DAVIS_CONFIG_IMU_RUN_ACCELEROMETER, config_manager_.imu_enabled);
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_IMU, DAVIS_CONFIG_IMU_RUN_GYROSCOPE, config_manager_.imu_enabled);
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_IMU, DAVIS_CONFIG_IMU_RUN_TEMPERATURE, config_manager_.imu_enabled);
-
-                if (config_manager_.imu_gyro_scale >= 0 && config_manager_.imu_gyro_scale <= 3)
-                    caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_IMU, DAVIS_CONFIG_IMU_GYRO_FULL_SCALE, config_manager_.imu_gyro_scale);
-
-                if (config_manager_.imu_acc_scale >= 0 && config_manager_.imu_acc_scale <= 3)
-                    caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_IMU, DAVIS_CONFIG_IMU_ACCEL_FULL_SCALE, config_manager_.imu_acc_scale);
-
-                if (config_manager_.imu_low_pass_filter >= 0 && config_manager_.imu_low_pass_filter <= 6)
-                {
-                    caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_IMU, DAVIS_CONFIG_IMU_DIGITAL_LOW_PASS_FILTER, config_manager_.imu_low_pass_filter);
-
-                    if(config_manager_.imu_low_pass_filter == 0)
-                    {
-                      // When the low pass filter is disabled, the output frequency of IMU events
-                      // is raised to 8KHz. To keep it to 1 kHz, we use the sample rate divider
-                      // (setting its value to 7 divides the frequency by 8).
-                      caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_IMU, DAVIS_CONFIG_IMU_SAMPLE_RATE_DIVIDER, 7);
-                    }
-                    else
-                    {
-                      // When the low pass filter is enabled, the gyroscope output rate is set to 1 kHz,
-                      // so we should not use the sample rate divider, in order to keep the IMU output rate to 1 kHz.
-                      caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_IMU, DAVIS_CONFIG_IMU_SAMPLE_RATE_DIVIDER, 0);
-                    }
-                }
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_APS, DAVIS_CONFIG_APS_EXPOSURE, config_manager_.exposure);
             
-                // Params for DAVIS346B
-                // VDAC
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_APSOVERFLOWLEVEL,
-                                    caerBiasVDACGenerate(VDAC(27,6)));
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_APSCAS,
-                                    caerBiasVDACGenerate(VDAC(21,6)));
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_ADCREFHIGH,
-                                    caerBiasVDACGenerate(VDAC(config_manager_.ADC_RefHigh_volt, config_manager_.ADC_RefHigh_curr)));
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_ADCREFLOW,
-                                    caerBiasVDACGenerate(VDAC(config_manager_.ADC_RefLow_volt, config_manager_.ADC_RefLow_curr)));
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_ADCTESTVOLTAGE,
-                                    caerBiasVDACGenerate(VDAC(21,7)));
-                // CF Biases
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_LOCALBUFBN,
-                                    caerBiasCoarseFineGenerate(CF_N_TYPE(5, 164)));
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_PADFOLLBN,
-                                    caerBiasCoarseFineGenerate(CF_N_TYPE(7, 215)));
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_DIFFBN,
-                                    caerBiasCoarseFineGenerate(CF_N_TYPE(config_manager_.DiffBn_coarse, config_manager_.DiffBn_fine)));
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_ONBN,
-                                    caerBiasCoarseFineGenerate(CF_N_TYPE(config_manager_.ONBn_coarse, config_manager_.ONBn_fine)));
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_OFFBN,
-                                    caerBiasCoarseFineGenerate(CF_N_TYPE(config_manager_.OFFBn_coarse, config_manager_.OFFBn_fine)));
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_PIXINVBN,
-                                    caerBiasCoarseFineGenerate(CF_N_TYPE(5, 129)));
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_PRBP,
-                                    caerBiasCoarseFineGenerate(CF_P_TYPE(config_manager_.PrBp_coarse, config_manager_.PrBp_fine)));
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_PRSFBP,
-                                    caerBiasCoarseFineGenerate(CF_P_TYPE(config_manager_.PrSFBp_coarse, config_manager_.PrSFBp_fine)));
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_REFRBP,
-                                    caerBiasCoarseFineGenerate(CF_P_TYPE(config_manager_.RefrBp_coarse, config_manager_.RefrBp_fine)));
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_READOUTBUFBP,
-                                    caerBiasCoarseFineGenerate(CF_P_TYPE(6, 20)));
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_APSROSFBN,
-                                    caerBiasCoarseFineGenerate(CF_N_TYPE(6, 219)));
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_ADCCOMPBP,
-                                    caerBiasCoarseFineGenerate(CF_P_TYPE(5, 20)));
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_COLSELLOWBN,
-                                    caerBiasCoarseFineGenerate(CF_N_TYPE(0, 1)));
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_DACBUFBP,
-                                    caerBiasCoarseFineGenerate(CF_P_TYPE(6, 60)));
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_LCOLTIMEOUTBN,
-                                    caerBiasCoarseFineGenerate(CF_N_TYPE(5, 49)));;
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_AEPDBN,
-                                    caerBiasCoarseFineGenerate(CF_N_TYPE(6, 91)));
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_AEPUXBP,
-                                    caerBiasCoarseFineGenerate(CF_P_TYPE(4, 80)));
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_AEPUYBP,
-                                    caerBiasCoarseFineGenerate(CF_P_TYPE(7, 152)));
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_IFREFRBN,
-                                    caerBiasCoarseFineGenerate(CF_N_TYPE(5, 255)));
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_IFTHRBN,
-                                    caerBiasCoarseFineGenerate(CF_N_TYPE(5, 255)));
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_BIASBUFFER,
-                                    caerBiasCoarseFineGenerate(CF_N_TYPE(5, 254)));
-                // Special Biases
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_SSP,
-                                    caerBiasShiftedSourceGenerate(SHIFTSOURCE(1,33,SHIFTED_SOURCE)));
-                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_SSN,
-                                    caerBiasShiftedSourceGenerate(SHIFTSOURCE(1,33,SHIFTED_SOURCE)));
+            // Frame mode and rate
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_APS, DAVIS_CONFIG_APS_FRAME_MODE, config_manager_.frame_mode);
+            //caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_APS, DAVIS_CONFIG_APS_FRAME_INTERVAL, config_manager_.frame_interval);
 
-                // Hardware filters
-                if (davis_info_.dvsHasPixelFilter)
+
+            // Enable Data streams
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_APS, DAVIS_CONFIG_APS_RUN, config_manager_.aps_enabled);
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_RUN, config_manager_.dvs_enabled);
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_IMU, DAVIS_CONFIG_IMU_RUN_ACCELEROMETER, config_manager_.imu_enabled);
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_IMU, DAVIS_CONFIG_IMU_RUN_GYROSCOPE, config_manager_.imu_enabled);
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_IMU, DAVIS_CONFIG_IMU_RUN_TEMPERATURE, config_manager_.imu_enabled);
+
+            // IMU sale range and LP filter
+            if (config_manager_.imu_gyro_scale >= 0 && config_manager_.imu_gyro_scale <= 3)
+                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_IMU, DAVIS_CONFIG_IMU_GYRO_FULL_SCALE, config_manager_.imu_gyro_scale);
+
+            if (config_manager_.imu_acc_scale >= 0 && config_manager_.imu_acc_scale <= 3)
+                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_IMU, DAVIS_CONFIG_IMU_ACCEL_FULL_SCALE, config_manager_.imu_acc_scale);
+
+            if (config_manager_.imu_low_pass_filter >= 0 && config_manager_.imu_low_pass_filter <= 6)
+            {
+                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_IMU, DAVIS_CONFIG_IMU_DIGITAL_LOW_PASS_FILTER, config_manager_.imu_low_pass_filter);
+
+                if(config_manager_.imu_low_pass_filter == 0)
                 {
-                  caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_AUTO_TRAIN, config_manager_.pixel_auto_train);
-                  
-                  // if using auto train, update the configuration with hardware values
-                  if (config_manager_.pixel_auto_train)
-                  {
+                    // When the low pass filter is disabled, the output frequency of IMU events
+                    // is raised to 8KHz. To keep it to 1 kHz, we use the sample rate divider
+                    // (setting its value to 7 divides the frequency by 8).
+                    caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_IMU, DAVIS_CONFIG_IMU_SAMPLE_RATE_DIVIDER, 7);
+                }
+                else
+                {
+                    // When the low pass filter is enabled, the gyroscope output rate is set to 1 kHz,
+                    // so we should not use the sample rate divider, in order to keep the IMU output rate to 1 kHz.
+                    caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_IMU, DAVIS_CONFIG_IMU_SAMPLE_RATE_DIVIDER, 0);
+                }
+            }
+        
+            // VDAC
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_APSOVERFLOWLEVEL,
+                                caerBiasVDACGenerate(VDAC(27,6)));
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_APSCAS,
+                                caerBiasVDACGenerate(VDAC(21,6)));
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_ADCREFHIGH,
+                                caerBiasVDACGenerate(VDAC(config_manager_.ADC_RefHigh_volt, config_manager_.ADC_RefHigh_curr)));
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_ADCREFLOW,
+                                caerBiasVDACGenerate(VDAC(config_manager_.ADC_RefLow_volt, config_manager_.ADC_RefLow_curr)));
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_ADCTESTVOLTAGE,
+                                caerBiasVDACGenerate(VDAC(21,7)));
+            // CF Biases
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_LOCALBUFBN,
+                                caerBiasCoarseFineGenerate(CF_N_TYPE(5, 164)));
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_PADFOLLBN,
+                                caerBiasCoarseFineGenerate(CF_N_TYPE(7, 215)));
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_DIFFBN,
+                                caerBiasCoarseFineGenerate(CF_N_TYPE(config_manager_.DiffBn_coarse, config_manager_.DiffBn_fine)));
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_ONBN,
+                                caerBiasCoarseFineGenerate(CF_N_TYPE(config_manager_.ONBn_coarse, config_manager_.ONBn_fine)));
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_OFFBN,
+                                caerBiasCoarseFineGenerate(CF_N_TYPE(config_manager_.OFFBn_coarse, config_manager_.OFFBn_fine)));
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_PIXINVBN,
+                                caerBiasCoarseFineGenerate(CF_N_TYPE(5, 129)));
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_PRBP,
+                                caerBiasCoarseFineGenerate(CF_P_TYPE(config_manager_.PrBp_coarse, config_manager_.PrBp_fine)));
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_PRSFBP,
+                                caerBiasCoarseFineGenerate(CF_P_TYPE(config_manager_.PrSFBp_coarse, config_manager_.PrSFBp_fine)));
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_REFRBP,
+                                caerBiasCoarseFineGenerate(CF_P_TYPE(config_manager_.RefrBp_coarse, config_manager_.RefrBp_fine)));
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_READOUTBUFBP,
+                                caerBiasCoarseFineGenerate(CF_P_TYPE(6, 20)));
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_APSROSFBN,
+                                caerBiasCoarseFineGenerate(CF_N_TYPE(6, 219)));
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_ADCCOMPBP,
+                                caerBiasCoarseFineGenerate(CF_P_TYPE(5, 20)));
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_COLSELLOWBN,
+                                caerBiasCoarseFineGenerate(CF_N_TYPE(0, 1)));
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_DACBUFBP,
+                                caerBiasCoarseFineGenerate(CF_P_TYPE(6, 60)));
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_LCOLTIMEOUTBN,
+                                caerBiasCoarseFineGenerate(CF_N_TYPE(5, 49)));;
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_AEPDBN,
+                                caerBiasCoarseFineGenerate(CF_N_TYPE(6, 91)));
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_AEPUXBP,
+                                caerBiasCoarseFineGenerate(CF_P_TYPE(4, 80)));
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_AEPUYBP,
+                                caerBiasCoarseFineGenerate(CF_P_TYPE(7, 152)));
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_IFREFRBN,
+                                caerBiasCoarseFineGenerate(CF_N_TYPE(5, 255)));
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_IFTHRBN,
+                                caerBiasCoarseFineGenerate(CF_N_TYPE(5, 255)));
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_BIASBUFFER,
+                                caerBiasCoarseFineGenerate(CF_N_TYPE(5, 254)));
+
+            // Special Biases
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_SSP,
+                                caerBiasShiftedSourceGenerate(SHIFTSOURCE(1,33,SHIFTED_SOURCE)));
+            caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_SSN,
+                                caerBiasShiftedSourceGenerate(SHIFTSOURCE(1,33,SHIFTED_SOURCE)));
+
+            // Hardware filters
+            if (davis_info_.dvsHasPixelFilter)
+            {
+                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_AUTO_TRAIN, config_manager_.pixel_auto_train);
+                
+                // if using auto train, update the configuration with hardware values
+                if (config_manager_.pixel_auto_train)
+                {
                     LOG(INFO) << "Driver: Auto-training hot-pixel filter...";
                     while(config_manager_.pixel_auto_train)
-                    {
-                      sleep_ms(100);
-                      caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_AUTO_TRAIN, (uint32_t*)&config_manager_.pixel_auto_train);
-                    }
-                  
-                    caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_0_ROW, (uint32_t*)&config_manager_.pixel_0_row);
-                    caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_0_COLUMN, (uint32_t*)&config_manager_.pixel_0_column);
-                    caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_1_ROW, (uint32_t*)&config_manager_.pixel_1_row);
-                    caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_1_COLUMN, (uint32_t*)&config_manager_.pixel_1_column);
-                    caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_2_ROW, (uint32_t*)&config_manager_.pixel_2_row);
-                    caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_2_COLUMN, (uint32_t*)&config_manager_.pixel_2_column);
-                    caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_3_ROW, (uint32_t*)&config_manager_.pixel_3_row);
-                    caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_3_COLUMN, (uint32_t*)&config_manager_.pixel_3_column);
-                    caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_4_ROW, (uint32_t*)&config_manager_.pixel_4_row);
-                    caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_4_COLUMN, (uint32_t*)&config_manager_.pixel_4_column);
-                    caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_5_ROW, (uint32_t*)&config_manager_.pixel_5_row);
-                    caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_5_COLUMN, (uint32_t*)&config_manager_.pixel_5_column);
-                    caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_6_ROW, (uint32_t*)&config_manager_.pixel_6_row);
-                    caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_6_COLUMN, (uint32_t*)&config_manager_.pixel_6_column);
-                    caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_7_ROW, (uint32_t*)&config_manager_.pixel_7_row);
-                    caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_7_COLUMN, (uint32_t*)&config_manager_.pixel_7_column);
-                    
-                    LOG(INFO) << "Driver: Completed auto-training hot-pixel";
+                {
+                    sleep_ms(100);
+                    caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_AUTO_TRAIN, (uint32_t*)&config_manager_.pixel_auto_train);
+                }
+                
+                caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_0_ROW, (uint32_t*)&config_manager_.pixel_0_row);
+                caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_0_COLUMN, (uint32_t*)&config_manager_.pixel_0_column);
+                caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_1_ROW, (uint32_t*)&config_manager_.pixel_1_row);
+                caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_1_COLUMN, (uint32_t*)&config_manager_.pixel_1_column);
+                caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_2_ROW, (uint32_t*)&config_manager_.pixel_2_row);
+                caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_2_COLUMN, (uint32_t*)&config_manager_.pixel_2_column);
+                caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_3_ROW, (uint32_t*)&config_manager_.pixel_3_row);
+                caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_3_COLUMN, (uint32_t*)&config_manager_.pixel_3_column);
+                caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_4_ROW, (uint32_t*)&config_manager_.pixel_4_row);
+                caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_4_COLUMN, (uint32_t*)&config_manager_.pixel_4_column);
+                caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_5_ROW, (uint32_t*)&config_manager_.pixel_5_row);
+                caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_5_COLUMN, (uint32_t*)&config_manager_.pixel_5_column);
+                caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_6_ROW, (uint32_t*)&config_manager_.pixel_6_row);
+                caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_6_COLUMN, (uint32_t*)&config_manager_.pixel_6_column);
+                caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_7_ROW, (uint32_t*)&config_manager_.pixel_7_row);
+                caerDeviceConfigGet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_7_COLUMN, (uint32_t*)&config_manager_.pixel_7_column);
+                
+                LOG(INFO) << "Driver: Completed auto-training hot-pixel!";
 
-                  }
-                  else // apply current configuration to hardware
-                  {
-                    caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_0_ROW, config_manager_.pixel_0_row);
-                    caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_0_COLUMN, config_manager_.pixel_0_column);
-                    caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_1_ROW, config_manager_.pixel_1_row);
-                    caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_1_COLUMN, config_manager_.pixel_1_column);
-                    caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_2_ROW, config_manager_.pixel_2_row);
-                    caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_2_COLUMN, config_manager_.pixel_2_column);
-                    caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_3_ROW, config_manager_.pixel_3_row);
-                    caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_3_COLUMN, config_manager_.pixel_3_column);
-                    caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_4_ROW, config_manager_.pixel_4_row);
-                    caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_4_COLUMN, config_manager_.pixel_4_column);
-                    caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_5_ROW, config_manager_.pixel_5_row);
-                    caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_5_COLUMN, config_manager_.pixel_5_column);
-                    caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_6_ROW, config_manager_.pixel_6_row);
-                    caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_6_COLUMN, config_manager_.pixel_6_column);
-                    caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_7_ROW, config_manager_.pixel_7_row);
-                    caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_7_COLUMN, config_manager_.pixel_7_column);
-                  }
                 }
-                
-                if (davis_info_.dvsHasBackgroundActivityFilter)
+                else // apply current configuration to hardware
                 {
-                  caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_BACKGROUND_ACTIVITY, config_manager_.background_activity_filter_enabled);
-                  caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_BACKGROUND_ACTIVITY_TIME, config_manager_.background_activity_filter_time);
-
-                  caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_REFRACTORY_PERIOD, config_manager_.refractory_period_enabled);
-                  caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_REFRACTORY_PERIOD_TIME, config_manager_.refractory_period_time);
+                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_0_ROW, config_manager_.pixel_0_row);
+                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_0_COLUMN, config_manager_.pixel_0_column);
+                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_1_ROW, config_manager_.pixel_1_row);
+                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_1_COLUMN, config_manager_.pixel_1_column);
+                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_2_ROW, config_manager_.pixel_2_row);
+                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_2_COLUMN, config_manager_.pixel_2_column);
+                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_3_ROW, config_manager_.pixel_3_row);
+                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_3_COLUMN, config_manager_.pixel_3_column);
+                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_4_ROW, config_manager_.pixel_4_row);
+                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_4_COLUMN, config_manager_.pixel_4_column);
+                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_5_ROW, config_manager_.pixel_5_row);
+                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_5_COLUMN, config_manager_.pixel_5_column);
+                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_6_ROW, config_manager_.pixel_6_row);
+                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_6_COLUMN, config_manager_.pixel_6_column);
+                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_7_ROW, config_manager_.pixel_7_row);
+                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_PIXEL_7_COLUMN, config_manager_.pixel_7_column);
                 }
-                
-                if (davis_info_.dvsHasROIFilter)
-                {
-                //   caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_ROI_START_COLUMN, config_manager_.roi_start_column);
-                //   caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_ROI_START_ROW, config_manager_.roi_start_row);
-                //   caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_ROI_END_COLUMN, config_manager_.roi_end_column);
-                //   caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_ROI_END_ROW, config_manager_.roi_end_row);
-                }
-                
-                if (davis_info_.dvsHasSkipFilter)
-                {
-                  caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_SKIP_EVENTS, config_manager_.skip_enabled);
-                  caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_SKIP_EVENTS_EVERY, config_manager_.skip_every);
-                }
-                
-                if (davis_info_.dvsHasPolarityFilter)
-                {
-                  caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_POLARITY_FLATTEN, config_manager_.polarity_flatten);
-                  caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_POLARITY_SUPPRESS, config_manager_.polarity_suppress);
-                  caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_POLARITY_SUPPRESS_TYPE, config_manager_.polarity_suppress_type);
-                }
-                
-                // APS region of interest
-                // caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_APS, DAVIS_CONFIG_APS_START_COLUMN_0, config_manager_.aps_roi_start_column);
-                // caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_APS, DAVIS_CONFIG_APS_START_ROW_0, config_manager_.aps_roi_start_row);
-                // caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_APS, DAVIS_CONFIG_APS_END_COLUMN_0, config_manager_.aps_roi_end_column);
-                // caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_APS, DAVIS_CONFIG_APS_END_ROW_0, config_manager_.aps_roi_end_row);
             }
-        }
-        catch (const std::exception& e)
-        {
-            LOG(ERROR) << "Driver: Exception in changeDvsParameters: " << e.what();
+            
+            //  Event Background filter
+            if (davis_info_.dvsHasBackgroundActivityFilter)
+            {
+                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_BACKGROUND_ACTIVITY, config_manager_.background_activity_filter_enabled);
+                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_BACKGROUND_ACTIVITY_TIME, config_manager_.background_activity_filter_time);
 
+                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_REFRACTORY_PERIOD, config_manager_.refractory_period_enabled);
+                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_REFRACTORY_PERIOD_TIME, config_manager_.refractory_period_time);
+            }
+            
+            //  Event ROI filter
+            if (davis_info_.dvsHasROIFilter)
+            {
+            //   caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_ROI_START_COLUMN, config_manager_.roi_start_column);
+            //   caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_ROI_START_ROW, config_manager_.roi_start_row);
+            //   caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_ROI_END_COLUMN, config_manager_.roi_end_column);
+            //   caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_ROI_END_ROW, config_manager_.roi_end_row);
+            }
+            
+            //  Skip events filter
+            if (davis_info_.dvsHasSkipFilter)
+            {
+                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_SKIP_EVENTS, config_manager_.skip_enabled);
+                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_SKIP_EVENTS_EVERY, config_manager_.skip_every);
+            }
+            
+            //  Event polarity filter
+            if (davis_info_.dvsHasPolarityFilter)
+            {
+                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_POLARITY_FLATTEN, config_manager_.polarity_flatten);
+                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_POLARITY_SUPPRESS, config_manager_.polarity_suppress);
+                caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_DVS, DAVIS_CONFIG_DVS_FILTER_POLARITY_SUPPRESS_TYPE, config_manager_.polarity_suppress_type);
+            }
+            
+            // APS region of interest
+            // caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_APS, DAVIS_CONFIG_APS_START_COLUMN_0, config_manager_.aps_roi_start_column);
+            // caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_APS, DAVIS_CONFIG_APS_START_ROW_0, config_manager_.aps_roi_start_row);
+            // caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_APS, DAVIS_CONFIG_APS_END_COLUMN_0, config_manager_.aps_roi_end_column);
+            // caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_APS, DAVIS_CONFIG_APS_END_ROW_0, config_manager_.aps_roi_end_row);
         }
-    // }
+    }
+    catch (const std::exception& e)
+    {
+        LOG(ERROR) << "Driver: Exception in changeDvsParameters: " << e.what();
+
+    }
+    LOG(INFO) << "Driver: Device parameters set successfully1";
 }
 
 void DavisDriver::onDisconnectUSB(void* driver)

@@ -152,31 +152,32 @@ public:
 };
 
 // Draft class to be editted
-class CommunicationManager {
-private:
-    // Queues for different data types
-    ThreadSafeFIFO<ImageData> from_camera;
-    ThreadSafeFIFO<TrackedFrames> from_frontend;
-    ThreadSafeFIFO<OtherData> from_backend;
-public:
-    //Constructor sets size of each input queue
-    CommunicationManager(size_t queue_size_1, size_t queue_size_2, size_t queue_size_3)
-        : from_camera(queue_size_1, "Comms_1", false),
-          from_frontend(queue_size_2, "Comms_2", false),
-          from_backend(queue_size_3, "Comms_3", false)
-    {}
-    ~CommunicationManager() = default;
+class CommunicationManager 
+{
+    private:
+        // Queues for different data types
+        ThreadSafeFIFO<ImageData> from_camera;
+        ThreadSafeFIFO<TrackedFrames> from_frontend;
+        ThreadSafeFIFO<OtherData> from_backend;
+    public:
+        //Constructor sets size of each input queue
+        CommunicationManager(size_t queue_size_1, size_t queue_size_2, size_t queue_size_3)
+            : from_camera(queue_size_1, "Comms_1", false),
+            from_frontend(queue_size_2, "Comms_2", false),
+            from_backend(queue_size_3, "Comms_3", false)
+        {}
+        ~CommunicationManager() = default;
 
-    //Check queues and send data
-    ImageData getFrameData();
-    TrackedFrames getTrackedFrameData();
-    OtherData getOtherData();
+        //Check queues and send data
+        ImageData getFrameData();
+        TrackedFrames getTrackedFrameData();
+        OtherData getOtherData();
 
-    // Add data to send queue
-    void queueFrameData(ImageData data);
-    void queueTrackedFrameData(TrackedFrames data);
-    void queueOther(OtherData data);
-};
+        // Add data to send queue
+        void queueFrameData(ImageData data);
+        void queueTrackedFrameData(TrackedFrames data);
+        void queueOther(OtherData data);
+    };
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------

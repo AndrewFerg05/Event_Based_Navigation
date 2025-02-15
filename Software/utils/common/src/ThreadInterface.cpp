@@ -37,9 +37,48 @@ Change History
 // Functions
 //------------------------------------------------------------------------------
 
-void CommunicationManager::queueInputData(InputDataSync data)
+ImageData CommunicationManager::getFrameData()
+{
+    // Return latest from FIFO
+    if (auto data = from_camera.pop()) {
+        return data.value();
+    }
+    else {
+        ImageData nothing;
+        return nothing;
+    }
+}
+
+TrackedFrames CommunicationManager::getTrackedFrameData()
+{
+    // Return latest from FIFO
+    if (auto data = from_frontend.pop()) {
+        return data.value();
+    }
+    else {
+        TrackedFrames nothing;
+        return nothing;
+    }
+}
+
+OtherData CommunicationManager::getOtherData()
+{
+    // Return latest from FIFO
+    if (auto data = from_backend.pop()) {
+        return data.value();
+    }
+    else {
+        OtherData nothing;
+        return 0;
+    }
+}
+
+
+void CommunicationManager::queueFrameData(ImageData data)
 {
     from_camera.push(data);
+    LOG(INFO) << "DA: Frame pushed to CM";
+
 }
 
 
@@ -51,8 +90,6 @@ void CommunicationManager::queueTrackedFrameData(TrackedFrames data){
 void CommunicationManager::queueOther(OtherData data){
     from_backend.push(data);
 }
-
-
 
 
 bool CommunicationManager::processQueues()

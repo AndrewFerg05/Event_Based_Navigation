@@ -73,7 +73,7 @@ struct EventData {
 //------------------------------------------------------------------------------
 struct ImageData {
     Header header;   // Header containing timestamp and frame_id
-    uint32_t width;       // Image width
+    uint32_t width = 0;       // Image width
     uint32_t height;      // Image height
     uint32_t step;        // Bytes per row (needed for decoding)
     uint8_t is_bigendian;
@@ -83,7 +83,19 @@ struct ImageData {
     // Constructor
     ImageData() = default;
 };
+//------------------------------------------------------------------------------
+struct TrackedFrames {
+    Header header;   // Header containing timestamp and frame_id
+    uint32_t width = 0;       // Image width
+    uint32_t height;      // Image height
+    uint32_t step;        // Bytes per row (needed for decoding)
+    uint8_t is_bigendian;
+    std::string encoding;  // Image encoding format (e.g., "mono8", "rgb8")
+    std::vector<uint8_t> data; // Flattened pixel data stored row-major
 
+    // Constructor
+    TrackedFrames() = default;
+};
 
 #endif  // TYPE_ALIASES_HPP
 //==============================================================================

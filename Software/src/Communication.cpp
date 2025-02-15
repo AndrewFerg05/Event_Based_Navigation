@@ -33,7 +33,7 @@ Change History
 
 
 #define TEST_IMAGE  "../example.jpg"
-#define TEST_RUN_TIME 5
+#define TEST_RUN_TIME 30
 
 #define MAX_PACKET_SIZE 65507            // Max packet in bytes for UDP
 #define PC_IP           "192.168.43.245" // Change to base station IP (SARK's laptop)
@@ -55,6 +55,7 @@ void CM_loop(
     std::atomic<ThreadState>& frontend_state,
     std::atomic<ThreadState>& backend_state,
     ThreadSafeFIFO<InputDataSync>* data_DA,
+    DataAcquisition* dataAcquistion_,
     std::shared_ptr<CommunicationManager> comms,
     CM_serialInterface* serial) {
 
@@ -65,11 +66,19 @@ void CM_loop(
 
     bool state_change_called = false; //Used to only set the atomics once
 	
-    cv::Mat frame = cv::imread(TEST_IMAGE);
-    if (frame.empty()) {
+    // Frames for transmitting
+    ImageData frameCamera;
+    TrackedFrames frameEvents;
+    cv::Mat frameTest = cv::imread(TEST_IMAGE);
+    if (frameTest.empty()) {
         LOG(ERROR) << "CM: Failed to load test image. ";
         command = STOP;
     }
+
+    cv::Mat frame;
+
+    // Found pose
+    OtherData pose;
 
     int bufferSize = 0;
     std::optional<int> last_output;
@@ -80,10 +89,9 @@ void CM_loop(
 
         // Thread control
         if (command == RUN) {
-
             if(state_change_called){
                 LOG(INFO) << "CM: Changed to run state ";
-                data_sync_state = ThreadState::Run;
+                dataAcquistion_->start();
                 frontend_state = ThreadState::Run;
                 backend_state = ThreadState::Run;
                 state_change_called = false;
@@ -102,30 +110,65 @@ void CM_loop(
 
             // Base Station Communication
             //      Get frames from DA and transmit on UDP
-            if(!comms->processQueues())
-            {
-                // No data in buffers
+            frameCamera = comms->getFrameData();
+            if (frameCamera.width == 0) {
+                // No camera frame ready
             }
-            else
-            {
-                // Transmit camera frames from DA
+            else {
+                LOG(INFO) << "CM: Frame data made it to CM, formatting...";
+                frame = CM_formatCameraFrame(frameCamera);
+                LOG(INFO) << "CM: Frame formatted, sending...";
                 CM_transmitFrame(frame, 0);
 
-                //Transmit event frames from FE
-                CM_transmitFrame(frame, 1);
+                if (frame.empty())
+                {
 
+                }
+                else
+                {
+                    cv::imshow("Display", frame);
+                    cv::waitKey(1);
+                }
+            }
+
+            frameEvents = comms->getTrackedFrameData();
+            if (frameEvents.width == 0) {
+                // No camera frame ready
+                
+                // For testing send test frame to show working
+                LOG(INFO) << "CM: Frame formatted, sending...";
+                CM_transmitFrame(frameTest, 1);
+            }
+            else {
+                frame = CM_formatEventFrame(frameEvents);
+                CM_transmitFrame(frame, 1);
+            }
+
+            pose = comms->getOtherData();
+            if (pose == 0) {
+                // No camera frame ready
+            }
+            else {
                 //Transmit position estimate from BE
-                CM_transmitStatus(iterations, iterations, 0, iterations, iterations, iterations);
+                CM_transmitStatus(iterations, iterations, 0, pose, iterations, iterations);
 
                 //Send to ESP32 position estimate from BE
-                CM_serialSendStatus(serial, iterations, iterations);
+                CM_serialSendStatus(serial, pose, iterations);
             }
+            //Transmit position estimate from BE
+            CM_transmitStatus(iterations, iterations, 0, pose, iterations, iterations);
+
+            //Send to ESP32 position estimate from BE
+            CM_serialSendStatus(serial, pose, iterations);
+
             
         } else if (command == STOP) {
+            LOG(INFO) << "CM: STOP Looping";
+
             // Stop Condition
             if(state_change_called){
                 LOG(INFO) << "CM: Changed to stop state ";
-                data_sync_state = ThreadState::Stop;
+                dataAcquistion_->stop();
                 frontend_state = ThreadState::Stop;
                 backend_state = ThreadState::Stop;
                 state_change_called = false;
@@ -135,6 +178,8 @@ void CM_loop(
             break;
 
         } else if (command == IDLE) {
+            LOG(INFO) << "CM: IDLE Looping";
+
             // Pause Condition
            if(state_change_called){
             LOG(INFO) << "CM: Changed to idle state ";
@@ -155,6 +200,7 @@ void CM_loop(
             //(FOR TESTING WITHOUT ESP)
             if (elapsed > 1)
             {
+                LOG(INFO) << "CM: Transitioning to RUN";
                 state_change_called = true;
                 command = RUN;
             }
@@ -179,7 +225,7 @@ std::uint8_t CM_serialReceive(CM_serialInterface* serial){
 void CM_serialSendStatus(CM_serialInterface* serial, int32_t x, int32_t y){
 
     iterations++;
-    LOG(INFO) << "Iteration: ", std::to_string(iterations);
+    LOG(INFO) << "CM : Iteration " << std::to_string(iterations);
 
     if (serial->ESPCheckOpen() == 1)
     {
@@ -267,7 +313,7 @@ void CM_transmitFrame(cv::Mat frame, int frameId) {
     std::vector<int> params = {cv::IMWRITE_JPEG_QUALITY, 80};
 
     if (!cv::imencode(".jpg", frame, encodedFrame, params)) {
-        std::cerr << "Failed to encode the frame." << std::endl;
+        LOG(ERROR) << "CM: Failed to encode frame for UDP";
         return;
     }
 
@@ -279,7 +325,7 @@ void CM_transmitFrame(cv::Mat frame, int frameId) {
     // Allocate a buffer for the header and frame data
     uchar* sendBuffer = static_cast<uchar*>(malloc(8 + frameSize));
     if (!sendBuffer) {
-        std::cerr << "Memory allocation failed." << std::endl;
+        LOG(ERROR) << "CM: Failed to allocate memory for UDP (frame)";
         return;
     }
 
@@ -293,7 +339,7 @@ void CM_transmitFrame(cv::Mat frame, int frameId) {
     // Create a UDP socket
     int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sockfd < 0) {
-        perror("Socket creation failed");
+        LOG(ERROR) << "CM: Failed to initialise UDP socket";
         free(sendBuffer);
         return;
     }
@@ -316,10 +362,12 @@ void CM_transmitFrame(cv::Mat frame, int frameId) {
         // Cast uchar* to const char* explicitly for the sendto function
         if (sendto(sockfd, reinterpret_cast<const char*>(dataPtr + i), chunkSize, 0, 
                 (struct sockaddr*)&serverAddress, sizeof(serverAddress)) < 0) {
-            perror("Failed to send data chunk");
+            LOG(ERROR) << "CM: Failed to transmit UDP data chunk";
             break;
         }
     }
+
+    LOG(INFO) << "CM: Sent frame";
 
     // Clean up
     close(sockfd);
@@ -378,7 +426,7 @@ bool CM_serialInterface::ESPOpen() {
     return 0;
 }
 
-void CM_serialInterface::ESPClose(){
+void CM_serialInterface::ESPClose() {
     if (this->open == 1){
         sp_close(this->ESPPort);
         this->open = 0;
@@ -386,7 +434,7 @@ void CM_serialInterface::ESPClose(){
     return;
 }
 
-bool CM_serialInterface::ESPWrite(char* message){
+bool CM_serialInterface::ESPWrite(char* message) {
     if (this->open == 1){
         // Write the message to the serial port
         int bytes_written = sp_blocking_write(this->ESPPort, message, strlen(message), this->timeout);
@@ -399,7 +447,7 @@ bool CM_serialInterface::ESPWrite(char* message){
     return 0;
 }
 
-char* CM_serialInterface::ESPRead(){
+char* CM_serialInterface::ESPRead() {
 
     if (this->open == 1){
         char read_buffer[1];          // Buffer to read one character at a time
@@ -441,7 +489,59 @@ char* CM_serialInterface::ESPRead(){
     return response;
 }
 
+cv::Mat CM_formatCameraFrame(ImageData image) {
 
+    int type;
+    if (image.encoding == "mono8") {
+        type = CV_8UC1;  // 8-bit single-channel (grayscale)
+    } else if (image.encoding == "bgr8") {
+        type = CV_8UC3;  // 8-bit 3-channel (BGR)
+    } else if (image.encoding == "rgb8") {
+        type = CV_8UC3;  // 8-bit 3-channel (RGB)
+    } else if (image.encoding == "mono16") {
+        type = CV_16UC1; // 16-bit single-channel (grayscale)
+    } else {
+        LOG(ERROR) << "CM: Unsupported encoding of camera frame: " << image.encoding;
+        cv::Mat frame;
+        return frame;
+    }
+
+    cv::Mat frame(image.height, image.width, type, const_cast<uint8_t*>(image.data.data()));
+
+    // OpenCV uses BGR, if the input encoding is RGB, we must convert it
+    if (image.encoding == "rgb8") {
+        //cv::cvtColor(frame, frame, cv::COLOR_RGB2BGR);
+    }
+
+    return frame;
+}
+
+cv::Mat CM_formatEventFrame(TrackedFrames image) {
+
+    int type;
+    if (image.encoding == "mono8") {
+        type = CV_8UC1;  // 8-bit single-channel (grayscale)
+    } else if (image.encoding == "bgr8") {
+        type = CV_8UC3;  // 8-bit 3-channel (BGR)
+    } else if (image.encoding == "rgb8") {
+        type = CV_8UC3;  // 8-bit 3-channel (RGB)
+    } else if (image.encoding == "mono16") {
+        type = CV_16UC1; // 16-bit single-channel (grayscale)
+    } else {
+        LOG(ERROR) << "CM: Unsupported encoding of camera frame: " << image.encoding;
+        cv::Mat frame;
+        return frame;
+    }
+
+    cv::Mat frame(image.height, image.width, type, const_cast<uint8_t*>(image.data.data()));
+
+    // OpenCV uses BGR, if the input encoding is RGB, we must convert it
+    if (image.encoding == "rgb8") {
+        //cv::cvtColor(frame, frame, cv::COLOR_RGB2BGR);
+    }
+
+    return frame;
+}
 
 //==============================================================================
 // End of File : Software/src/Communication.cpp

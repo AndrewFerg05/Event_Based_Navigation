@@ -2,6 +2,8 @@ import cv2
 import socket
 import numpy as np
 
+dataprev = []
+
 
 def receiveData(setup):
     if setup == 0:
@@ -19,7 +21,8 @@ def receiveData(setup):
             data_id = int.from_bytes(buffer[:4], byteorder='little')
             data_size = int.from_bytes(buffer[4:8], byteorder='little')
             buffer = buffer[8:]  # Remove the header from the buffer
-            print(f"Receiving data ID: {data_id}, size: {data_size} bytes")
+            
+            #print(f"Receiving data ID: {data_id}, size: {data_size} bytes")
             if data_id > 3:
                 print('Invalid frame')
                 return None
@@ -84,11 +87,14 @@ try:
             print(f"Value 2: {data[3]}")
             print(f"Value 3: {data[4]}")
             print(f"Value 4: {data[5]}")
+            
         elif data_id == 3: #From ESP32
-            print(f"Value 1: {data[2]}")
-            print(f"Value 2: {data[3]}")
-            print(f"Value 3: {data[4]}")
-            print(f"Value 4: {data[5]}")
+            if data != dataprev:
+                print(f"Value 1: {data[2]}")
+                print(f"Value 2: {data[3]}")
+                print(f"Value 3: {data[4]}")
+                print(f"Value 4: {data[5]}")
+                dataprev = data
         else:
             print("No Data Received")
             sleep_ms(200)

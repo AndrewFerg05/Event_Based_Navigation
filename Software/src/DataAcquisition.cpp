@@ -52,6 +52,7 @@ DataAcquisition::~DataAcquisition() {
 }
 
 void DataAcquisition::start() {
+    LOG(INFO) << "DA: Thread started";
     if (acquisition_thread_.joinable()) return;  // Prevent multiple starts
     running_ = true;
     state_ = ThreadState::Run;
@@ -88,7 +89,7 @@ void DataAcquisition::initBuffers()
 
 void DataAcquisition::addImageData()
 {
-
+    // No image processing done here
 }
 
 
@@ -194,14 +195,14 @@ void DataAcquisition::addImuData(const IMUData& imu_data)
     acc_gyr.head<3>() = acc;
     acc_gyr.tail<3>() = gyr;
     //stamp -= timeshift_cam_imu_;
-    imu_buffer_[1].insert(stamp, acc_gyr);
+    // imu_buffer_[0].insert(stamp, acc_gyr);
 
-    if (imu_callback_)
-    {
-        imu_callback_(stamp, acc, gyr);
-    }
+    // if (imu_callback_)
+    // {
+    //     imu_callback_(stamp, acc, gyr);
+    // }
 
-    checkImuDataAndCallback();
+    // checkImuDataAndCallback();
 }
 
 bool DataAcquisition::processDataQueues()
@@ -210,21 +211,28 @@ bool DataAcquisition::processDataQueues()
 
         auto imu_data = input_data_queues_->imu_queue->pop();
         if (imu_data.has_value()) {
+            LOG(INFO) << "DA: IMU first data " << std::to_string(imu_data.value().angular_velocity.x);
             addImuData(imu_data.value());
             processed = true;
         }
+        // LOG(INFO) << "DA: IMU Queue Processed";
 
         auto event_data = input_data_queues_->event_queue->pop();
         if (event_data.has_value()) {
+            LOG(INFO) << "DA: Event height " << std::to_string(event_data.value().height);
             addEventsData(event_data.value());
             processed = true;
         }
+        // LOG(INFO) << "DA: Event Queue Processed";
 
         auto image_data = input_data_queues_->image_queue->pop();
         if (image_data) {
-            addImageData();
+            addImageData();     // Does no processing
+            LOG(INFO) << "DA: Received frame with encoding: " << image_data.value().encoding;
+            comms_interface_->queueFrameData(image_data.value());
             processed = true;
         }
+
         return processed;
 
 }
@@ -414,17 +422,16 @@ void DataAcquisition::run()
 
         if (state_ == ThreadState::Stop) 
         {
-            running_ = false;
             break;
         }
 
-        if (state_ ==ThreadState::Run)
+        if (state_ == ThreadState::Run)
         {
             if (!processDataQueues()) 
             {
-                sleep_ms(1);  // No data, sleep briefly
+                LOG(INFO) << "DA: No data in queues";
+                sleep_ms(10);
             }
-
         }
     }
 }

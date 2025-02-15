@@ -42,8 +42,10 @@ Change History
 
 #include <libserialport.h>
 
+#include "DataAcquisition.hpp"
 #include "ThreadInterface.hpp"
 #include "TypeAliases.hpp"
+#include "Types.hpp"
 #include "Logging.hpp"
 //==============================================================================
 //      Classes
@@ -68,6 +70,10 @@ class CM_serialInterface{
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------
+cv::Mat CM_formatCameraFrame(ImageData image);
+
+cv::Mat CM_formatEventFrame(TrackedFrames image);
+
 int CM_initNet();
 
 void CM_cleanupNet();
@@ -83,6 +89,7 @@ void CM_loop(
     std::atomic<ThreadState>& frontend_state,
     std::atomic<ThreadState>& backend_state,
     ThreadSafeFIFO<InputDataSync>* data_DA,
+    DataAcquisition* dataAcquistion_,
     std::shared_ptr<CommunicationManager> comms,
     CM_serialInterface* serial);
 

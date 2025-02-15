@@ -200,7 +200,7 @@ void DavisDriver::caerConnect()
 
         if (!device_is_running) {
             LOG(ERROR) << "Driver: Could not find DAVIS. Retrying every second...";
-            sleep_us(500);  // Wait before retrying
+            sleep_ms(500);  // Wait before retrying
         }
 
         // Exit if the driver is manually stopped (replace with actual stopping condition)
@@ -208,6 +208,8 @@ void DavisDriver::caerConnect()
             LOG(WARNING) << "Driver: Driver stopped. Exiting startup loop.";
             return;
         }
+
+        break;  //for testing
     }
 
     std::cout << "Out of while loop" << std::endl;
@@ -235,8 +237,10 @@ void DavisDriver::caerConnect()
     running_ = true; // Check this Runs
 
     //parameter_thread_ = std::thread(&DavisDriver::changeDvsParameters, this); //Add while loop back into function if calling in other thread
-    changeDvsParameters(); // Might not need to run in other thread if not dynamicall configuring 
+    // changeDvsParameters(); // Might not need to run in other thread if not dynamicall configuring 
     readout_thread_ = std::thread(&DavisDriver::readout, this);
+
+    LOG(WARNING) << "Thread started";
 
     sleep_ms(500);
 
@@ -330,6 +334,8 @@ void DavisDriver::readout()
             }
             int32_t packetNum = caerEventPacketContainerGetEventPacketsNumber(packetContainer);
 
+            LOG(WARNING) << "Driver: Event packet arrived";
+
             for (int32_t i = 0; i < packetNum; i++)
             {
                 caerEventPacketHeader packetHeader = caerEventPacketContainerGetEventPacket(packetContainer, i);
@@ -346,8 +352,6 @@ void DavisDriver::readout()
                     {
                         event_array_msg = std::make_shared<EventData>(davis_info_.dvsSizeX, davis_info_.dvsSizeY);
                     }
-                    
-
                     caerPolarityEventPacket polarity = (caerPolarityEventPacket) packetHeader;
                     const int numEvents = caerEventPacketHeaderGetEventNumber(packetHeader);
                 
@@ -355,6 +359,7 @@ void DavisDriver::readout()
                     {
                         // Get full timestamp and addresses of first event.
                         caerPolarityEvent event = caerPolarityEventPacketGetEvent(polarity, j);
+
                         Event e(
                         caerPolarityEventGetX(event),
                         caerPolarityEventGetY(event),
@@ -481,6 +486,7 @@ void DavisDriver::readout()
                     // time
                     image_data_.header.stamp = caerFrameEventGetTimestamp64(event, frame) * 1000;
 
+                    LOG(INFO) << "Driver: Got frame, pushing to queue";
                     data_queues_->image_queue->push(image_data_);
 
                     const int32_t exposure_time_microseconds = caerFrameEventGetExposureLength(event);

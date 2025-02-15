@@ -130,7 +130,6 @@ using ImuCallback =
 //------------------------------------------------------------------------------
 // Testing Types - Will be Changed
 using InputDataSync = uint8_t;
-using TrackedFrames = uint8_t;
 using OtherData = uint8_t;
 using CameraInfoData = uint16_t;
 using ExposureData = uint16_t;

@@ -155,7 +155,7 @@ public:
 class CommunicationManager {
 private:
     // Queues for different data types
-    ThreadSafeFIFO<InputDataSync> from_camera;
+    ThreadSafeFIFO<ImageData> from_camera;
     ThreadSafeFIFO<TrackedFrames> from_frontend;
     ThreadSafeFIFO<OtherData> from_backend;
 public:
@@ -168,18 +168,14 @@ public:
     ~CommunicationManager() = default;
 
     //Check queues and send data
-    bool processQueues();
+    ImageData getFrameData();
+    TrackedFrames getTrackedFrameData();
+    OtherData getOtherData();
 
     // Add data to send queue
-    void queueInputData(InputDataSync data);
+    void queueFrameData(ImageData data);
     void queueTrackedFrameData(TrackedFrames data);
     void queueOther(OtherData data);
-
-    template<typename T>
-    void sendToExternal(const T& data) {
-        //TODO send them externally - generic with template - templates function definitions have to go in hpp
-        //std::cout << "Sending data externally: " << typeid(T).name() << std::endl;
-    }
 };
 //==============================================================================
 //      Function Prototypes

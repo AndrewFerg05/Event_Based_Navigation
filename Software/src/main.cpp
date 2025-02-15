@@ -57,10 +57,11 @@ CM - Communication
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[]) 
 {
-    initLogging(argv[0]);
+    static AlignedLogSink sink;
+    initLogging(argv[0], &sink);
 
 
-    size_t input_queue_size = 10; //Actually manually set in constructor
+    size_t input_queue_size = 100; //Actually manually set in constructor
     auto data_queues = std::make_shared<DataQueues>(input_queue_size);
     std::string config_path = "../config/blank_config.yaml";
     DavisDriver driver(config_path, data_queues);   //Starts driver to add data to input queues
@@ -73,7 +74,7 @@ int main(int argc, char* argv[])
     std::atomic<ThreadState> backend_state(ThreadState::Idle);
 
     //Create data interfaces
-    size_t test_queue_capacity = 10;
+    size_t test_queue_capacity = 100;
     ThreadSafeFIFO<InputDataSync> data_DA_to_FE(test_queue_capacity, "Sync_data", true);
     
     std::shared_ptr<CommunicationManager> comms_interface = std::make_shared<CommunicationManager>(test_queue_capacity, test_queue_capacity, test_queue_capacity);
@@ -103,27 +104,28 @@ int main(int argc, char* argv[])
     }
  
     // Start threads
-    // std::thread data_aquire_thread(DA_loop, std::ref(data_aquire_state), &data_DA_to_FE, &comms_interface);
-    // std::thread frontend_thread(FE_loop, std::ref(frontend_state), &data_DA_to_FE, &comms_interface);
-    // std::thread backend_thread(BE_loop, std::ref(backend_state), &comms_interface);
+    DataAcquisition DataAquistion_(data_queues, std::ref(data_aquire_state), comms_interface);
+    //std::thread frontend_thread(FE_loop, std::ref(frontend_state), &data_DA_to_FE, &comms_interface);
+    //std::thread backend_thread(BE_loop, std::ref(backend_state), &comms_interface);
     
     // Start this thread
     CM_loop(std::ref(data_aquire_state), 
             std::ref(frontend_state), 
             std::ref(backend_state),
             &data_DA_to_FE,
+            &DataAquistion_,
             comms_interface,
             &serial);
 
     LOG(INFO) << "MAIN: CM Thread Ended";
 
     // Wait for other threads to exit
-    // data_aquire_thread.join();
-    // std::cout << "DA Thread Ended" << std::endl;
+    DataAquistion_.stop();
+    LOG(INFO) << "MAIN: DA Thread Ended";
     // frontend_thread.join();
-    // std::cout << "FE Thread Ended" << std::endl;
+    LOG(INFO) << "MAIN: FE Thread Ended";
     // backend_thread.join();
-    // std::cout << "BE Thread Ended" << std::endl;
+    LOG(INFO) << "MAIN: BE Thread Ended";
 
     // // Perform cleanup
     LOG(INFO) << "MAIN: Cleaning up...";
@@ -137,6 +139,8 @@ int main(int argc, char* argv[])
     LOG(INFO) << "MAIN: Serial closed";
 
     LOG(INFO) << "MAIN: Program ended";
+
+    endLogging(&sink);
 
     return 0;
 }

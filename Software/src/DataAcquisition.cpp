@@ -472,9 +472,30 @@ void DataAcquisition::checkSynch()
     extractAndEraseEvents(t1, FLAGS_data_size_augmented_event_packet,
                             &event_buffer_, &event_array);
     
+    // Let's process the callback.
+    if(image_events_imu_callback_)
+    {
+        image_events_imu_callback_(sync_image_ready_to_process_, event_array,
+            imu_timestamp, imu_measurement,
+            no_motion_prior_for_backend_);
+    }
+        
+    // Reset Buffer:
+    for (size_t i = 0; i <= image_buffer_.size(); ++i)
+    {
+        ImageBufferItem& item = image_buffer_[i];
+        if (std::abs(sync_img_ready_to_process_stamp_ - item.stamp)
+            < c_camera_bundle_time_accuracy_ns)
+        {
+            item.reset();
+        }
+    }
 
+    last_img_bundle_min_stamp_ = sync_img_ready_to_process_stamp_;
+    sync_img_ready_to_process_stamp_ = -1;
+    sync_image_ready_to_process_.first = -1;
+    sync_image_ready_to_process_.second.reset();
 
-  
 }
 
 bool DataAcquisition::validateImuBuffer(

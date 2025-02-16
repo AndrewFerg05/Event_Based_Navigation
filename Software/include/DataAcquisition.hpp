@@ -54,10 +54,12 @@ class DataAcquisition {
     using ImageBuffer = std::vector<ImageBufferItem>;
 
 
-    using SynchronizedEventsImuCallback =
-            std::function<void (const StampedEventArray& /*event_arrays*/,
-                      const ImuStampsVector& /*imu_timestamps*/,
-                      const ImuAccGyrVector& /*imu_measurements*/)>;
+    using SynchronizedImageEventsImuCallback =
+    std::function<void (const StampedImage&    /*image*/,
+                        const StampedEventArray& /*event_arrays*/,
+                        const ImuStamps& /*imu_timestamps*/,
+                        const ImuAccGyrContainer& /*imu_measurements*/,
+                        const bool& no_motion_prior)>;
 
 
 public:
@@ -80,9 +82,9 @@ public:
         imu_callback_ = imu_callback;
     }
 
-    void registerCameraImuCallback(const SynchronizedEventsImuCallback& callback)
+    void registerCameraImuCallback(const SynchronizedImageEventsImuCallback& callback)
     {
-        events_imu_callback_ = callback;
+        image_events_imu_callback_ = callback;
     }
  
 
@@ -101,7 +103,7 @@ private:
         int max_num_events_in_packet,
         EventBuffer* event_buffer,
         StampedEventArray* event_array);
-        
+
     void checkSynch();
     bool validateImuBuffer(
         const int64_t& min_stamp,
@@ -131,12 +133,15 @@ private:
 
     //! Count number of synchronized frames.
     int sync_frame_count_  { 0 };
+    
+    static constexpr real_t c_camera_bundle_time_accuracy_ns = millisecToNanosec(2.0);
 
 
 
 protected:
     ImuCallback imu_callback_;
-    SynchronizedEventsImuCallback events_imu_callback_;
+    SynchronizedImageEventsImuCallback image_events_imu_callback_;
+    bool no_motion_prior_for_backend_; //Can remove if used later
 
 };
 

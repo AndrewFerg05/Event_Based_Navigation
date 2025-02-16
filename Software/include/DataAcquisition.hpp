@@ -23,6 +23,7 @@ Change History
 #include "Flags.hpp"
 #include "RingBuffer.hpp"
 #include <opencv2/opencv.hpp>
+#include "egg_timer.hpp"
 
 
 //==============================================================================
@@ -90,18 +91,22 @@ private:
     std::thread acquisition_thread_;
     std::shared_ptr<DataQueues> input_data_queues_;
     std::shared_ptr<CommunicationManager> comms_interface_;
-    bool running_;
+    std::atomic<bool> running_{false};
 
     void run();
     bool processDataQueues();
     void resetQueues();
-    void extractAndEraseEvents();
+    void extractAndEraseEvents(
+        const int64_t& t1,
+        int max_num_events_in_packet,
+        EventBuffer* event_buffer,
+        StampedEventArray* event_array);
+        
     void checkSynch();
-    bool validateImuBuffers(
+    bool validateImuBuffer(
         const int64_t& min_stamp,
         const int64_t& max_stamp,
-        const std::vector<std::tuple<int64_t, int64_t, bool> >&
-        oldest_newest_stamp_vector);
+        const std::tuple<int64_t, int64_t, bool>& oldest_newest_stamp);
 
     ImuSyncBuffer imu_buffer_;
     EventBuffer event_buffer_;
@@ -118,6 +123,9 @@ private:
     size_t last_package_ev_;
   
     int64_t last_event_package_broadcast_stamp_ { -1 };
+
+    //! Stamp of previous synchronized image bundle.
+    int64_t last_img_bundle_min_stamp_ { -1 };
 
     int64_t timeshift_cam_imu_;
 

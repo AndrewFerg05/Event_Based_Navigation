@@ -96,7 +96,9 @@ void DataAcquisition::start() {
 }
 
 void DataAcquisition::idle() {
-    LOG(INFO) << "DA: Resetting queues and entering idle mode...";
+    LOG(INFO) << "DA: Data Acquisition setting to idle...";
+    state_ = ThreadState::Idle;
+    sleep_ms(10);
     resetQueues();
     imu_buffer_.clear();
     event_buffer_.clear();
@@ -104,7 +106,8 @@ void DataAcquisition::idle() {
     cur_ev_ = 0;
     last_package_stamp_ = -1;
     last_package_ev_ = 0;
-    state_ = ThreadState::Idle;
+    LOG(INFO) << "DA: Data Acquisition idled successfully!";
+
 }
 
 void DataAcquisition::stop() {
@@ -296,68 +299,213 @@ void DataAcquisition::resetQueues()
     LOG(INFO) << "DA: All queues cleared";
 }
 
-void DataAcquisition::extractAndEraseEvents()
+void DataAcquisition::extractAndEraseEvents(
+    const int64_t& t1,
+    int max_num_events_in_packet,
+    EventBuffer* event_buffer,
+    StampedEventArray* event_array)
 {
+    CHECK_NOTNULL(event_buffer);
+    CHECK_NOTNULL(event_array);
 
+    event_array->second = std::make_shared<EventArray>();
+
+      // Check that the event buffer is not empty.
+  if (event_buffer->empty()) {
+    LOG(WARNING) << "Event buffer is empty.";
+    // Fill with empty events.
+    event_array->first = t1;
+    CHECK(event_array->second->empty()) << "Event array vector should be empty";
+    return;
+  }
+
+    // Fill the event array with a fixed number of events.
+    event_array->second->resize((uint32_t)max_num_events_in_packet);
+    size_t num_stored_events = 0;
+
+    for (int i = event_buffer->size() - 1; i >= 0; i--) {
+        const Event& event (event_buffer->at(i));
+        const int64_t& cur_stamp (event.timestamp_ns);
+        // Don't use the most recent events as they will be used in the next call.
+        // Can be improved by doing a binary search instead...
+        if (cur_stamp > t1) 
+        {
+            continue;
+        }
+
+        // Store all events that come before t1 until we reach the limit of events
+        // in array or there are no more events in buffer.
+        if (num_stored_events < (uint32_t)max_num_events_in_packet && i != 0) 
+        {
+            // Store them in order, first the oldest event, last the most recent.
+            // So no push back.
+            event_array->second->at((uint32_t)max_num_events_in_packet - 1 - num_stored_events) =
+                event;
+            num_stored_events++;
+        }
+
+        else 
+        {
+            // If we got here because there are no more events in the buffer, but
+            // we did not reach the maximum size of events in the event array,
+            // add the last event and skip.
+            if (num_stored_events == (uint32_t)max_num_events_in_packet) 
+            {
+                if (i == 0) 
+                {
+                    // Do nothing, buffer empty, and event_array full.
+                    break;
+                } 
+                else 
+                {
+                    // Buffer still with old values, event_array full.
+                    // Clean old values.
+                    event_buffer->erase(event_buffer->begin(), event_buffer->begin() + i);
+                }
+            } 
+            else 
+            {
+                // Here i has to be equal to 0.
+                // Therefore, the buffer is empty, but we did not completely
+                // fill the event_array.
+                event_array->second->at((uint32_t)max_num_events_in_packet - 1 - num_stored_events) = event;
+                num_stored_events++;
+                // Clear non-used space.
+                event_array->second->erase(event_array->second->begin(),
+                                          event_array->second->end()
+                                          - num_stored_events);
+            }
+            break;
+          }
+    }
+
+    // Use the last timestamp as stamp for the event_array.
+    event_array->first = t1;
 }
 
 void DataAcquisition::checkSynch()
 {
+    if (sync_img_ready_to_process_stamp_ < 0)
+    {
+      return; // Images are not synced yet.
+    }
 
+    // always provide imu structures in the callback (empty if no imu present)
+    ImuStamps imu_timestamp;
+    ImuAccGyrContainer imu_measurement;
+
+    // Store oldest and newest IMU stamps
+    std::tuple<int64_t, int64_t, bool> oldest_newest_stamp = imu_buffer_.getOldestAndNewestStamp();
+
+    // imu buffers are not consistent with the image buffers
+    // or the imu buffer is not filled until the image stamp, return.
+    // This ensures we collect all IMU data before timestamp of the image.
+    if (!validateImuBuffer(sync_img_ready_to_process_stamp_,
+        sync_img_ready_to_process_stamp_,
+        oldest_newest_stamp))
+    {
+    return;
+    }
+
+    // If this is the very first image bundle, we send all IMU messages that we have
+    // received so far. For every later image bundle, we just send the IMU messages
+    // that we have received in between.
+    if (last_img_bundle_min_stamp_ < 0)
+    {
+        int64_t oldest_stamp = std::get<0>(oldest_newest_stamp);
+        std::tie(imu_timestamp, imu_measurement) =
+            imu_buffer_.getBetweenValuesInterpolated(
+                oldest_stamp,
+                sync_img_ready_to_process_stamp_);
+    }
+    else
+    {
+        std::tie(imu_timestamp, imu_measurement) =
+            imu_buffer_.getBetweenValuesInterpolated(
+                last_img_bundle_min_stamp_,
+                sync_img_ready_to_process_stamp_);
+    }
+
+    // We should do this only when we come from the addEventsData...
+    // Check that we have all events until the timestamp given by the image.
+    // If not return, and wait until the event buffer is filled until this
+    // timestamp.
+    StampedEventArray event_array;
+    static constexpr uint64_t kCollectEventsTimeoutNs = 100000u;
+    static EggTimer timer (kCollectEventsTimeoutNs);
+    static bool start_timer = true;
+    const int64_t& last_event_timestamp = static_cast<int64_t>(event_buffer_.back().timestamp_ns);
+
+    if(sync_img_ready_to_process_stamp_ > last_event_timestamp) 
+    {
+        if (start_timer) 
+        {
+            start_timer = false;
+            timer.reset();
+        }
+    
+        if (!timer.finished()) 
+        {
+            VLOG(2) << "Trying to collect events until image timestamp.\n"
+            << "Current image timestamp is: "
+            << sync_img_ready_to_process_stamp_ << '\n'
+            << "Last event timestamp is: "
+            << static_cast<int64_t>(event_buffer_.back().timestamp_ns) << '\n'
+            << "Image timestamp - Last event timestamp = "
+            << sync_img_ready_to_process_stamp_ - last_event_timestamp;
+            return;
+        } 
+        else 
+        {
+            VLOG(2) << "Collect Events Timeout reached: "
+                    << "processing current packet.";
+            start_timer = true;
+        }
+    } 
+    else 
+    {
+        start_timer = true;
+    }
+
+    // Get Events data between frames, similar to IMU sync above.
+    int64_t t1 = sync_img_ready_to_process_stamp_;
+    extractAndEraseEvents(t1, FLAGS_data_size_augmented_event_packet,
+                            &event_buffer_, &event_array);
+    
+
+
+  
 }
 
-bool DataAcquisition::validateImuBuffers(
+bool DataAcquisition::validateImuBuffer(
     const int64_t& min_stamp,
     const int64_t& max_stamp,
-    const std::vector<std::tuple<int64_t, int64_t, bool> >&
-    oldest_newest_stamp_vector)
+    const std::tuple<int64_t, int64_t, bool>& oldest_newest_stamp)
 {
-    // Check if we have received some IMU measurements for at least one of the imu's.
-    if (std::none_of(oldest_newest_stamp_vector.begin(),
-                    oldest_newest_stamp_vector.end(),
-                    [](const std::tuple<int64_t, int64_t, bool>& oldest_newest_stamp)
-                    {
-                        if (std::get<2>(oldest_newest_stamp))
-                        {
-                            return true;
-                        }
-                            return false;
-                    }))        
+    // Check if we have received IMU measurements
+    if (!std::get<2>(oldest_newest_stamp))
     {
-    return false;
-    }
-
-    // At least one IMU measurements before image
-    if (std::none_of(oldest_newest_stamp_vector.begin(),
-                    oldest_newest_stamp_vector.end(),
-                    [&min_stamp](const std::tuple<int64_t, int64_t, bool>& oldest_newest_stamp)
-                    {
-                        if (std::get<0>(oldest_newest_stamp) < min_stamp) {
-                            return true;
-                        }
-                    return false;
-                    }))
-    {
-    return false;
-    }
-
-    // At least one IMU measurements after image
-    if (std::none_of(oldest_newest_stamp_vector.begin(),
-                    oldest_newest_stamp_vector.end(),
-                    [&max_stamp](const std::tuple<int64_t, int64_t, bool>& oldest_newest_stamp) 
-                    {
-                        if (std::get<1>(oldest_newest_stamp) > max_stamp)
-                        {
-                            return true;
-                        }
-                    return false;
-                    }))
-    {
+        LOG(WARNING) << "Received all images but no IMU measurements!";
         return false;
     }
-    
+
+    // Check if at least one IMU measurement exists before the image timestamp
+    if (std::get<0>(oldest_newest_stamp) >= min_stamp)
+    {
+        LOG(WARNING) << "Oldest IMU measurement is newer than image timestamp.";
+        return false;
+    }
+
+    // Check if at least one IMU measurement exists after the image timestamp
+    if (std::get<1>(oldest_newest_stamp) <= max_stamp)
+    {
+        VLOG(100) << "Waiting for IMU measurements.";
+        return false;
+    }
+
     return true;
 }
+
 
 void DataAcquisition::run() 
 {

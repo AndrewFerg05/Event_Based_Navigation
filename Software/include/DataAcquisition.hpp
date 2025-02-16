@@ -52,6 +52,11 @@ class DataAcquisition
     };
     using ImageBuffer = std::vector<ImageBufferItem>;
 
+    using ImuCallback =
+    std::function<void (int64_t /*timestamp*/,
+                        const Vector3& /*acc*/,
+                        const Vector3& /*gyr*/)>;
+
     using SynchronizedImageEventsImuCallback =
     std::function<void (const StampedImage&    /*image*/,
                         const StampedEventArray& /*event_arrays*/,

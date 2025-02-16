@@ -33,51 +33,40 @@ Change History
 //==============================================================================
 // Functions
 //------------------------------------------------------------------------------
-void FE_loop(std::atomic<ThreadState>& state,
-                    ThreadSafeFIFO<InputDataSync>* data_DA,
-                    CommunicationManager* comms) {
-    
-    int bufferSize = 0;
-    int readData = 0;
-    int processedData = 0;
+FrontEnd::FrontEnd(std::shared_ptr<CommunicationManager> comms)
+    : comms_interface_(comms)
+    {}
 
-    // while (true) {
-    //     if (state == ThreadState::Stopped) {
-    //         break;
-    //     }
 
-    //     if (state == ThreadState::Paused) {
-    //         //TODO - Wait while some condition
-    //         sleep_ms(100);
-    //         continue;
-    //     }
+void FrontEnd::start()
+{
 
-    //     if (state == ThreadState::Reset) {
-    //         //TODO call reset function then set running again
-    //         state = ThreadState::Running; 
-    //     }
-
-    //     if (state == ThreadState::Running) {
-            
-    //         //TODO
-    //         // Check buffer can be read
-    //         auto item_DA = data_DA->pop(); // Get data from queue
-    //         if (item_DA.has_value()) {
-    //             comms->queueTrackedFrameData(item_DA.value());
-    //             sleep_ms(30);
-    //         } else {
-    //             std::cout << "Queue returned no value (stopped or empty)." << std::endl;
-    //             sleep_ms(10);
-    //         }
-    //     }
-
-    //     if (state == ThreadState::Test) {
-    //         sleep_ms(100);
-    //         std::cout << "Frontend Testing" << std::endl; 
-    //     }
-    // }
 }
 
+void FrontEnd::idle()
+{
+    
+}
 
+void FrontEnd::stop()
+{
+    
+}
+
+void FrontEnd::addData(
+    const StampedImage&    /*image*/,
+    const StampedEventArray& /*event_arrays*/,
+    const ImuStamps& /*imu_timestamps*/,
+    const ImuAccGyrContainer& /*imu_measurements*/,
+    const bool& no_motion_prior)
+{
+    std::cout << "Add data" << std::endl; 
+}
+
+void FrontEnd::addImuData(
+    int64_t stamp, const Vector3& acc, const Vector3& gyr)
+{
+    std::cout << "Add IMU" << std::endl;
+}
 //==============================================================================
 // End of File : Software/src/DataAcquisition.cpp

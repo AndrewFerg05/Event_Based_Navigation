@@ -24,15 +24,33 @@ Change History
 //==============================================================================
 //      Classes
 //------------------------------------------------------------------------------
+class FrontEnd
+{
+    public:
+    explicit FrontEnd(
+        std::shared_ptr<CommunicationManager> comms);
+    ~FrontEnd() = default;
+    void start();
+    void stop();
+    void idle();
+    void addData(
+        const StampedImage& ,
+        const StampedEventArray&,
+        const ImuStamps&,
+        const ImuAccGyrContainer&,
+        const bool& no_motion_prior);
+    void addImuData(
+        int64_t stamp,
+        const Vector3& acc, 
+        const Vector3& gyr);
 
+    private:
+    std::shared_ptr<CommunicationManager> comms_interface_;
+};
 
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------
-void FE_loop(std::atomic<ThreadState>& state,
-                    ThreadSafeFIFO<InputDataSync>* data_DA,
-                    CommunicationManager* comms);
-
 
 
 

@@ -508,7 +508,8 @@ bool DataAcquisition::processDataQueues()
 
 }
 
-void DataAcquisition::run() {
+void DataAcquisition::run() 
+{
     while (running_) {
         switch (state_) {
             case ThreadState::Idle:

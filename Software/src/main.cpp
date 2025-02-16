@@ -104,6 +104,31 @@ int main(int argc, char* argv[])
  
     // Start threads
     std::shared_ptr<DataAcquisition> DataAquistion_ = std::make_shared<DataAcquisition>(data_queues, comms_interface);
+
+    std::shared_ptr<FrontEnd> FrontEnd_ = std::make_shared<FrontEnd>(comms_interface);
+
+    DataAquistion_->registerCameraImuCallback(
+        std::bind(
+          static_cast<void(FrontEnd::*)(
+            const StampedImage&    /*image*/,
+            const std::pair<int64_t, EventArrayPtr>& stamped_events,
+            const ImuStamps& imu_stamps,
+            const ImuAccGyrContainer& imu_accgyr,
+            const bool& no_motion_prior
+            )>(&FrontEnd::addData),
+            FrontEnd_.get(),
+          std::placeholders::_1,
+          std::placeholders::_2,
+          std::placeholders::_3,
+          std::placeholders::_4,
+          std::placeholders::_5));
+
+    DataAquistion_->registerImuCallback(
+        std::bind(&FrontEnd::addImuData, FrontEnd_.get(),
+                std::placeholders::_1, std::placeholders::_2,
+                std::placeholders::_3));
+
+
     driver->start();
     DataAquistion_->start();
 

@@ -1,13 +1,11 @@
 /*
 Filename    : Software/include/DataAcquisition.hpp
-Author      : Samuel Kliskey
+Author      : Andrew Ferguson
 Project     : Event Based Navigation
 Date        : 11/1/25
 Description : Header file for the DataAcquisition (DA) thread
 --------------------------------------------------------------------------------
 Change History
---------------------------------------------------------------------------------
-11-JAN-2025 SARK created to design code structure
 --------------------------------------------------------------------------------
 */
 

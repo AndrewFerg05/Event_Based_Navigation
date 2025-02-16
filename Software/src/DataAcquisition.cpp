@@ -1,13 +1,11 @@
 /*
 Filename    : Software/src/DataAcquisition.cpp
-Author      : Samuel Kliskey
+Author      : Andrew Ferguson
 Project     : Event Based Navigation
 Date        : 11/1/25
 Description : Data Acquisition code for getting DAVIS346 camera data
 --------------------------------------------------------------------------------
 Change History
---------------------------------------------------------------------------------
-11-JAN-2025 SARK created to design code structure
 --------------------------------------------------------------------------------
 */
 
@@ -530,8 +528,6 @@ void DataAcquisition::run() {
         }
     }
 }
-
-
 
 
 //==============================================================================

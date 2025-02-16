@@ -70,7 +70,7 @@ void showImage(const ImageData& imgData) {
 
 
 DataAcquisition::DataAcquisition(std::shared_ptr<DataQueues> data_queues, std::shared_ptr<CommunicationManager> comms)
-    : input_data_queues_(data_queues), comms_interface_(comms) 
+    : input_data_queues_(data_queues), comms_interface_(comms), timeshift_cam_imu_(FLAGS_timeshift_cam_imu) 
     {
         cur_ev_ = 0;
         last_package_stamp_ = -1;
@@ -120,9 +120,15 @@ void DataAcquisition::initBuffers()
     event_buffer_.clear(); 
 }
 
-void DataAcquisition::addImageData()
+void DataAcquisition::addImageData(const ImageData& image_data)
 {
-    // No image processing done here
+    // Extract deep copy of image_data
+    ImageData img = image_data;
+    int64_t stamp = image_data.header.stamp;
+
+    // Correct for timestamp delay between IMU and Frames.
+    stamp += timeshift_cam_imu_;
+
 }
 
 void DataAcquisition::addEventsData(const EventData& event_data)
@@ -194,7 +200,7 @@ bool DataAcquisition::processDataQueues()
         auto image_data = input_data_queues_->image_queue->pop();
         if (image_data) {
             showImage(image_data.value());
-            addImageData();
+            addImageData(image_data.value());
             processed = true;
         }
 

@@ -20,6 +20,7 @@ Change History
 #include "ThreadInterface.hpp"
 #include "TypeAliases.hpp"
 #include "Types.hpp"
+#include "Flags.hpp"
 #include "RingBuffer.hpp"
 #include <opencv2/opencv.hpp>
 
@@ -27,7 +28,21 @@ Change History
 //==============================================================================
 //      Classes
 //------------------------------------------------------------------------------
+struct ImageBufferItem
+{
+  int64_t stamp    		    { -1 };
+  ImageBasePtr img     { nullptr };
+  inline bool empty()
+  {
+    return stamp == -1;
+  }
 
+  inline void reset()
+  {
+    stamp = -1;
+    img.reset();
+  }
+};
 
 class DataAcquisition {
     using ImuSyncBuffer = Ringbuffer<real_t, 6, 1000>;
@@ -52,7 +67,7 @@ public:
     void idle();   
     void stop();
     void initBuffers();
-    void addImageData();
+    void addImageData(const ImageData& image_data);
     void addEventsData(const EventData& event_data);
     void addImuData(const IMUData& imu_data);
 ;
@@ -97,7 +112,7 @@ private:
   
     int64_t last_event_package_broadcast_stamp_ { -1 };
 
-
+    int64_t timeshift_cam_imu_;
 protected:
     ImuCallback imu_callback_;
     SynchronizedEventsImuCallback events_imu_callback_;

@@ -127,7 +127,22 @@ void DataAcquisition::addImageData()
 
 void DataAcquisition::addEventsData(const EventData& event_data)
 {
- 
+    // If no events in packet return
+    if(event_data.events.empty())
+        return;
+
+    // Add events to array
+    EventArrayPtr events = std::make_shared<EventArray>();
+    for(auto& e : event_data.events)
+        events->push_back(e);
+
+    VLOG(1000) << event_data.events[0].timestamp_ns;
+
+    // Store event packet info in queue
+    event_buffer_.insert(event_buffer_.end(), events->begin(), events->end());
+
+    checkSynch();
+
 }
 
 void DataAcquisition::addImuData(const IMUData& imu_data)
@@ -212,7 +227,7 @@ void DataAcquisition::extractAndEraseEvents()
 
 void DataAcquisition::checkSynch()
 {
-    
+
 }
 
 bool DataAcquisition::validateImuBuffers(

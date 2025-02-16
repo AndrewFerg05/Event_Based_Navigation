@@ -69,8 +69,8 @@ void showImage(const ImageData& imgData) {
 }
 
 
-DataAcquisition::DataAcquisition(std::shared_ptr<DataQueues> data_queues, std::atomic<ThreadState>& state, std::shared_ptr<CommunicationManager> comms)
-    : input_data_queues_(data_queues), state_(state), comms_interface_(comms) 
+DataAcquisition::DataAcquisition(std::shared_ptr<DataQueues> data_queues, std::shared_ptr<CommunicationManager> comms)
+    : input_data_queues_(data_queues), comms_interface_(comms) 
     {
         cur_ev_ = 0;
         last_package_stamp_ = -1;
@@ -120,7 +120,6 @@ void DataAcquisition::initBuffers()
     event_buffer_.clear(); 
 }
 
-
 void DataAcquisition::addImageData()
 {
     // No image processing done here
@@ -133,28 +132,32 @@ void DataAcquisition::addEventsData(const EventData& event_data)
 
 void DataAcquisition::addImuData(const IMUData& imu_data)
 {
-    // const Vector3 gyr(
-    // imu_data.angular_velocity.x,
-    // imu_data.angular_velocity.y,
-    // imu_data.angular_velocity.z);
-    // const Vector3 acc(
-    // imu_data.linear_acceleration.x,
-    // imu_data.linear_acceleration.y,
-    // imu_data.linear_acceleration.z);
-    // int64_t stamp = imu_data.header.stamp;
+    // Extract IMU data from queue
+    const Vector3 gyr(
+    imu_data.angular_velocity.x,
+    imu_data.angular_velocity.y,
+    imu_data.angular_velocity.z);
+    const Vector3 acc(
+    imu_data.linear_acceleration.x,
+    imu_data.linear_acceleration.y,
+    imu_data.linear_acceleration.z);
+    int64_t stamp = imu_data.header.stamp;
 
-    // Vector6 acc_gyr;
-    // acc_gyr.head<3>() = acc;
-    // acc_gyr.tail<3>() = gyr;
-    //stamp -= timeshift_cam_imu_;
-    // imu_buffer_[0].insert(stamp, acc_gyr);
+    Vector6 acc_gyr;
+    acc_gyr.head<3>() = acc;
+    acc_gyr.tail<3>() = gyr;
 
-    // if (imu_callback_)
-    // {
-    //     imu_callback_(stamp, acc, gyr);
-    // }
+    // Add to circular buffer
+    imu_buffer_.insert(stamp, acc_gyr);
 
-    // checkImuDataAndCallback();
+    if (imu_callback_)
+    {
+        // Add IMU data to VIO frontend directly
+        imu_callback_(stamp, acc, gyr);
+    }
+
+    // Check if we have enough data
+    checkSynch();
 }
 
 bool DataAcquisition::processDataQueues()
@@ -207,11 +210,10 @@ void DataAcquisition::extractAndEraseEvents()
 
 }
 
-void DataAcquisition::checkImuDataAndCallback()
+void DataAcquisition::checkSynch()
 {
-  
+    
 }
-
 
 bool DataAcquisition::validateImuBuffers(
     const int64_t& min_stamp,

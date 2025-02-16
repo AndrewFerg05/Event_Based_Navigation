@@ -33,7 +33,7 @@ class DataAcquisition {
     using ImuSyncBuffer = Ringbuffer<real_t, 6, 1000>;
     using ImuStampsVector = std::vector<ImuStamps>;
     using ImuAccGyrVector = std::vector<ImuAccGyrContainer>;
-    using ImuBufferVector = std::vector<ImuSyncBuffer>;
+
 
     using SynchronizedEventsImuCallback =
             std::function<void (const StampedEventArray& /*event_arrays*/,
@@ -45,7 +45,6 @@ public:
 
     explicit DataAcquisition(
         std::shared_ptr<DataQueues> data_queues,
-        std::atomic<ThreadState>& state,
         std::shared_ptr<CommunicationManager> comms);
 
     ~DataAcquisition();
@@ -69,7 +68,7 @@ public:
  
 
 private:
-    std::atomic<ThreadState>& state_;  // Atomic state flag
+    std::atomic<ThreadState> state_{ThreadState::Idle};  // Atomic state flag
     std::thread acquisition_thread_;
     std::shared_ptr<DataQueues> input_data_queues_;
     std::shared_ptr<CommunicationManager> comms_interface_;
@@ -79,14 +78,14 @@ private:
     bool processDataQueues();
     void resetQueues();
     void extractAndEraseEvents();
-    void checkImuDataAndCallback();
+    void checkSynch();
     bool validateImuBuffers(
         const int64_t& min_stamp,
         const int64_t& max_stamp,
         const std::vector<std::tuple<int64_t, int64_t, bool> >&
         oldest_newest_stamp_vector);
 
-    ImuBufferVector imu_buffer_;
+    ImuSyncBuffer imu_buffer_;
     EventBuffer event_buffer_;
 
     StampedEventArrays event_packages_ready_to_process_;

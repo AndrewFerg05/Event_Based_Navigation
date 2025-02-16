@@ -64,11 +64,11 @@ int main(int argc, char* argv[])
     size_t input_queue_size = 100; //Actually manually set in constructor
     auto data_queues = std::make_shared<DataQueues>(input_queue_size);
     std::string config_path = "../config/camera_configuration.yaml";
-    DavisDriver driver(config_path, data_queues);   //Starts driver to add data to input queues
+    
+    std::shared_ptr<DavisDriver> driver = std::make_shared<DavisDriver>(config_path, data_queues);   //Starts driver to add data to input queues
 
     
     // Create atomic control flags
-    std::atomic<ThreadState> DA_state(ThreadState::Idle);
     // std::atomic<ThreadState> frontend_state(ThreadState::Idle);
     // std::atomic<ThreadState> backend_state(ThreadState::Idle);
 
@@ -103,9 +103,9 @@ int main(int argc, char* argv[])
     // }
  
     // Start threads
-    DataAcquisition DataAquistion_(data_queues, std::ref(DA_state), comms_interface);
-    driver.start();
-    DataAquistion_.start();
+    std::shared_ptr<DataAcquisition> DataAquistion_ = std::make_shared<DataAcquisition>(data_queues, comms_interface);
+    driver->start();
+    DataAquistion_->start();
   
     //std::thread frontend_thread(FE_loop, std::ref(frontend_state), &data_DA_to_FE, &comms_interface);
     //std::thread backend_thread(BE_loop, std::ref(backend_state), &comms_interface);

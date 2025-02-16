@@ -28,26 +28,29 @@ Change History
 //==============================================================================
 //      Classes
 //------------------------------------------------------------------------------
-struct ImageBufferItem
-{
-  int64_t stamp    		    { -1 };
-  ImageBasePtr img     { nullptr };
-  inline bool empty()
-  {
-    return stamp == -1;
-  }
 
-  inline void reset()
-  {
-    stamp = -1;
-    img.reset();
-  }
-};
 
 class DataAcquisition {
     using ImuSyncBuffer = Ringbuffer<real_t, 6, 1000>;
     using ImuStampsVector = std::vector<ImuStamps>;
     using ImuAccGyrVector = std::vector<ImuAccGyrContainer>;
+
+    struct ImageBufferItem
+    {
+      int64_t stamp    		    { -1 };
+      ImagePtr img     { nullptr };
+      inline bool empty()
+      {
+        return stamp == -1;
+      }
+    
+      inline void reset()
+      {
+        stamp = -1;
+        img.reset();
+      }
+    };
+    using ImageBuffer = std::vector<ImageBufferItem>;
 
 
     using SynchronizedEventsImuCallback =
@@ -102,8 +105,12 @@ private:
 
     ImuSyncBuffer imu_buffer_;
     EventBuffer event_buffer_;
+    ImageBuffer image_buffer_;
 
     StampedEventArrays event_packages_ready_to_process_;
+
+    StampedImage sync_image_ready_to_process_;
+    int64_t sync_img_ready_to_process_stamp_ { -1 };
 
     size_t cur_ev_; // index of the last event processed yet
 
@@ -113,6 +120,12 @@ private:
     int64_t last_event_package_broadcast_stamp_ { -1 };
 
     int64_t timeshift_cam_imu_;
+
+    //! Count number of synchronized frames.
+    int sync_frame_count_  { 0 };
+
+
+
 protected:
     ImuCallback imu_callback_;
     SynchronizedEventsImuCallback events_imu_callback_;

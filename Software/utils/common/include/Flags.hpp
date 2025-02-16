@@ -20,14 +20,13 @@ Change History
 #include <cstdint>
 
 //==============================================================================
-//      Classes
+//      Global Variables
 //------------------------------------------------------------------------------
 
-// Number of events in event frame
-inline size_t FLAGS_data_size_augmented_event_packet = 15000;
-
-// IMU and Frame timestamp offset (ns)
-inline int64_t FLAGS_timeshift_cam_imu = 100;       //SET FROM CALIB
+// Synchronisation Flags
+inline size_t FLAGS_data_size_augmented_event_packet = 15000;   // Number of events in event frame
+inline float FLAGS_timeshift_cam_imu = 0.0028133308512579796;   // IMU and Frame timestamp offset (s) - SET FROM CALIB
+inline int32_t FLAGS_data_sync_init_skip_n_frames = 0;          // How many frames should be skipped at the beginning
 
 //==============================================================================
 //      Function Prototypes

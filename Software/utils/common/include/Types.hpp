@@ -82,6 +82,17 @@ struct ImageData {
 
     // Constructor
     ImageData() = default;
+
+    // Copy Constructor
+    ImageData(const ImageData& other)
+    : header(other.header), 
+        width(other.width), 
+        height(other.height), 
+        step(other.step), 
+        is_bigendian(other.is_bigendian), 
+        encoding(other.encoding), 
+        data(other.data)
+    {}
 };
 //------------------------------------------------------------------------------
 struct TrackedFrames {

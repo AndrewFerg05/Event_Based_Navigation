@@ -120,8 +120,8 @@ using StampedEventArrays = std::vector<StampedEventArray>;
 using EventBuffer = std::deque<Event>;
 
 //------------------------------------------------------------------------------
-using ImageBasePtr = std::shared_ptr<ImageData>;
-using StampedImage = std::pair<int64_t, ImageData*>;
+using ImagePtr = std::shared_ptr<ImageData>;
+using StampedImage = std::pair<int64_t, ImagePtr>;
 using StampedImages = std::vector<StampedImage>;
 //------------------------------------------------------------------------------
 // Callbacks

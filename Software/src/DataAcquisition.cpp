@@ -70,13 +70,15 @@ void showImage(const ImageData& imgData) {
 
 
 DataAcquisition::DataAcquisition(std::shared_ptr<DataQueues> data_queues, std::shared_ptr<CommunicationManager> comms)
-    : input_data_queues_(data_queues), comms_interface_(comms), timeshift_cam_imu_(FLAGS_timeshift_cam_imu) 
+    : input_data_queues_(data_queues), comms_interface_(comms), timeshift_cam_imu_(secToNanosec(FLAGS_timeshift_cam_imu)) 
     {
         cur_ev_ = 0;
         last_package_stamp_ = -1;
         last_package_ev_ = 0;
+
         CHECK_GE(FLAGS_data_size_augmented_event_packet, 0) <<
         "DA: data_size_augmented_event_packet should be positive.";
+
         initBuffers();
     }
 
@@ -117,18 +119,86 @@ void DataAcquisition::stop() {
 void DataAcquisition::initBuffers() 
 {
     imu_buffer_.clear();
-    event_buffer_.clear(); 
+    event_buffer_.clear();
+    image_buffer_.clear();
+    image_buffer_.resize(2); 
 }
 
 void DataAcquisition::addImageData(const ImageData& image_data)
 {
     // Extract deep copy of image_data
-    ImageData img = image_data;
+    ImagePtr img = std::make_shared<ImageData>(image_data);
     int64_t stamp = image_data.header.stamp;
 
     // Correct for timestamp delay between IMU and Frames.
     stamp += timeshift_cam_imu_;
 
+    //Skip the first N frames
+    if (sync_frame_count_ < FLAGS_data_sync_init_skip_n_frames)
+    {
+        ++sync_frame_count_;
+
+      return;
+    }
+
+    // Add image to first available slot in our buffer:
+    int slot = -1;
+    for (size_t i = 0u; i < image_buffer_.size(); ++i)
+    {
+        if (image_buffer_[i].empty())
+        {
+        slot = i;
+        break;
+        }
+    }
+
+    if (slot == -1)
+    {
+        // No space in buffer to process frame. Delete oldest one. This happens
+        // also when the processing is not fast enough such that frames are skipped.
+        int64_t min_stamp = std::numeric_limits<int64_t>::max();
+        for (size_t i = 0u; i < image_buffer_.size(); ++i)
+        {
+        if (!image_buffer_[i].empty() && image_buffer_[i].stamp < min_stamp)
+        {
+            slot = i;
+            min_stamp = image_buffer_[i].stamp;
+        }
+        }
+    }
+
+    image_buffer_[slot].stamp = stamp;
+    image_buffer_[slot].img = img;
+
+    // Find the latest image in the buffer
+    int latest_index = -1;
+    int64_t latest_stamp = std::numeric_limits<int64_t>::min();
+    for (size_t i = 0; i < image_buffer_.size(); ++i)
+    {
+        if (!image_buffer_[i].empty() && image_buffer_[i].stamp > latest_stamp)
+        {
+            latest_index = i;
+            latest_stamp = image_buffer_[i].stamp;
+        }
+    }
+  
+      // Ensure a valid image was found
+      if (latest_index == -1)
+      {
+          LOG(ERROR) << "No valid images in buffer!";
+          return;
+      }
+  
+      // Retrieve and store the latest image for processing
+      const ImageBufferItem& latest_image = image_buffer_[latest_index];
+      
+      DEBUG_CHECK_GT(latest_image.stamp, 0);
+      DEBUG_CHECK(latest_image.img);
+  
+      sync_image_ready_to_process_ = { latest_image.stamp, latest_image.img };
+      sync_img_ready_to_process_stamp_ = latest_image.stamp;
+      checkSynch();
+  
 }
 
 void DataAcquisition::addEventsData(const EventData& event_data)

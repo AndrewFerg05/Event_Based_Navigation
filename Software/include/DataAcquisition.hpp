@@ -22,7 +22,6 @@ Change History
 #include "Types.hpp"
 #include "Flags.hpp"
 #include "RingBuffer.hpp"
-#include <opencv2/opencv.hpp>
 #include "egg_timer.hpp"
 
 
@@ -31,7 +30,9 @@ Change History
 //------------------------------------------------------------------------------
 
 
-class DataAcquisition {
+class DataAcquisition 
+{
+    // Types and Type aliases
     using ImuSyncBuffer = Ringbuffer<real_t, 6, 1000>;
     using ImuStampsVector = std::vector<ImuStamps>;
     using ImuAccGyrVector = std::vector<ImuAccGyrContainer>;
@@ -53,14 +54,12 @@ class DataAcquisition {
     };
     using ImageBuffer = std::vector<ImageBufferItem>;
 
-
     using SynchronizedImageEventsImuCallback =
     std::function<void (const StampedImage&    /*image*/,
                         const StampedEventArray& /*event_arrays*/,
                         const ImuStamps& /*imu_timestamps*/,
                         const ImuAccGyrContainer& /*imu_measurements*/,
                         const bool& no_motion_prior)>;
-
 
 public:
 
@@ -87,14 +86,15 @@ public:
         image_events_imu_callback_ = callback;
     }
  
-
 private:
-    std::atomic<ThreadState> state_{ThreadState::Idle};  // Atomic state flag
+    // State  
+    std::atomic<ThreadState> state_{ThreadState::Idle};
     std::thread acquisition_thread_;
     std::shared_ptr<DataQueues> input_data_queues_;
     std::shared_ptr<CommunicationManager> comms_interface_;
     std::atomic<bool> running_{false};
 
+    // Functions
     void run();
     bool processDataQueues();
     void resetQueues();
@@ -103,58 +103,33 @@ private:
         int max_num_events_in_packet,
         EventBuffer* event_buffer,
         StampedEventArray* event_array);
-
     void checkSynch();
     bool validateImuBuffer(
         const int64_t& min_stamp,
         const int64_t& max_stamp,
         const std::tuple<int64_t, int64_t, bool>& oldest_newest_stamp);
 
+    // Buffers
     ImuSyncBuffer imu_buffer_;
     EventBuffer event_buffer_;
     ImageBuffer image_buffer_;
 
-    StampedEventArrays event_packages_ready_to_process_;
-
+    // Processing variables
     StampedImage sync_image_ready_to_process_;
-    int64_t sync_img_ready_to_process_stamp_ { -1 };
+    int64_t sync_img_ready_to_process_stamp_ { -1 };    // Stamp of current synchronized image bundle.
+    int64_t last_img_bundle_min_stamp_ { -1 };          // Stamp of previous synchronized image bundle.
+    int64_t timeshift_cam_imu_;                         // Correction between image and IMU time stamp - Set in Flags.hpp
+    int sync_frame_count_  { 0 };                       // Count number of synchronized frames.
 
-    size_t cur_ev_; // index of the last event processed yet
-
-    int64_t last_package_stamp_;
-    size_t last_package_ev_;
-  
-    int64_t last_event_package_broadcast_stamp_ { -1 };
-
-    //! Stamp of previous synchronized image bundle.
-    int64_t last_img_bundle_min_stamp_ { -1 };
-
-    int64_t timeshift_cam_imu_;
-
-    //! Count number of synchronized frames.
-    int sync_frame_count_  { 0 };
-    
+    // Allowed time differences of images in bundle
     static constexpr real_t c_camera_bundle_time_accuracy_ns = millisecToNanosec(2.0);
 
-
-
 protected:
+    // Callbacks and variables used in classes
     ImuCallback imu_callback_;
     SynchronizedImageEventsImuCallback image_events_imu_callback_;
-    bool no_motion_prior_for_backend_; //Can remove if used later
-
+    bool no_motion_prior_for_backend_;
 };
-
-
-
-//==============================================================================
-//      Function Prototypes
-//------------------------------------------------------------------------------
-void DA_loop(std::atomic<ThreadState>& state,
-                            ThreadSafeFIFO<InputDataSync>* data_DA,
-                            CommunicationManager* comms);
-
-
 
 
 #endif  // DATAACQUISITION_HPP

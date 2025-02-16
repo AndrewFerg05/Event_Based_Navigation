@@ -106,9 +106,48 @@ int main(int argc, char* argv[])
     std::shared_ptr<DataAcquisition> DataAquistion_ = std::make_shared<DataAcquisition>(data_queues, comms_interface);
     driver->start();
     DataAquistion_->start();
+
+    auto start_time = std::chrono::steady_clock::now();  // Capture the start time
+    bool triggered_3s = false, triggered_6s = false, triggered_9s = false, triggered_12s = false;
+
+    DataAquistion_->start();
+    
+    while (true) {
+        auto current_time = std::chrono::steady_clock::now();
+        auto elapsed_time = std::chrono::duration_cast<std::chrono::seconds>(current_time - start_time).count();
+    
+        if (elapsed_time >= 3 && !triggered_3s) {
+            std::cout << "3 seconds elapsed! Switching to idle..." << std::endl;
+            DataAquistion_->idle();
+            triggered_3s = true;
+        }
+    
+        if (elapsed_time >= 6 && !triggered_6s) {
+            std::cout << "6 seconds elapsed! Resuming data acquisition..." << std::endl;
+            DataAquistion_->start();
+            triggered_6s = true;
+        }
+    
+        if (elapsed_time >= 9 && !triggered_9s) {
+            std::cout << "9 seconds elapsed! Switching to idle..." << std::endl;
+            DataAquistion_->idle();
+            triggered_9s = true;
+        }
+    
+        if (elapsed_time >= 12 && !triggered_12s) {
+            std::cout << "12 seconds elapsed! Resuming data acquisition..." << std::endl;
+            DataAquistion_->start();
+            triggered_12s = true;
+        }
+    
+        if (elapsed_time >= 15) {
+            std::cout << "Stopping timer loop." << std::endl;
+            DataAquistion_->stop();
+            break;
+        }
+    }
+    
   
-    //std::thread frontend_thread(FE_loop, std::ref(frontend_state), &data_DA_to_FE, &comms_interface);
-    //std::thread backend_thread(BE_loop, std::ref(backend_state), &comms_interface);
     
     // Start this thread
     // CM_loop(std::ref(data_aquire_state), 

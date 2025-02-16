@@ -34,51 +34,13 @@ Change History
 //==============================================================================
 // Functions
 //------------------------------------------------------------------------------
-void showImage(const ImageData& imgData) {
-    static cv::Mat lastFrame;  // Store last valid frame
-    static bool windowCreated = false;
-
-    // Ensure the window is created only once
-    if (!windowCreated) {
-        cv::namedWindow("Camera Stream", cv::WINDOW_AUTOSIZE);
-        windowCreated = true;
-    }
-
-    cv::Mat frame;
-    
-    // Convert image based on encoding
-    if (imgData.encoding == "mono8") {
-        frame = cv::Mat(imgData.height, imgData.width, CV_8UC1, (void*)imgData.data.data()).clone();
-    } else if (imgData.encoding == "rgb8") {
-        frame = cv::Mat(imgData.height, imgData.width, CV_8UC3, (void*)imgData.data.data()).clone();
-        cv::cvtColor(frame, frame, cv::COLOR_RGB2BGR); // OpenCV uses BGR
-    } else {
-        std::cerr << "Unsupported encoding format: " << imgData.encoding << std::endl;
-        return;
-    }
-
-    // Update last valid frame
-    lastFrame = frame;
-
-    // Display the last valid frame
-    if (!lastFrame.empty()) {
-        cv::imshow("Camera Stream", lastFrame);
-    }
-
-    cv::waitKey(1); // Needed to update window
-}
-
 
 DataAcquisition::DataAcquisition(std::shared_ptr<DataQueues> data_queues, std::shared_ptr<CommunicationManager> comms)
     : input_data_queues_(data_queues), comms_interface_(comms), timeshift_cam_imu_(secToNanosec(FLAGS_timeshift_cam_imu)) 
     {
-        cur_ev_ = 0;
-        last_package_stamp_ = -1;
-        last_package_ev_ = 0;
 
         CHECK_GE(FLAGS_data_size_augmented_event_packet, 0) <<
         "DA: data_size_augmented_event_packet should be positive.";
-
         initBuffers();
     }
 
@@ -87,36 +49,59 @@ DataAcquisition::~DataAcquisition() {
 }
 
 void DataAcquisition::start() {
-    LOG(INFO) << "DA: Thread started";
-    if (acquisition_thread_.joinable()) return;  // Prevent multiple starts
+    LOG(INFO) << "DA: Starting thread..";
+
+    initBuffers();      // Reset buffer again for safety
+
     running_ = true;
     state_ = ThreadState::Run;
-    // acquisition_thread_ = std::thread(&DataAcquisition::run, this);
-    run();
+
+    // Start thread
+    if (acquisition_thread_.joinable())
+    {
+        LOG(INFO) << "DA: Thread already running!";
+        return;
+    }
+    acquisition_thread_ = std::thread(&DataAcquisition::run, this);
+    LOG(INFO) << "DA: Thread Started!";
 }
 
 void DataAcquisition::idle() {
-    LOG(INFO) << "DA: Data Acquisition setting to idle...";
+    LOG(INFO) << "DA: Idling thread...";
     state_ = ThreadState::Idle;
-    sleep_ms(10);
-    resetQueues();
-    imu_buffer_.clear();
-    event_buffer_.clear();
-    event_packages_ready_to_process_.clear();
-    cur_ev_ = 0;
-    last_package_stamp_ = -1;
-    last_package_ev_ = 0;
-    LOG(INFO) << "DA: Data Acquisition idled successfully!";
 
+    // Reset variable and queues
+    sync_img_ready_to_process_stamp_ = -1;
+    last_img_bundle_min_stamp_ = -1;
+    sync_image_ready_to_process_.first = -1;
+    sync_image_ready_to_process_.second.reset();
+    sync_frame_count_ = 0;
+    resetQueues();
+    initBuffers();
+
+    LOG(INFO) << "DA: Thread idled!";
 }
 
 void DataAcquisition::stop() {
+    LOG(INFO) << "DA: Stopping thread...";
     running_ = false;
     state_ = ThreadState::Stop;
-    if (acquisition_thread_.joinable()) {
+
+    // Reset variable and queues
+    sync_img_ready_to_process_stamp_ = -1;
+    last_img_bundle_min_stamp_ = -1;
+    sync_image_ready_to_process_.first = -1;
+    sync_image_ready_to_process_.second.reset();
+    sync_frame_count_ = 0;
+    resetQueues();
+    initBuffers();
+
+    // Exit thread
+    if (acquisition_thread_.joinable()) 
+    {
         acquisition_thread_.join();
     }
-    LOG(INFO) << "DA: Thread stopped";
+    LOG(INFO) << "DA: Thread stopped!";
 }
 
 void DataAcquisition::initBuffers() 
@@ -125,6 +110,24 @@ void DataAcquisition::initBuffers()
     event_buffer_.clear();
     image_buffer_.clear();
     image_buffer_.resize(2); 
+}
+
+void DataAcquisition::resetQueues()
+{
+    if (!input_data_queues_) {
+        LOG(ERROR) << "DA: Data queues not initialized!";
+        return;
+    }
+
+    LOG(INFO) << "DA: Resetting all data queues...";
+    
+    input_data_queues_->event_queue->clear();
+    input_data_queues_->camera_info_queue->clear();
+    input_data_queues_->imu_queue->clear();
+    input_data_queues_->image_queue->clear();
+    input_data_queues_->exposure_queue->clear();
+
+    LOG(INFO) << "DA: All queues cleared";
 }
 
 void DataAcquisition::addImageData(const ImageData& image_data)
@@ -254,51 +257,6 @@ void DataAcquisition::addImuData(const IMUData& imu_data)
     checkSynch();
 }
 
-bool DataAcquisition::processDataQueues()
-{
-        bool processed = false;
-
-        auto imu_data = input_data_queues_->imu_queue->pop();
-        if (imu_data.has_value()) {
-            addImuData(imu_data.value());
-            processed = true;
-        }
-
-        auto event_data = input_data_queues_->event_queue->pop();
-        if (event_data.has_value()) {
-            addEventsData(event_data.value());
-            processed = true;
-        }
-
-        auto image_data = input_data_queues_->image_queue->pop();
-        if (image_data) {
-            showImage(image_data.value());
-            addImageData(image_data.value());
-            processed = true;
-        }
-
-        return processed;
-
-}
-
-void DataAcquisition::resetQueues()
-{
-    if (!input_data_queues_) {
-        LOG(ERROR) << "DA: Data queues not initialized!";
-        return;
-    }
-
-    LOG(INFO) << "DA: Resetting all data queues...";
-    
-    input_data_queues_->event_queue->clear();
-    input_data_queues_->camera_info_queue->clear();
-    input_data_queues_->imu_queue->clear();
-    input_data_queues_->image_queue->clear();
-    input_data_queues_->exposure_queue->clear();
-
-    LOG(INFO) << "DA: All queues cleared";
-}
-
 void DataAcquisition::extractAndEraseEvents(
     const int64_t& t1,
     int max_num_events_in_packet,
@@ -381,6 +339,35 @@ void DataAcquisition::extractAndEraseEvents(
 
     // Use the last timestamp as stamp for the event_array.
     event_array->first = t1;
+}
+
+bool DataAcquisition::validateImuBuffer(
+    const int64_t& min_stamp,
+    const int64_t& max_stamp,
+    const std::tuple<int64_t, int64_t, bool>& oldest_newest_stamp)
+{
+    // Check if we have received IMU measurements
+    if (!std::get<2>(oldest_newest_stamp))
+    {
+        LOG(WARNING) << "Received all images but no IMU measurements!";
+        return false;
+    }
+
+    // Check if at least one IMU measurement exists before the image timestamp
+    if (std::get<0>(oldest_newest_stamp) >= min_stamp)
+    {
+        LOG(WARNING) << "Oldest IMU measurement is newer than image timestamp.";
+        return false;
+    }
+
+    // Check if at least one IMU measurement exists after the image timestamp
+    if (std::get<1>(oldest_newest_stamp) <= max_stamp)
+    {
+        VLOG(100) << "Waiting for IMU measurements.";
+        return false;
+    }
+
+    return true;
 }
 
 void DataAcquisition::checkSynch()
@@ -495,64 +482,55 @@ void DataAcquisition::checkSynch()
     sync_img_ready_to_process_stamp_ = -1;
     sync_image_ready_to_process_.first = -1;
     sync_image_ready_to_process_.second.reset();
+}
+
+bool DataAcquisition::processDataQueues()
+{
+        bool processed = false;
+
+        auto imu_data = input_data_queues_->imu_queue->pop();
+        if (imu_data.has_value()) {
+            addImuData(imu_data.value());
+            processed = true;
+        }
+
+        auto event_data = input_data_queues_->event_queue->pop();
+        if (event_data.has_value()) {
+            addEventsData(event_data.value());
+            processed = true;
+        }
+
+        auto image_data = input_data_queues_->image_queue->pop();
+        if (image_data) {
+            addImageData(image_data.value());
+            processed = true;
+        }
+
+        return processed;
 
 }
 
-bool DataAcquisition::validateImuBuffer(
-    const int64_t& min_stamp,
-    const int64_t& max_stamp,
-    const std::tuple<int64_t, int64_t, bool>& oldest_newest_stamp)
-{
-    // Check if we have received IMU measurements
-    if (!std::get<2>(oldest_newest_stamp))
-    {
-        LOG(WARNING) << "Received all images but no IMU measurements!";
-        return false;
-    }
-
-    // Check if at least one IMU measurement exists before the image timestamp
-    if (std::get<0>(oldest_newest_stamp) >= min_stamp)
-    {
-        LOG(WARNING) << "Oldest IMU measurement is newer than image timestamp.";
-        return false;
-    }
-
-    // Check if at least one IMU measurement exists after the image timestamp
-    if (std::get<1>(oldest_newest_stamp) <= max_stamp)
-    {
-        VLOG(100) << "Waiting for IMU measurements.";
-        return false;
-    }
-
-    return true;
-}
-
-
-void DataAcquisition::run() 
-{
-    while (running_) 
-    {
-        if (state_ == ThreadState::Idle) 
-        {
-            sleep_ms(10);  // Avoid busy waiting
-            continue;
-        }
-
-        if (state_ == ThreadState::Stop) 
-        {
-            break;
-        }
-
-        if (state_ == ThreadState::Run)
-        {
-            if (!processDataQueues()) 
-            {
-                LOG(INFO) << "DA: No data in queues";
+void DataAcquisition::run() {
+    while (running_) {
+        switch (state_) {
+            case ThreadState::Idle:
                 sleep_ms(100);
-            }
+                continue;
+
+            case ThreadState::Run:
+                if (!processDataQueues()) 
+                {
+                    LOG(INFO) << "DA: No data in input queues - sleeping 100ms";
+                    sleep_ms(100);
+                }
+                break;
+
+            case ThreadState::Stop:
+                return;
         }
     }
 }
+
 
 
 

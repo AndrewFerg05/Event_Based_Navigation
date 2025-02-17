@@ -67,8 +67,7 @@ class DataAcquisition
 public:
 
     explicit DataAcquisition(
-        std::shared_ptr<DataQueues> data_queues,
-        std::shared_ptr<CommunicationManager> comms);
+        std::shared_ptr<DataQueues> data_queues);
 
     ~DataAcquisition();
     void start();  
@@ -94,7 +93,6 @@ private:
     std::atomic<ThreadState> state_{ThreadState::Idle};
     std::thread acquisition_thread_;
     std::shared_ptr<DataQueues> input_data_queues_;
-    std::shared_ptr<CommunicationManager> comms_interface_;
     std::atomic<bool> running_{false};
 
     // Functions

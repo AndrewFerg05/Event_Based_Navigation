@@ -102,15 +102,14 @@ int main(int argc, char* argv[])
     //     LOG(INFO) << "MAIN: ESP32 Serial Initialised";
     // }
  
-    // Start threads
-    std::shared_ptr<DataAcquisition> DataAquistion_ = std::make_shared<DataAcquisition>(data_queues, comms_interface);
+    std::shared_ptr<DataAcquisition> DataAquistion_ = std::make_shared<DataAcquisition>(data_queues);
 
     std::shared_ptr<FrontEnd> FrontEnd_ = std::make_shared<FrontEnd>(comms_interface);
 
     DataAquistion_->registerCameraImuCallback(
         std::bind(
           static_cast<void(FrontEnd::*)(
-            const StampedImage&    /*image*/,
+            const StampedImage&,
             const std::pair<int64_t, EventArrayPtr>& stamped_events,
             const ImuStamps& imu_stamps,
             const ImuAccGyrContainer& imu_accgyr,

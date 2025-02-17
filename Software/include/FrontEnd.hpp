@@ -19,7 +19,9 @@ Change History
 //------------------------------------------------------------------------------
 #include "ThreadInterface.hpp"
 #include "TypeAliases.hpp"
-
+#include <opencv2/opencv.hpp>
+#include <iostream>
+#include <cmath>
 
 //==============================================================================
 //      Classes

@@ -33,8 +33,8 @@ Change History
 // Functions
 //------------------------------------------------------------------------------
 
-DataAcquisition::DataAcquisition(std::shared_ptr<DataQueues> data_queues, std::shared_ptr<CommunicationManager> comms)
-    : input_data_queues_(data_queues), comms_interface_(comms), timeshift_cam_imu_(secToNanosec(FLAGS_timeshift_cam_imu)) 
+DataAcquisition::DataAcquisition(std::shared_ptr<DataQueues> data_queues)
+    : input_data_queues_(data_queues), timeshift_cam_imu_(secToNanosec(FLAGS_timeshift_cam_imu)) 
     {
 
         CHECK_GE(FLAGS_data_size_augmented_event_packet, 0) <<

@@ -81,3 +81,4 @@ void vector_normalize(float a[3])
   a[1] /= mag;
   a[2] /= mag;
 }
+

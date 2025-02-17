@@ -2,7 +2,7 @@
 import pandas as pd
 
 # Read the original CSV file
-input_file = 'raw.csv'  # Replace with your actual file path
+input_file = 'C:\\Users\\dougl\\OneDrive\\Documents\\year 5\\Project\\Event_Based_Navigation\\Firmware\\IMU_Cal\\raw.csv'  # Replace with your actual file path
 try:
     df = pd.read_csv(input_file)
     print("CSV file loaded successfully.")
@@ -23,8 +23,8 @@ else:
     mag_data = df.iloc[:, 3:6]    # Assuming columns 4, 5, 6 are magnetometer values
 
     # Save the separate dataframes into new CSV files
-    accel_data.to_csv('accelerometer_data.csv', index=False)
-    mag_data.to_csv('magnetometer_data.csv', index=False)
+    accel_data.to_csv('C:\\Users\\dougl\\OneDrive\\Documents\\year 5\\Project\\Event_Based_Navigation\\Firmware\\IMU_Cal\\accelerometer_data.csv', index=False)
+    mag_data.to_csv('C:\\Users\\dougl\\OneDrive\\Documents\\year 5\\Project\\Event_Based_Navigation\\Firmware\\IMU_Cal\\magnetometer_data.csv', index=False)
 
     print("Data has been successfully split into 'accelerometer_data.csv' and 'magnetometer_data.csv'.")
 

@@ -11,13 +11,14 @@
 void wifiComsTask(void *pvParameters) {
   TickType_t xLastWakeTime_wifi;
   // every 100 ms
-  const TickType_t xFrequency_wifi = 100/ portTICK_PERIOD_MS;
+  const TickType_t xFrequency_wifi = 1000/ portTICK_PERIOD_MS;
 
     xLastWakeTime_wifi = xTaskGetTickCount ();
     for( ;; ) {
 
       // delays until exactly 100 ms since the last call
       vTaskDelayUntil( &xLastWakeTime_wifi, xFrequency_wifi );
+      /*
 
       // put Wifi code here (will operate exactly once every 100 ms)
       // will probabily mess around will that timing but as a starting point
@@ -36,6 +37,7 @@ void wifiComsTask(void *pvParameters) {
       udp.endPacket();
     
       //Serial.println("UDP packet sent!");     
+      */
     }
 
 }
@@ -43,6 +45,7 @@ void wifiComsTask(void *pvParameters) {
 // Task to check Wifi connection and reconnect if connection was lost
 void wifiCheckConnectionTask(void *pvParameters) {
   for (;;) {
+    /*
     if(WiFi.status() == WL_CONNECTED) {
       //Serial.println("Connected");
       vTaskDelay(1000 / portTICK_PERIOD_MS);  // Run every 1 second
@@ -59,8 +62,10 @@ void wifiCheckConnectionTask(void *pvParameters) {
     if (WiFi.status() != WL_CONNECTED) {
 
       //Serial.println("Connection Failed");
+      
       vTaskDelay(100 / portTICK_PERIOD_MS);  // Retry every 100 ms
-    } 
+    } */
+    vTaskDelay(1000 / portTICK_PERIOD_MS);  // Run every 1 second
   }
 }
 
@@ -77,9 +82,11 @@ void ibusTask(void *pvParameters) {
 void displacementCalcTask(void *pvParameters) {
   TickType_t xLastWakeTime_disp;
   // every 100 ms
-  const TickType_t xFrequency_disp = 1000/ portTICK_PERIOD_MS;
+  const TickType_t xFrequency_disp = 100/ portTICK_PERIOD_MS;
     xLastWakeTime_disp = xTaskGetTickCount ();
     for( ;; ) {
+      
+      vTaskDelayUntil( &xLastWakeTime_disp, xFrequency_disp);
 
       int posCopy[6] = {};
 
@@ -128,8 +135,10 @@ void displacementCalcTask(void *pvParameters) {
           Mxyz[2] = -Mxyz[2];
 
           heading = get_heading(Axyz, Mxyz, p, declination);
-          Serial.println(heading);
-          Serial.println(prevHeading);
+          
+          float filtHeading = (heading + prevHeading)/2;
+          Serial.println(filtHeading);
+          
 
           // update position 
 
@@ -193,6 +202,7 @@ void motorControlTask( void * pvParameters )
 
 
 void setup() {  
+
     Wire.begin(13, 14);  // 13 = SDA, 14 = SCL (I2C pins for ESP32)
     setupMotors();  // Initialize motors
     pinMode(ledPin, OUTPUT);
@@ -214,14 +224,13 @@ void setup() {
       Serial.println(F("ICM_90248 not detected"));
     }
     // Connect to WiFi
-    WiFi.begin(ssid);
+    /*WiFi.begin(ssid);
     //Serial.print("Connecting to WiFi");
     while (WiFi.status() != WL_CONNECTED) {
         //Serial.print(".");
         delay(500);
-    }
+    }*/
     //Serial.println("\nConnected to WiFi!");
-    
 
     // Create the motor control task
     xTaskCreate(

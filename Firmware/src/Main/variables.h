@@ -16,6 +16,7 @@
 #define WIRE_PORT Wire1 // desired Wire port.
 #define AD0_VAL 1      // value of the last bit of the I2C address.
 
+
 struct MotorDriver {
     const int standby;
     const int pwma;
@@ -69,6 +70,8 @@ extern float M_B[3];
 extern float M_Ainv[3][3];
 extern float declination;
 extern float p[3];
+
+
 
 
 // Mutex for protecting access to the shared variables

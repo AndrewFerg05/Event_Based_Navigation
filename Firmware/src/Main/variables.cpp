@@ -39,28 +39,30 @@ ICM_20948_I2C imu; // create an ICM_20948_I2C object imu;
 
 //Accel scale: divide by 16604.0 to normalize. These corrections are quite small and probably can be ignored.
 float A_B[3]
-{-165.93, -514.9, -416.03};
+{-216.2 , -84.87 , -122.89};
 
 float A_Ainv[3][3]
-{ {  0.06484 , 0.00245 , -0.00117},
-  {  0.00245 , 0.06278 , -0.00099},
-  { -0.00117 , -0.00099 , 0.05871}
+{ {  0.06059 , 0.00005 , -0.00005},
+  {  0.00005 , 0.06056 , 0.00068},
+  { -0.00005 , 0.00068 , 0.06087}
 };
 
 //Mag scale divide by 369.4 to normalize. These are significant corrections, especially the large offsets.
 float M_B[3]
-{ 258.3,  -144.98, 429.39};
+{ 76.42 , 0.86 , 431.03};
 
 float M_Ainv[3][3]
-{ {  3.25851 , -0.14476 , -0.01808},
-  { -0.14476 , 2.97336 , -0.12268},
-  {  -0.01808 , -0.12268 , 3.08084}
+{ {  5.50509 , -0.078 , -0.0108},
+  { -0.078 , 5.15096 , 0.06757},
+  { -0.0108 , 0.06757 , 5.43276}
 };
 
 // local magnetic declination in degrees
 float declination = -1.06;
 
 float p[3] = {1, 0, 0};  //X marking on sensor board points toward yaw = 0
+
+
 
 SemaphoreHandle_t xPositionMutex;
 

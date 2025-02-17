@@ -6,6 +6,7 @@ const MotorDriver motorDrivers[] = {
     {9, 19, 10, 11, 5, 8, 14}
 };
 
+Position currentPos = {0, 0};
 
 PCF8575 pcf8575(0x20);  // PCF8575 object for I2C communication
 
@@ -15,12 +16,60 @@ HardwareSerial& ibusRcSerial = Serial2;  // Use Serial2 for IBus communication
 
 const int ledPin = 2;  // Define the onboard LED pin
 
+// motor encoder pins
+const int ENA_1 = 18;
+const int ENB_R = 4;
+
+const int ENA_6 = 32;
+const int ENB_L = 33;
+
+volatile int pos_1 = 0;
+volatile int pos_2 = 0;
+volatile int pos_3 = 0;
+volatile int pos_4 = 0;
+volatile int pos_5 = 0;
+volatile int pos_6 = 0;
+
+float displacement = 0;
+float heading = 0;
+float prevHeading = 0;
+
+//IMU stuff 
+ICM_20948_I2C imu; // create an ICM_20948_I2C object imu;
+
+//Accel scale: divide by 16604.0 to normalize. These corrections are quite small and probably can be ignored.
+float A_B[3]
+{-165.93, -514.9, -416.03};
+
+float A_Ainv[3][3]
+{ {  0.06484 , 0.00245 , -0.00117},
+  {  0.00245 , 0.06278 , -0.00099},
+  { -0.00117 , -0.00099 , 0.05871}
+};
+
+//Mag scale divide by 369.4 to normalize. These are significant corrections, especially the large offsets.
+float M_B[3]
+{ 258.3,  -144.98, 429.39};
+
+float M_Ainv[3][3]
+{ {  3.25851 , -0.14476 , -0.01808},
+  { -0.14476 , 2.97336 , -0.12268},
+  {  -0.01808 , -0.12268 , 3.08084}
+};
+
+// local magnetic declination in degrees
+float declination = -1.06;
+
+float p[3] = {1, 0, 0};  //X marking on sensor board points toward yaw = 0
+
+SemaphoreHandle_t xPositionMutex;
+
 // previous direction pins for deciding if the motors need to stop
 int prevRightDirection = 1;
 int prevLeftDirection = 1;
 
 // WiFi credentials
-const char* ssid = "SARK";
+const char* ssid = "PI-SARK";
 const char* password = "samsamsam802";
 
 // UDP configuration
@@ -34,6 +83,7 @@ TaskHandle_t ibusTaskHandle = NULL;
 TaskHandle_t wifiComsTaskHandle = NULL;
 TaskHandle_t wifiCheckConnectionTaskHandle = NULL;
 TaskHandle_t updateStateTaskHandle = NULL;
+TaskHandle_t displacementCalcTaskHandle = NULL;
 
 //states
 extern int32_t controlState = 0;

@@ -136,40 +136,40 @@ int main(int argc, char* argv[])
 
     DataAquistion_->start();
     
-    while (true) {
-        auto current_time = std::chrono::steady_clock::now();
-        auto elapsed_time = std::chrono::duration_cast<std::chrono::seconds>(current_time - start_time).count();
+    // while (true) {
+    //     auto current_time = std::chrono::steady_clock::now();
+    //     auto elapsed_time = std::chrono::duration_cast<std::chrono::seconds>(current_time - start_time).count();
     
-        if (elapsed_time >= 3 && !triggered_3s) {
-            std::cout << "3 seconds elapsed! Switching to idle..." << std::endl;
-            DataAquistion_->idle();
-            triggered_3s = true;
-        }
+    //     if (elapsed_time >= 3 && !triggered_3s) {
+    //         std::cout << "3 seconds elapsed! Switching to idle..." << std::endl;
+    //         DataAquistion_->idle();
+    //         triggered_3s = true;
+    //     }
     
-        if (elapsed_time >= 6 && !triggered_6s) {
-            std::cout << "6 seconds elapsed! Resuming data acquisition..." << std::endl;
-            DataAquistion_->start();
-            triggered_6s = true;
-        }
+    //     if (elapsed_time >= 6 && !triggered_6s) {
+    //         std::cout << "6 seconds elapsed! Resuming data acquisition..." << std::endl;
+    //         DataAquistion_->start();
+    //         triggered_6s = true;
+    //     }
     
-        if (elapsed_time >= 9 && !triggered_9s) {
-            std::cout << "9 seconds elapsed! Switching to idle..." << std::endl;
-            DataAquistion_->idle();
-            triggered_9s = true;
-        }
+    //     if (elapsed_time >= 9 && !triggered_9s) {
+    //         std::cout << "9 seconds elapsed! Switching to idle..." << std::endl;
+    //         DataAquistion_->idle();
+    //         triggered_9s = true;
+    //     }
     
-        if (elapsed_time >= 12 && !triggered_12s) {
-            std::cout << "12 seconds elapsed! Resuming data acquisition..." << std::endl;
-            DataAquistion_->start();
-            triggered_12s = true;
-        }
+    //     if (elapsed_time >= 12 && !triggered_12s) {
+    //         std::cout << "12 seconds elapsed! Resuming data acquisition..." << std::endl;
+    //         DataAquistion_->start();
+    //         triggered_12s = true;
+    //     }
     
-        if (elapsed_time >= 15) {
-            std::cout << "Stopping timer loop." << std::endl;
-            DataAquistion_->stop();
-            break;
-        }
-    }
+    //     if (elapsed_time >= 15) {
+    //         std::cout << "Stopping timer loop." << std::endl;
+    //         DataAquistion_->stop();
+    //         break;
+    //     }
+    // }
     
   
     

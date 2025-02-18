@@ -27,7 +27,7 @@ frame_delay: 0
 max_events: 0
 streaming_rate: 30
 
-ADC_RefHigh_volt: 24
+ADC_RefHigh_volt: 32
 ADC_RefHigh_curr: 7
 ADC_RefLow_volt: 1
 ADC_RefLow_curr: 7
@@ -36,19 +36,19 @@ DiffBn_coarse: 4
 DiffBn_fine: 39
 
 OFFBn_coarse: 4
-OFFBn_fine: 0
+OFFBn_fine: 1
 
-ONBn_coarse: 6
+ONBn_coarse: 5
 ONBn_fine: 255
 
 PrBp_coarse: 2
-PrBp_fine: 255
+PrBp_fine: 58
 
 PrSFBp_coarse: 1
-PrSFBp_fine: 199
+PrSFBp_fine: 16
 
-RefrBp_coarse: 3
-RefrBp_fine: 7
+RefrBp_coarse: 4
+RefrBp_fine: 25
 
 # DAVIS346 Params Set in Code - Not sure where specified - Andrew's attempt to keep everything off below
 frame_mode: 0
@@ -76,12 +76,16 @@ pixel_6_column: 0
 pixel_7_row: 0
 pixel_7_column: 0
 
-# Background Activity Filter (Default OFF)
+# Background Activity Filter - Time between consecutive events before it is considered as an event (us)
+# DVS Background-Activity Filter: specify the time difference constant for the background-activity filter in microseconds. 
+# Events that do correlated within this time-frame are let through, while others are filtered out.
 background_activity_filter_enabled: true
-background_activity_filter_time: 200
+background_activity_filter_time: 20000
 
 # Refractory Period Filter (Default OFF)
-refractory_period_enabled: true
+# DVS Refractory Period Filter: specify the time constant for the refractory period filter. 
+# Pixels will be inhibited from generating new events during this time after the last even has fired.
+refractory_period_enabled: false
 refractory_period_time: 2
 
 # ROI Filter (Defaults to full frame)

@@ -40,27 +40,14 @@ Change History
 const int EVENT_FRAME_WIDTH = 346;
 const int EVENT_FRAME_HEIGHT = 260;
 
-// Accumulator image to store events (floating point for smooth decay)
+// Frames for event data and APS data
 cv::Mat event_frame = cv::Mat::zeros(EVENT_FRAME_HEIGHT, EVENT_FRAME_WIDTH, CV_32FC3);
+cv::Mat aps_frame;  // Will store the latest APS frame
 
-// Exponential decay constant (adjust for faster/slower fading)
-const float DECAY_CONSTANT = 200.0f;  // Higher values mean faster fading
-
-// Time tracking for correct decay computation
-auto last_update_time = std::chrono::high_resolution_clock::now();
-
-// Function to accumulate and display events
+// Function to display events from each incoming packet separately
 void displayStampedEvents(const StampedEventArray& stamped_events) {
-    // Compute elapsed time since the last update
-    auto current_time = std::chrono::high_resolution_clock::now();
-    float elapsed_time = std::chrono::duration<float>(current_time - last_update_time).count();
-    last_update_time = current_time;
-
-    // Compute exponential decay factor: e^(-λ * Δt)
-    float decay_factor = std::exp(-DECAY_CONSTANT * elapsed_time);
-
-    // Apply **true exponential decay** based on elapsed time
-    event_frame *= decay_factor;
+    // Clear the event frame at the start of each function call
+    event_frame = cv::Mat::zeros(EVENT_FRAME_HEIGHT, EVENT_FRAME_WIDTH, CV_32FC3);
 
     // Extract timestamp and event array pointer
     int64_t timestamp = stamped_events.first;
@@ -85,12 +72,21 @@ void displayStampedEvents(const StampedEventArray& stamped_events) {
         }
     }
 
-    // Convert to 8-bit image for display
-    cv::Mat display_frame;
-    event_frame.convertTo(display_frame, CV_8UC3, 255.0);
-    cv::GaussianBlur(display_frame, display_frame, cv::Size(3,3), 1.0);
-    // Display the accumulated event frame
-    cv::imshow("Event Camera Stream", display_frame);
+    // Convert event frame to 8-bit (CV_8UC3)
+    cv::Mat event_frame_8bit;
+    event_frame.convertTo(event_frame_8bit, CV_8UC3, 255.0); // Scale float to 8-bit
+
+    // Define a kernel for morphology operations
+    // cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+
+    // // Apply morphological opening (removes small noise)
+    // cv::morphologyEx(event_frame_8bit, event_frame_8bit, cv::MORPH_OPEN, kernel);
+
+    // // Apply morphological closing (fills small gaps)
+    // cv::morphologyEx(event_frame_8bit, event_frame_8bit, cv::MORPH_CLOSE, kernel);
+
+    // Display the cleaned event frame
+    cv::imshow("Processed Event Frame", event_frame_8bit);
 
     // Short delay for smooth video playback
     cv::waitKey(1);
@@ -120,24 +116,49 @@ void displayStampedImage(const StampedImage& stamped_image) {
     }
 
     // Convert the data vector to cv::Mat
-    cv::Mat img;
     if (encoding == "mono8") {
-        img = cv::Mat(height, width, CV_8UC1, data.data());
+        aps_frame = cv::Mat(height, width, CV_8UC1, data.data());
+        cv::cvtColor(aps_frame, aps_frame, cv::COLOR_GRAY2BGR);  // Convert grayscale to 3-channel BGR
     } else if (encoding == "rgb8") {
         cv::Mat temp = cv::Mat(height, width, CV_8UC3, data.data());
-        cv::cvtColor(temp, img, cv::COLOR_RGB2BGR); // Convert RGB to OpenCV's BGR
+        cv::cvtColor(temp, aps_frame, cv::COLOR_RGB2BGR); // Convert RGB to OpenCV's BGR
     } else {
         std::cerr << "Error: Unsupported encoding format: " << encoding << std::endl;
         return;
     }
 
-    // Display the image in an OpenCV window
-    cv::imshow("Stamped Image Stream", img);
+    // Display the APS image
+    cv::imshow("Stamped Image Stream", aps_frame);
     
     // Short delay to allow OpenCV to refresh the display
     cv::waitKey(1);  // 1ms delay, ensures smooth video playback
 }
 
+void displayCombinedFrame() {
+    if (aps_frame.empty() || event_frame.empty()) {
+        std::cerr << "Warning: One or both frames are empty!" << std::endl;
+        return;
+    }
+
+    // Ensure both images are the same size
+    if (aps_frame.size() != event_frame.size()) {
+        cv::resize(aps_frame, aps_frame, event_frame.size());
+    }
+
+    // Convert event_frame to 8-bit (CV_8UC3) for blending
+    cv::Mat event_frame_8bit;
+    event_frame.convertTo(event_frame_8bit, CV_8UC3, 255.0); // Scale float to 8-bit
+
+    // Blend APS frame with event frame
+    cv::Mat combined_frame;
+    cv::addWeighted(aps_frame, 0.7, event_frame_8bit, 0.5, 0, combined_frame);
+
+    // Display the combined frame
+    cv::imshow("Combined Event + APS Frame", combined_frame);
+
+    // Short delay for smooth video playback
+    cv::waitKey(1);
+}
 
 
 FrontEnd::FrontEnd(std::shared_ptr<CommunicationManager> comms)
@@ -168,8 +189,9 @@ void FrontEnd::addData(
     const bool& no_motion_prior)
 {
     // Test functions will only run in main thread
-    // displayStampedImage(stamped_image);
-    // displayStampedEvents(stamped_events);
+    displayStampedImage(stamped_image);
+    displayStampedEvents(stamped_events);
+    displayCombinedFrame();
 }
 
 void FrontEnd::addImuData(

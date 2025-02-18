@@ -7,6 +7,7 @@
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <math.h>
+#include <Filters.h>
 
 // make this a debugging task, ie (show coms status, current sate etc)
 void wifiComsTask(void *pvParameters) {
@@ -124,8 +125,7 @@ void displacementCalcTask(void *pvParameters) {
           displacement = ((((posCopy1 + posCopy6)/2.0) / PPR) * 2.0 * PI * WHEEL_RADIUS)*1000; // to mm
           Serial.print("displacement:  ");
           Serial.println(displacement);
-          Serial.print("preHeading: ");
-          Serial.println(prevHeading * (180.0 / PI));
+
 
           // read heading from IMU (use previous value for updating position)
           static float Axyz[3], Mxyz[3]; //centered and scaled accel/mag data
@@ -149,6 +149,11 @@ void displacementCalcTask(void *pvParameters) {
           } else {
             heading = headingTemp - headingOffset;
           }
+
+          Serial.print("Heading: ");
+          Serial.println(heading);
+          Serial.print("Headingoffset: ");
+          Serial.println(headingOffset);
 
           float headingRad = heading * (PI / 180.0);
           
@@ -266,6 +271,21 @@ void setup() {
     */
     //Serial.println("\nConnected to WiFi!");
 
+    float sum = 0;
+    for (int i = 0; i < 200; i++) {
+      static float Axyz[3], Mxyz[3]; //centered and scaled accel/mag data
+      if ( imu.dataReady() ) imu.getAGMT();
+      get_scaled_IMU(Axyz, Mxyz);  //apply relative scale and offset to RAW data. UNITS are not important
+      Mxyz[1] = -Mxyz[1]; //align magnetometer with accelerometer (reflect Y and Z)
+      Mxyz[2] = -Mxyz[2];
+
+      headingOffsets[i] = get_heading(Axyz, Mxyz, p, declination);
+      sum += headingOffsets[i];
+      delay(100);
+    }
+
+    headingOffset = sum / 200.0;
+
     // Create the motor control task
     xTaskCreate(
         motorControlTask,          // Task function
@@ -326,21 +346,6 @@ void setup() {
         &displacementCalcTaskHandle    // Task handle
     );
 
-
-    static float Axyz[3], Mxyz[3]; //centered and scaled accel/mag data
-
-    if ( imu.dataReady() ) imu.getAGMT();
-
-    get_scaled_IMU(Axyz, Mxyz);  //apply relative scale and offset to RAW data. UNITS are not important
-
-    // reconcile mag and accel coordinate axes
-    // Note: the illustration in the ICM_90248 data sheet implies that the magnetometer
-    // Y and Z axes are inverted with respect to the accelerometer axes, verified to be correct (SJR).
-
-    Mxyz[1] = -Mxyz[1]; //align magnetometer with accelerometer (reflect Y and Z)
-    Mxyz[2] = -Mxyz[2];
-
-    headingOffset = get_heading(Axyz, Mxyz, p, declination);
 }
 
 

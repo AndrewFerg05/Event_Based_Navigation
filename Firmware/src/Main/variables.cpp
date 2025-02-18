@@ -34,27 +34,29 @@ float displacement = 0;
 float heading = 0;
 float prevHeading = 0;
 
+float headingOffsets[200] = {0};
+
 //IMU stuff 
 ICM_20948_I2C imu; // create an ICM_20948_I2C object imu;
 
 //Accel scale: divide by 16604.0 to normalize. These corrections are quite small and probably can be ignored.
 float A_B[3]
-{-216.2 , -84.87 , -122.89};
+{-133.47 , 1.7 , -117.47};
 
 float A_Ainv[3][3]
-{ {  0.06059 , 0.00005 , -0.00005},
-  {  0.00005 , 0.06056 , 0.00068},
-  { -0.00005 , 0.00068 , 0.06087}
+{ {  0.06271 , 0.00087 , 0.00021},
+  {  0.00087 , 0.0617 , -0.00046},
+  { 0.00021 , -0.00046 , 0.06051}
 };
 
 //Mag scale divide by 369.4 to normalize. These are significant corrections, especially the large offsets.
 float M_B[3]
-{ 76.42 , 0.86 , 431.03};
+{ 98.42 , 5.53 , 388.54};
 
 float M_Ainv[3][3]
-{ {  5.50509 , -0.078 , -0.0108},
-  { -0.078 , 5.15096 , 0.06757},
-  { -0.0108 , 0.06757 , 5.43276}
+{ {  4.01436 , -0.14836 , -0.05006},
+  { -0.14836 , 3.78476 , 0.05516},
+  { -0.05006 , 0.05516 , 3.72039}
 };
 
 // local magnetic declination in degrees

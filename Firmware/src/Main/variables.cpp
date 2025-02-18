@@ -33,6 +33,7 @@ volatile int pos_6 = 0;
 float displacement = 0;
 float heading = 0;
 float prevHeading = 0;
+float prevHeading2 = 0;
 
 float headingOffsets[200] = {0};
 

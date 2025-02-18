@@ -7,7 +7,6 @@
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <math.h>
-#include <Filters.h>
 
 // make this a debugging task, ie (show coms status, current sate etc)
 void wifiComsTask(void *pvParameters) {
@@ -47,7 +46,7 @@ void wifiComsTask(void *pvParameters) {
 // Task to check Wifi connection and reconnect if connection was lost
 void wifiCheckConnectionTask(void *pvParameters) {
   for (;;) {
-    /*
+    
     if(WiFi.status() == WL_CONNECTED) {
       //Serial.println("Connected");
       vTaskDelay(1000 / portTICK_PERIOD_MS);  // Run every 1 second
@@ -66,8 +65,8 @@ void wifiCheckConnectionTask(void *pvParameters) {
       //Serial.println("Connection Failed");
       
       vTaskDelay(100 / portTICK_PERIOD_MS);  // Retry every 100 ms
-    }*/ 
-    vTaskDelay(1000 / portTICK_PERIOD_MS);  // Run every 1 second
+    }
+    
   }
 }
 
@@ -84,7 +83,7 @@ void ibusTask(void *pvParameters) {
 void displacementCalcTask(void *pvParameters) {
   TickType_t xLastWakeTime_disp;
   // every 100 ms
-  const TickType_t xFrequency_disp = 1000/ portTICK_PERIOD_MS;
+  const TickType_t xFrequency_disp = 100/ portTICK_PERIOD_MS;
     xLastWakeTime_disp = xTaskGetTickCount ();
     for( ;; ) {
       
@@ -122,9 +121,9 @@ void displacementCalcTask(void *pvParameters) {
           // convert to linear displacement
 
 
-          displacement = ((((posCopy1 + posCopy6)/2.0) / PPR) * 2.0 * PI * WHEEL_RADIUS)*1000; // to mm
-          Serial.print("displacement:  ");
-          Serial.println(displacement);
+          displacement = ((((posCopy1 + posCopy6)/2.0) / PPR) * 2.0 * PI * WHEEL_RADIUS) * 1000; // to mm
+          //Serial.print("displacement:  ");
+          //Serial.println(displacement);
 
 
           // read heading from IMU (use previous value for updating position)
@@ -141,8 +140,7 @@ void displacementCalcTask(void *pvParameters) {
           Mxyz[1] = -Mxyz[1]; //align magnetometer with accelerometer (reflect Y and Z)
           Mxyz[2] = -Mxyz[2];
 
-          
-
+        
           float headingTemp = get_heading(Axyz, Mxyz, p, declination);
           if (headingTemp < headingOffset) {
             heading = 360 - (headingOffset - headingTemp);
@@ -150,26 +148,27 @@ void displacementCalcTask(void *pvParameters) {
             heading = headingTemp - headingOffset;
           }
 
-          Serial.print("Heading: ");
-          Serial.println(heading);
-          Serial.print("Headingoffset: ");
-          Serial.println(headingOffset);
+          //Serial.print("Heading: ");
+          //Serial.println(heading);
+          //Serial.print("Headingoffset: ");
+          //Serial.println(headingOffset);
 
           float headingRad = heading * (PI / 180.0);
+          
           
           // update position 
           currentPos.x += (displacement * (float)cos(prevHeading));
           currentPos.y += (displacement * (float)sin(prevHeading));
-          Serial.print("x:  ");
-          Serial.println(currentPos.x);
-          Serial.print("y:  ");
-          Serial.println(currentPos.y);
+          //Serial.print("x:  ");
+          //Serial.println(currentPos.x);
+          //Serial.print("y:  ");
+          //Serial.println(currentPos.y);
 
           int32_t x = (int32_t)(currentPos.x);
           int32_t y = (int32_t)(currentPos.y);
 
           // transmit using UDP, or flag for another task to transmit the data
-          /*
+          
           int32_t numbers[6] = {3, 16, x, y, int32_t(prevHeading), (int32_t)(posCopy1)};
 
           uint8_t buffer[24];  // 6 integers * 4 bytes each = 24 bytes
@@ -179,10 +178,10 @@ void displacementCalcTask(void *pvParameters) {
           udp.beginPacket(udpAddress, udpPort);
           udp.write(buffer, sizeof(buffer));  // Send 24-byte buffer
           udp.endPacket();
-          */
+          
 
           // 
-          prevHeading = headingRad;    
+          prevHeading = headingRad;   
       }
     }
 }
@@ -260,7 +259,7 @@ void setup() {
     if (imu.status != ICM_20948_Stat_Ok) {
       //Serial.println(F("ICM_90248 not detected"));
     }
-    /*
+    
     // Connect to WiFi
     WiFi.begin(ssid, password);
     //Serial.print("Connecting to WiFi");
@@ -268,7 +267,7 @@ void setup() {
         //Serial.print(".");
         delay(500);
     }
-    */
+    
     //Serial.println("\nConnected to WiFi!");
 
     float sum = 0;

@@ -59,6 +59,7 @@ extern volatile int pos_6;
 extern float displacement;
 extern float heading;
 extern float prevHeading;
+extern float prevHeading2;
 extern float headingOffsets[200];
 
 //IMU stuff 

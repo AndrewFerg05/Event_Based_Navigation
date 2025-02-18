@@ -10,9 +10,8 @@
 
 #define NUM_MOTOR_DRIVERS 3
 #define WIFI_TIMEOUT_MS 1000
-#define WHEEL_RADIUS 65/1000
+#define WHEEL_RADIUS 0.065
 #define PPR 1133
-#define PI 3.141592653589793
 #define WIRE_PORT Wire1 // desired Wire port.
 #define AD0_VAL 1      // value of the last bit of the I2C address.
 
@@ -71,6 +70,7 @@ extern float M_Ainv[3][3];
 extern float declination;
 extern float p[3];
 
+extern float headingOffset;
 
 
 

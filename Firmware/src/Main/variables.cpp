@@ -62,7 +62,7 @@ float declination = -1.06;
 
 float p[3] = {1, 0, 0};  //X marking on sensor board points toward yaw = 0
 
-
+float headingOffset = 0;
 
 SemaphoreHandle_t xPositionMutex;
 
@@ -71,7 +71,7 @@ int prevRightDirection = 1;
 int prevLeftDirection = 1;
 
 // WiFi credentials
-const char* ssid = "PI-SARK";
+const char* ssid = "SARK";
 const char* password = "samsamsam802";
 
 // UDP configuration

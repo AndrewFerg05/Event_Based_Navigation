@@ -6,6 +6,7 @@
 #include <IBusBM.h>
 #include <WiFi.h>
 #include <WiFiUdp.h>
+#include <math.h>
 
 // make this a debugging task, ie (show coms status, current sate etc)
 void wifiComsTask(void *pvParameters) {
@@ -64,7 +65,7 @@ void wifiCheckConnectionTask(void *pvParameters) {
       //Serial.println("Connection Failed");
       
       vTaskDelay(100 / portTICK_PERIOD_MS);  // Retry every 100 ms
-    } */
+    }*/ 
     vTaskDelay(1000 / portTICK_PERIOD_MS);  // Run every 1 second
   }
 }
@@ -82,13 +83,14 @@ void ibusTask(void *pvParameters) {
 void displacementCalcTask(void *pvParameters) {
   TickType_t xLastWakeTime_disp;
   // every 100 ms
-  const TickType_t xFrequency_disp = 100/ portTICK_PERIOD_MS;
+  const TickType_t xFrequency_disp = 1000/ portTICK_PERIOD_MS;
     xLastWakeTime_disp = xTaskGetTickCount ();
     for( ;; ) {
       
       vTaskDelayUntil( &xLastWakeTime_disp, xFrequency_disp);
 
-      int posCopy[6] = {};
+      pos_1 = pos_1 + 100;
+      pos_6 = pos_6 + 100;
 
       // Take the mutex to safely access the shared position variables
       if (xSemaphoreTake(xPositionMutex, portMAX_DELAY) == pdTRUE) {
@@ -118,7 +120,12 @@ void displacementCalcTask(void *pvParameters) {
           // 4,5,6 are the left side motors
           // convert to linear displacement
 
-          displacement = (((posCopy1 + posCopy2)/2) / PPR) * 2 * PI * WHEEL_RADIUS;
+
+          displacement = ((((posCopy1 + posCopy6)/2.0) / PPR) * 2.0 * PI * WHEEL_RADIUS)*1000; // to mm
+          Serial.print("displacement:  ");
+          Serial.println(displacement);
+          Serial.print("preHeading: ");
+          Serial.println(prevHeading * (180.0 / PI));
 
           // read heading from IMU (use previous value for updating position)
           static float Axyz[3], Mxyz[3]; //centered and scaled accel/mag data
@@ -134,18 +141,43 @@ void displacementCalcTask(void *pvParameters) {
           Mxyz[1] = -Mxyz[1]; //align magnetometer with accelerometer (reflect Y and Z)
           Mxyz[2] = -Mxyz[2];
 
-          heading = get_heading(Axyz, Mxyz, p, declination);
-          
-          float filtHeading = (heading + prevHeading)/2;
-          Serial.println(filtHeading);
           
 
+          float headingTemp = get_heading(Axyz, Mxyz, p, declination);
+          if (headingTemp < headingOffset) {
+            heading = 360 - (headingOffset - headingTemp);
+          } else {
+            heading = headingTemp - headingOffset;
+          }
+
+          float headingRad = heading * (PI / 180.0);
+          
           // update position 
+          currentPos.x += (displacement * (float)cos(prevHeading));
+          currentPos.y += (displacement * (float)sin(prevHeading));
+          Serial.print("x:  ");
+          Serial.println(currentPos.x);
+          Serial.print("y:  ");
+          Serial.println(currentPos.y);
+
+          int32_t x = (int32_t)(currentPos.x);
+          int32_t y = (int32_t)(currentPos.y);
 
           // transmit using UDP, or flag for another task to transmit the data
+          /*
+          int32_t numbers[6] = {3, 16, x, y, int32_t(prevHeading), (int32_t)(posCopy1)};
+
+          uint8_t buffer[24];  // 6 integers * 4 bytes each = 24 bytes
+          memcpy(buffer, numbers, sizeof(numbers));  // Copy data into buffer
+
+          // Send UDP message
+          udp.beginPacket(udpAddress, udpPort);
+          udp.write(buffer, sizeof(buffer));  // Send 24-byte buffer
+          udp.endPacket();
+          */
 
           // 
-          prevHeading = heading;    
+          prevHeading = headingRad;    
       }
     }
 }
@@ -221,15 +253,17 @@ void setup() {
     WIRE_PORT.setClock(400000);
     imu.begin(WIRE_PORT, AD0_VAL);
     if (imu.status != ICM_20948_Stat_Ok) {
-      Serial.println(F("ICM_90248 not detected"));
+      //Serial.println(F("ICM_90248 not detected"));
     }
+    /*
     // Connect to WiFi
-    /*WiFi.begin(ssid);
+    WiFi.begin(ssid, password);
     //Serial.print("Connecting to WiFi");
     while (WiFi.status() != WL_CONNECTED) {
         //Serial.print(".");
         delay(500);
-    }*/
+    }
+    */
     //Serial.println("\nConnected to WiFi!");
 
     // Create the motor control task
@@ -292,6 +326,21 @@ void setup() {
         &displacementCalcTaskHandle    // Task handle
     );
 
+
+    static float Axyz[3], Mxyz[3]; //centered and scaled accel/mag data
+
+    if ( imu.dataReady() ) imu.getAGMT();
+
+    get_scaled_IMU(Axyz, Mxyz);  //apply relative scale and offset to RAW data. UNITS are not important
+
+    // reconcile mag and accel coordinate axes
+    // Note: the illustration in the ICM_90248 data sheet implies that the magnetometer
+    // Y and Z axes are inverted with respect to the accelerometer axes, verified to be correct (SJR).
+
+    Mxyz[1] = -Mxyz[1]; //align magnetometer with accelerometer (reflect Y and Z)
+    Mxyz[2] = -Mxyz[2];
+
+    headingOffset = get_heading(Axyz, Mxyz, p, declination);
 }
 
 

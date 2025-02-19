@@ -98,10 +98,12 @@ extern TaskHandle_t wifiComsTaskHandle;
 extern TaskHandle_t wifiCheckConnectionTaskHandle;
 extern TaskHandle_t updateStateTaskHandle;
 extern TaskHandle_t displacementCalcTaskHandle;
+extern TaskHandle_t PIComsTaskHandle;
 
+// state variables
 extern int32_t controlState;
-extern int32_t running;
-extern int32_t start;
+extern int32_t runningState;
+extern int32_t startState;
 
 // debugging varaibles
 extern int32_t RC_connected;

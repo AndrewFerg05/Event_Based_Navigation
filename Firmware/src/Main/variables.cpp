@@ -89,11 +89,12 @@ TaskHandle_t wifiComsTaskHandle = NULL;
 TaskHandle_t wifiCheckConnectionTaskHandle = NULL;
 TaskHandle_t updateStateTaskHandle = NULL;
 TaskHandle_t displacementCalcTaskHandle = NULL;
+TaskHandle_t PIComsTaskHandle = NULL;
 
 //states
-extern int32_t controlState = 0;
-extern int32_t running = 0;
-extern int32_t start = 0;
+int32_t controlState = 0;
+int32_t runningState = 0;
+int32_t startState = 0;
 
 //debugging values
-extern int32_t RC_connected = 0;
+int32_t RC_connected = 0;

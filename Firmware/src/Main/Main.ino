@@ -8,6 +8,19 @@
 #include <WiFiUdp.h>
 #include <math.h>
 
+void PIComsTask(void *pvParameters) {
+  for (;;) {
+      ulTaskNotifyTake(pdTRUE, portMAX_DELAY);  // Wait for a notification
+
+      // Run UART communication code here
+      // the states are stored in global varaibles 
+      // controlState, (RC vs Control System)
+      // runningState, (idle, running )
+      // startState, (complete stop, complete start)
+      
+  }
+}
+
 // make this a debugging task, ie (show coms status, current sate etc)
 void wifiComsTask(void *pvParameters) {
   TickType_t xLastWakeTime_wifi;
@@ -89,9 +102,6 @@ void displacementCalcTask(void *pvParameters) {
       
       vTaskDelayUntil( &xLastWakeTime_disp, xFrequency_disp);
 
-      pos_1 = pos_1 + 100;
-      pos_6 = pos_6 + 100;
-
       // Take the mutex to safely access the shared position variables
       if (xSemaphoreTake(xPositionMutex, portMAX_DELAY) == pdTRUE) {
 
@@ -115,16 +125,10 @@ void displacementCalcTask(void *pvParameters) {
           xSemaphoreGive(xPositionMutex);
 
           // when all the encoders are added in will need to average the values
-
           // 1,2,3 are the right side motors
           // 4,5,6 are the left side motors
           // convert to linear displacement
-
-
           displacement = ((((posCopy1 + posCopy6)/2.0) / PPR) * 2.0 * PI * WHEEL_RADIUS) * 1000; // to mm
-          //Serial.print("displacement:  ");
-          //Serial.println(displacement);
-
 
           // read heading from IMU (use previous value for updating position)
           static float Axyz[3], Mxyz[3]; //centered and scaled accel/mag data
@@ -148,14 +152,8 @@ void displacementCalcTask(void *pvParameters) {
             heading = headingTemp - headingOffset;
           }
 
-          //Serial.print("Heading: ");
-          //Serial.println(heading);
-          //Serial.print("Headingoffset: ");
-          //Serial.println(headingOffset);
-
           float headingRad = heading * (PI / 180.0);
-          
-          
+                 
           // update position 
           currentPos.x += (displacement * (float)cos(prevHeading));
           currentPos.y += (displacement * (float)sin(prevHeading));
@@ -169,7 +167,7 @@ void displacementCalcTask(void *pvParameters) {
 
           // transmit using UDP, or flag for another task to transmit the data
           
-          int32_t numbers[6] = {3, 16, x, y, int32_t(prevHeading), (int32_t)(posCopy1)};
+          int32_t numbers[6] = {3, 16, x, y, -1, -1};
 
           uint8_t buffer[24];  // 6 integers * 4 bytes each = 24 bytes
           memcpy(buffer, numbers, sizeof(numbers));  // Copy data into buffer
@@ -178,8 +176,6 @@ void displacementCalcTask(void *pvParameters) {
           udp.beginPacket(udpAddress, udpPort);
           udp.write(buffer, sizeof(buffer));  // Send 24-byte buffer
           udp.endPacket();
-          
-
           // 
           prevHeading = headingRad;   
       }
@@ -188,19 +184,29 @@ void displacementCalcTask(void *pvParameters) {
 
 
 void updateStateTask(void *pvParameters) {
+  static int32_t prevControlState = -1;
+  static int32_t prevRunning = -1;
+  static int32_t prevStart = -1;
 
   for (;;) {
       // code to read in and update the states 
       controlState = readChannel(6, 0, 1, 2);
-      running = readChannel(7, 0, 1, 2);
-      start = readChannel(8, 0, 1, 2);
+      runningState = readChannel(7, 0, 1, 2);
+      startState = readChannel(8, 0, 1, 2);
 
-      if (controlState == 2 || running == 2 || start == 2){
+      if (controlState == 2 || runningState == 2 || startState == 2){
         RC_connected = 0;
       } else {
         RC_connected = 1;
       }
 
+      if (controlState != prevControlState || runningState != prevRunning || startState != prevStart) {
+        prevControlState = controlState;
+        prevRunning = runningState;
+        prevStart = startState;
+
+        xTaskNotifyGive(PIComsTaskHandle);
+      }
 
       vTaskDelay(100 / portTICK_PERIOD_MS);  // Run every 10ms
   }
@@ -343,6 +349,17 @@ void setup() {
         NULL,                      // Task parameters
         1,                         // Task priority (1 is low)
         &displacementCalcTaskHandle    // Task handle
+    );
+
+    
+    // Create the PI coms task to communicate states
+    xTaskCreate(
+        PIComsTask,          // Task function
+        "PI ComsTask",      // Task name
+        1024,                      // Stack size (adjust as needed)
+        NULL,                      // Task parameters
+        1,                         // Task priority (1 is low)
+        &PIComsTaskHandle    // Task handle
     );
 
 }

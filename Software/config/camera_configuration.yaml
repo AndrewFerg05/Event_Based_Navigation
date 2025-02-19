@@ -1,14 +1,15 @@
 serial_number: 00000092
 reset_timestamps_delay: -1.0
-imu_calibration_sample_size: 1000
+imu_calibration_sample_size: 2000
 
 imu_bias:
-  ax: 0.0
-  ay: 0.0
-  az: 0.0
-  wx: 0.0
-  wy: 0.0
-  wz: 0.0
+  ax: 0.181629
+  ay: -9.94785
+  az: 9.25731
+  wx: -0.0356587
+  wy: -0.00267168
+  wz: 0.0295803
+
 
 # DAVIS346 Specific Parameters - From ROS Driver example - may need changed
 aps_enabled: true
@@ -20,7 +21,7 @@ imu_gyro_scale: 3
 
 exposure: 4000
 
-autoexposure_desired_intensity: 100
+autoexposure_desired_intensity: 150
 autoexposure_gain: 4.0  
 
 frame_delay: 0
@@ -53,7 +54,7 @@ RefrBp_fine: 25
 # DAVIS346 Params Set in Code - Not sure where specified - Andrew's attempt to keep everything off below
 frame_mode: 0
 frame_interval: 0
-mu_low_pass_filter: 3  # ON (Choose between 1-6)
+mu_low_pass_filter: 6  # ON (Choose between 1-6)
 imu_sample_rate_divider: 0  # Keep at 0 when LPF is enabled
 
 # Hardware Filtering (DVS) - Default OFF - Doesn't Work yet

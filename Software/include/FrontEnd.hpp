@@ -55,6 +55,11 @@ class FrontEnd
         const Vector3& gyr);
 
     void initState(int64_t stamp, const Vector3& acc, const Vector3& gyr);
+    bool buildImage(ov_core::CameraData& camera_data, 
+        const StampedImage& stamped_image,
+        const StampedEventArray& stamped_events,
+        const ImuStamps& imu_stamps,
+        const ImuAccGyrContainer& imu_accgyr);
 
     private:
     std::atomic<bool> stateInitialised_{false};

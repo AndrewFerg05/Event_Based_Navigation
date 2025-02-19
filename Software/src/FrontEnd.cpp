@@ -31,10 +31,10 @@ Change History
 //------------------------------------------------------------------------------
 
 //==============================================================================
-// Functions
+// Test Functions
 //------------------------------------------------------------------------------
 
-
+// Can Only Run Test Functions In Main Thread
 
 // Define the event frame size for the DAVIS 346 camera
 const int EVENT_FRAME_WIDTH = 346;
@@ -76,22 +76,12 @@ void displayStampedEvents(const StampedEventArray& stamped_events) {
     cv::Mat event_frame_8bit;
     event_frame.convertTo(event_frame_8bit, CV_8UC3, 255.0); // Scale float to 8-bit
 
-    // Define a kernel for morphology operations
-    // cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
-
-    // // Apply morphological opening (removes small noise)
-    // cv::morphologyEx(event_frame_8bit, event_frame_8bit, cv::MORPH_OPEN, kernel);
-
-    // // Apply morphological closing (fills small gaps)
-    // cv::morphologyEx(event_frame_8bit, event_frame_8bit, cv::MORPH_CLOSE, kernel);
-
     // Display the cleaned event frame
     cv::imshow("Processed Event Frame", event_frame_8bit);
 
     // Short delay for smooth video playback
     cv::waitKey(1);
 }
-
 
 // Function to display images in a continuous video stream
 void displayStampedImage(const StampedImage& stamped_image) {
@@ -152,7 +142,7 @@ void displayCombinedFrame() {
     // Blend APS frame with event frame
     cv::Mat combined_frame;
     cv::addWeighted(aps_frame, 0.7, event_frame_8bit, 0.5, 0, combined_frame);
-
+    return;
     // Display the combined frame
     cv::imshow("Combined Event + APS Frame", combined_frame);
 
@@ -160,13 +150,16 @@ void displayCombinedFrame() {
     cv::waitKey(1);
 }
 
+//==============================================================================
+// Functions
+//------------------------------------------------------------------------------
+
 
 FrontEnd::FrontEnd(std::shared_ptr<CommunicationManager> comms, const std::string& config_path)
     : comms_interface_(comms), config_path_(config_path)
     {
         setupVIO();
     }
-
 
 void FrontEnd::start()
 {
@@ -207,7 +200,7 @@ void FrontEnd::initState(int64_t stamp, const Vector3& acc, const Vector3& gyr)
     Eigen::Matrix<double, 17, 1> imustate;
     imustate.setZero();  // Initialize to zero
 
-    imustate(0, 0) = stamp / 1e9;  // Set initial timestamp - CHECK UNIT
+    imustate(0, 0) = stamp / 1e9;  // Set initial timestamp
 
     // **Orientation (q_GtoI)**: Assume identity rotation (modify if needed)
     imustate(1, 0) = 1.0;  // Quaternion (w)
@@ -233,8 +226,8 @@ void FrontEnd::initState(int64_t stamp, const Vector3& acc, const Vector3& gyr)
     imustate(15, 0) = -9.94785;  // Accel bias y
     imustate(16, 0) = 9.25731;  // Accel bias z
 
-    vio_manager_->initialize_with_gt(imustate);
 
+    vio_manager_->initialize_with_gt(imustate);
 
     stateInitialised_ = true;
 
@@ -245,26 +238,19 @@ void FrontEnd::initState(int64_t stamp, const Vector3& acc, const Vector3& gyr)
     }
 }
 
-
-void FrontEnd::addData(
+bool FrontEnd::buildImage(ov_core::CameraData& camera_data, 
     const StampedImage& stamped_image,
     const StampedEventArray& stamped_events,
     const ImuStamps& imu_stamps,
-    const ImuAccGyrContainer& imu_accgyr,
-    const bool& no_motion_prior)
+    const ImuAccGyrContainer& imu_accgyr)
 {
-    // if (!stateInitialised_)
-    // {
-    //     return;
-    // }
-
     double timestamp = stamped_image.first / 1e9;  // Convert nanoseconds to seconds
     ImagePtr imagePtr = stamped_image.second;
 
     if (!imagePtr)
     {
         LOG(ERROR) << "FE: Error: Null ImagePtr!";
-        return;
+        return false;
     }
 
     cv::Mat frame;
@@ -275,34 +261,67 @@ void FrontEnd::addData(
     if (imagePtr->data.empty())
     {
         LOG(ERROR) << "FE: Error: Image data is empty!";
-        return;
+        return false;
     }
 
     if (encoding == "mono8") {
         frame = cv::Mat(height, width, CV_8UC1, imagePtr->data.data());
-    } else if (encoding == "rgb8") 
+    }
+    else 
     {
-        frame = cv::Mat(height, width, CV_8UC3, imagePtr->data.data());
-        cv::cvtColor(frame, frame, cv::COLOR_RGB2BGR);  // Convert RGB to OpenCV's BGR format
-    } else {
         LOG(ERROR) << "FE: Unsupported encoding format: " << encoding;
-        return;
+        return false;
     }
 
-
-    ov_core::CameraData camera_data;
     camera_data.timestamp = timestamp;    // Set timestamp
     camera_data.sensor_ids.push_back(0);  // Assuming single-camera setup (ID=0)
     camera_data.images.push_back(frame);  // Add converted image
-    camera_data.masks.push_back(cv::Mat::zeros(height, width, CV_8UC1));
+    camera_data.masks.push_back(cv::Mat::zeros(height, width, CV_8UC1)); //Adding blank mask as errors otherwise
+
+    return true;
+}
+
+void FrontEnd::addData(
+    const StampedImage& stamped_image,
+    const StampedEventArray& stamped_events,
+    const ImuStamps& imu_stamps,
+    const ImuAccGyrContainer& imu_accgyr,
+    const bool& no_motion_prior)
+{
+    // initState does not work - not sure if needed
+    // if (!stateInitialised_)
+    // {
+    //     return;
+    // }
+
+    //Build Image frame to input to VIO frontend
+    ov_core::CameraData camera_data;
+    if(!buildImage(camera_data, stamped_image, stamped_events, imu_stamps, imu_accgyr))
+    {
+        LOG(ERROR) << "FE: Error building frame";
+        return;
+    }
+
     vio_manager_->feed_measurement_camera(camera_data);
 
+    // Log global position - Check
     auto state = vio_manager_->get_state();
+
+    if (state) 
+    {
+        std::lock_guard<std::mutex> lock(state->_mutex_state);
+    
+        // Retrieve global position
+        Eigen::Vector3d global_position = state->_imu->pos(); 
+    
+        LOG(INFO) << "Global Position: " << global_position.transpose();
+    }
 }
 
 void FrontEnd::addImuData(
     int64_t stamp, const Vector3& acc, const Vector3& gyr)
 {
+    // initState does not work  - not sure if needed
     // if (!stateInitialised_)
     // {
     //     initState(stamp, acc, gyr);

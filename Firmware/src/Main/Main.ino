@@ -25,7 +25,7 @@ void PIComsTask(void *pvParameters) {
 void wifiStatesTask(void *pvParameters) {
   for( ;; ) {
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);  // Wait for a notification
-    
+    /*
     // Data ID set to 4 for status bits / Number of bytes to send (4*4) / 32-bit ints to send
     int32_t numbers[6] = {4, 16, connectedRC, controlState, -1, -1};
 
@@ -36,7 +36,8 @@ void wifiStatesTask(void *pvParameters) {
     udp.beginPacket(udpAddress, udpPort);
     udp.write(buffer, sizeof(buffer));  // Send 24-byte buffer
     udp.endPacket();
-    //Serial.println("UDP packet sent!");     
+    //Serial.println("UDP packet sent!");   
+    */  
   }
 
 }

@@ -22,6 +22,11 @@ Change History
 #include <opencv2/opencv.hpp>
 #include <iostream>
 #include <cmath>
+#include <open_vins/core/VioManagerOptions.h>
+#include <open_vins/core/VioManager.h>
+#include <open_vins/state/State.h>
+
+
 
 //==============================================================================
 //      Classes
@@ -30,8 +35,11 @@ class FrontEnd
 {
     public:
     explicit FrontEnd(
-        std::shared_ptr<CommunicationManager> comms);
+        std::shared_ptr<CommunicationManager> comms,
+        const std::string& config_path);
+
     ~FrontEnd() = default;
+    
     void start();
     void stop();
     void idle();
@@ -46,8 +54,16 @@ class FrontEnd
         const Vector3& acc, 
         const Vector3& gyr);
 
+    void initState(int64_t stamp, const Vector3& acc, const Vector3& gyr);
+
     private:
+    std::atomic<bool> stateInitialised_{false};
     std::shared_ptr<CommunicationManager> comms_interface_;
+    std::shared_ptr<ov_msckf::VioManager> vio_manager_; // OpenVINS VIO manager
+    std::string config_path_; // Configuration file path
+
+    void setupVIO(); // Function to initialize OpenVINS
+    
 };
 
 //==============================================================================

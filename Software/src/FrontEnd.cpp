@@ -161,9 +161,11 @@ void displayCombinedFrame() {
 }
 
 
-FrontEnd::FrontEnd(std::shared_ptr<CommunicationManager> comms)
-    : comms_interface_(comms)
-    {}
+FrontEnd::FrontEnd(std::shared_ptr<CommunicationManager> comms, const std::string& config_path)
+    : comms_interface_(comms), config_path_(config_path)
+    {
+        setupVIO();
+    }
 
 
 void FrontEnd::start()
@@ -181,6 +183,69 @@ void FrontEnd::stop()
     
 }
 
+void FrontEnd::setupVIO()
+{
+    // Load configuration file
+     auto parser = std::make_shared<ov_core::YamlParser>(config_path_);
+
+    // Initialize VIO options
+    ov_msckf::VioManagerOptions params;
+    params.print_and_load(parser);
+
+    params.num_opencv_threads = 0; // for repeatability
+
+    vio_manager_ = std::make_shared<ov_msckf::VioManager>(params);
+
+    // Ensure we read in all parameters required
+    if (!parser->successful()) {
+      LOG(FATAL) << "FE: Unable to parse all parameters";
+    }
+}
+
+void FrontEnd::initState(int64_t stamp, const Vector3& acc, const Vector3& gyr)
+{
+    Eigen::Matrix<double, 17, 1> imustate;
+    imustate.setZero();  // Initialize to zero
+
+    imustate(0, 0) = stamp / 1e9;  // Set initial timestamp - CHECK UNIT
+
+    // **Orientation (q_GtoI)**: Assume identity rotation (modify if needed)
+    imustate(1, 0) = 1.0;  // Quaternion (w)
+    imustate(2, 0) = 0.0;  // Quaternion (x)
+    imustate(3, 0) = 0.0;  // Quaternion (y)
+    imustate(4, 0) = 0.0;  // Quaternion (z)
+
+    // **Position (p_IinG)**: Start at the origin
+    imustate(5, 0) = 0.0;  // x
+    imustate(6, 0) = 0.0;  // y
+    imustate(7, 0) = 0.0;  // z
+
+    // **Velocity (v_IinG)**: Assume zero initial velocity
+    imustate(8, 0) = 0.0;  // x
+    imustate(9, 0) = 0.0;  // y
+    imustate(10, 0) = 0.0; // z
+    
+    // **IMU Biases (b_gyro, b_accel)**: Assume initial biases from factory calibration
+    imustate(11, 0) = -0.0356587;  // Gyro bias x
+    imustate(12, 0) = -0.00267168;  // Gyro bias y
+    imustate(13, 0) = 0.0295803;  // Gyro bias z
+    imustate(14, 0) = 0.181629;  // Accel bias x
+    imustate(15, 0) = -9.94785;  // Accel bias y
+    imustate(16, 0) = 9.25731;  // Accel bias z
+
+    vio_manager_->initialize_with_gt(imustate);
+
+
+    stateInitialised_ = true;
+
+    if (vio_manager_->initialized()) {
+        LOG(INFO) << "VIO Manager successfully initialized!";
+    } else {
+        LOG(ERROR) << "ERROR: VIO Manager failed to initialize!";
+    }
+}
+
+
 void FrontEnd::addData(
     const StampedImage& stamped_image,
     const StampedEventArray& stamped_events,
@@ -188,16 +253,69 @@ void FrontEnd::addData(
     const ImuAccGyrContainer& imu_accgyr,
     const bool& no_motion_prior)
 {
-    // Test functions will only run in main thread
-    displayStampedImage(stamped_image);
-    displayStampedEvents(stamped_events);
-    displayCombinedFrame();
+    // if (!stateInitialised_)
+    // {
+    //     return;
+    // }
+
+    double timestamp = stamped_image.first / 1e9;  // Convert nanoseconds to seconds
+    ImagePtr imagePtr = stamped_image.second;
+
+    if (!imagePtr)
+    {
+        LOG(ERROR) << "FE: Error: Null ImagePtr!";
+        return;
+    }
+
+    cv::Mat frame;
+    int width = imagePtr->width;
+    int height = imagePtr->height;
+    std::string encoding = imagePtr->encoding;
+
+    if (imagePtr->data.empty())
+    {
+        LOG(ERROR) << "FE: Error: Image data is empty!";
+        return;
+    }
+
+    if (encoding == "mono8") {
+        frame = cv::Mat(height, width, CV_8UC1, imagePtr->data.data());
+    } else if (encoding == "rgb8") 
+    {
+        frame = cv::Mat(height, width, CV_8UC3, imagePtr->data.data());
+        cv::cvtColor(frame, frame, cv::COLOR_RGB2BGR);  // Convert RGB to OpenCV's BGR format
+    } else {
+        LOG(ERROR) << "FE: Unsupported encoding format: " << encoding;
+        return;
+    }
+
+
+    ov_core::CameraData camera_data;
+    camera_data.timestamp = timestamp;    // Set timestamp
+    camera_data.sensor_ids.push_back(0);  // Assuming single-camera setup (ID=0)
+    camera_data.images.push_back(frame);  // Add converted image
+    camera_data.masks.push_back(cv::Mat::zeros(height, width, CV_8UC1));
+    vio_manager_->feed_measurement_camera(camera_data);
+
+    auto state = vio_manager_->get_state();
 }
 
 void FrontEnd::addImuData(
     int64_t stamp, const Vector3& acc, const Vector3& gyr)
 {
+    // if (!stateInitialised_)
+    // {
+    //     initState(stamp, acc, gyr);
+    //     return;
+    // }
 
+    ov_core::ImuData imu_data;
+    imu_data.timestamp = static_cast<double>(stamp) / 1e9;  // Convert nanoseconds to seconds
+
+    imu_data.wm << gyr.x(), gyr.y(), gyr.z();  // Angular velocity (rad/s)
+    imu_data.am << acc.x(), acc.y(), acc.z();  // Linear acceleration (m/s²)
+
+    vio_manager_->feed_measurement_imu(imu_data);
 }
 //==============================================================================
 // End of File : Software/src/DataAcquisition.cpp

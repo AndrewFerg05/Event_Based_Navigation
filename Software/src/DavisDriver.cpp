@@ -167,6 +167,7 @@ DavisDriver::DavisDriver(const std::string& config_path, std::shared_ptr<DataQue
 {
     config_manager_.loadConfig(config_path);
     caerConnect();
+    // triggerImuCalibration();
     config_manager_.streaming_rate = 30;
     bias = config_manager_.getBias();
     delta_ = std::chrono::microseconds(static_cast<long>(1e6 / config_manager_.streaming_rate));

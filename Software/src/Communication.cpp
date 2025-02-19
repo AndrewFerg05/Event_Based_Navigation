@@ -232,7 +232,7 @@ void CM_serialSendStatus(CM_serialInterface* serial, int32_t x, int32_t y){
         char message[50];
         
         snprintf(message, sizeof(message), "Iteration: %d\n", iterations);
-        printf(message);
+        // printf(message);
 
         serial->ESPWrite(message);
     }

@@ -104,7 +104,9 @@ int main(int argc, char* argv[])
  
     std::shared_ptr<DataAcquisition> DataAquistion_ = std::make_shared<DataAcquisition>(data_queues);
 
-    std::shared_ptr<FrontEnd> FrontEnd_ = std::make_shared<FrontEnd>(comms_interface);
+    std::string vio_config_path = "../config/estimator_config.yaml";
+
+    std::shared_ptr<FrontEnd> FrontEnd_ = std::make_shared<FrontEnd>(comms_interface, vio_config_path);
 
     DataAquistion_->registerCameraImuCallback(
         std::bind(
@@ -134,7 +136,8 @@ int main(int argc, char* argv[])
     auto start_time = std::chrono::steady_clock::now();  // Capture the start time
     bool triggered_3s = false, triggered_6s = false, triggered_9s = false, triggered_12s = false;
 
-    DataAquistion_->start();
+    int hold = 0;
+    while(true) {hold ++;hold--;};
     
     // while (true) {
     //     auto current_time = std::chrono::steady_clock::now();

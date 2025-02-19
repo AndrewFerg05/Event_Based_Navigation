@@ -54,15 +54,15 @@ void DataAcquisition::start() {
     running_ = true;
     state_ = ThreadState::Run;
 
-    // // Start thread
-    // if (acquisition_thread_.joinable())
-    // {
-    //     LOG(INFO) << "DA: Thread already running!";
-    //     return;
-    // }
-    // acquisition_thread_ = std::thread(&DataAcquisition::run, this);
-    // LOG(INFO) << "DA: Thread Started!";
-    run();
+    // Start thread
+    if (acquisition_thread_.joinable())
+    {
+        LOG(INFO) << "DA: Thread already running!";
+        return;
+    }
+    acquisition_thread_ = std::thread(&DataAcquisition::run, this);
+    LOG(INFO) << "DA: Thread Started!";
+    // run();
 }
 
 void DataAcquisition::idle() {
@@ -520,7 +520,7 @@ void DataAcquisition::run()
             case ThreadState::Run:
                 if (!processDataQueues()) 
                 {
-                    LOG(INFO) << "DA: No data in input queues - sleeping 100ms";
+                    // LOG(INFO) << "DA: No data in input queues - sleeping 100ms";
                     sleep_ms(100);
                 }
                 break;

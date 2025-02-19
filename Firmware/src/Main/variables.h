@@ -94,7 +94,7 @@ extern const int udpPort;
 // Task handles
 extern TaskHandle_t motorControlTaskHandle;
 extern TaskHandle_t ibusTaskHandle;
-extern TaskHandle_t wifiComsTaskHandle;
+extern TaskHandle_t wifiStatesTaskHandle;
 extern TaskHandle_t wifiCheckConnectionTaskHandle;
 extern TaskHandle_t updateStateTaskHandle;
 extern TaskHandle_t displacementCalcTaskHandle;
@@ -106,6 +106,6 @@ extern int32_t runningState;
 extern int32_t startState;
 
 // debugging varaibles
-extern int32_t RC_connected;
+extern int32_t connectedRC;
 
 #endif

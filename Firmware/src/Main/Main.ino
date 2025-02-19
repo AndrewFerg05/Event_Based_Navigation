@@ -22,37 +22,22 @@ void PIComsTask(void *pvParameters) {
 }
 
 // make this a debugging task, ie (show coms status, current sate etc)
-void wifiComsTask(void *pvParameters) {
-  TickType_t xLastWakeTime_wifi;
-  // every 100 ms
-  const TickType_t xFrequency_wifi = 1000/ portTICK_PERIOD_MS;
-
-    xLastWakeTime_wifi = xTaskGetTickCount ();
-    for( ;; ) {
-
-      // delays until exactly 100 ms since the last call
-      vTaskDelayUntil( &xLastWakeTime_wifi, xFrequency_wifi );
-      /*
-
-      // put Wifi code here (will operate exactly once every 100 ms)
-      // will probabily mess around will that timing but as a starting point
-      // since this will eventually be multithreaded 
-      // will probs need to figure out how to safely acess the values to send over wifi 
-      // but ignore that for the minute (unless you already know how to do it)
-          // Data ID (Leave as 3) / Number of bytes to send (4*4) / 32-bit ints to send
-      int32_t numbers[6] = {3, 16, RC_connected, controlState, running, start};
-
-      uint8_t buffer[24];  // 6 integers * 4 bytes each = 24 bytes
-      memcpy(buffer, numbers, sizeof(numbers));  // Copy data into buffer
-
-      // Send UDP message
-      udp.beginPacket(udpAddress, udpPort);
-      udp.write(buffer, sizeof(buffer));  // Send 24-byte buffer
-      udp.endPacket();
+void wifiStatesTask(void *pvParameters) {
+  for( ;; ) {
+    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);  // Wait for a notification
     
-      //Serial.println("UDP packet sent!");     
-      */
-    }
+    // Data ID set to 4 for status bits / Number of bytes to send (4*4) / 32-bit ints to send
+    int32_t numbers[6] = {4, 16, connectedRC, controlState, -1, -1};
+
+    uint8_t buffer[24];  // 6 integers * 4 bytes each = 24 bytes
+    memcpy(buffer, numbers, sizeof(numbers));  // Copy data into buffer
+
+    // Send UDP message
+    udp.beginPacket(udpAddress, udpPort);
+    udp.write(buffer, sizeof(buffer));  // Send 24-byte buffer
+    udp.endPacket();
+    //Serial.println("UDP packet sent!");     
+  }
 
 }
 
@@ -183,10 +168,12 @@ void displacementCalcTask(void *pvParameters) {
 }
 
 
+// update the states 
 void updateStateTask(void *pvParameters) {
   static int32_t prevControlState = -1;
   static int32_t prevRunning = -1;
   static int32_t prevStart = -1;
+  static int32_t prevConnectedRC = 0;
 
   for (;;) {
       // code to read in and update the states 
@@ -195,18 +182,25 @@ void updateStateTask(void *pvParameters) {
       startState = readChannel(8, 0, 1, 2);
 
       if (controlState == 2 || runningState == 2 || startState == 2){
-        RC_connected = 0;
+        connectedRC = 0;
       } else {
-        RC_connected = 1;
+        connectedRC = 1;
       }
 
+      // if one of the state varibales have changed send to the PI
       if (controlState != prevControlState || runningState != prevRunning || startState != prevStart) {
-        prevControlState = controlState;
-        prevRunning = runningState;
-        prevStart = startState;
-
         xTaskNotifyGive(PIComsTaskHandle);
       }
+
+      // if the RC connected was lost or the control state was chnaged send to GUI
+      if (controlState != prevControlState || connectedRC != prevConnectedRC) {
+        xTaskNotifyGive(wifiStatesTaskHandle);
+      }
+
+      prevControlState = controlState;
+      prevRunning = runningState;
+      prevStart = startState;
+      prevConnectedRC = connectedRC;
 
       vTaskDelay(100 / portTICK_PERIOD_MS);  // Run every 10ms
   }
@@ -311,20 +305,20 @@ void setup() {
         &ibusTaskHandle    // Task handle
     );
 
-    // Create the wifi coms task
+    // send updated states UDP
     xTaskCreate(
-        wifiCheckConnectionTask,          // Task function
-        "wifi Check Connection Task",      // Task name
+        wifiStatesTask,          // Task function
+        "send updated states UDP",      // Task name
         8192,                      // Stack size (adjust as needed)
         NULL,                      // Task parameters
         1,                         // Task priority (1 is low)
-        &wifiComsTaskHandle    // Task handle
+        &wifiStatesTaskHandle    // Task handle
     );
 
     // Create the wifi connection check task
     xTaskCreate(
-        wifiComsTask,          // Task function
-        "wifi Coms task",      // Task name
+        wifiCheckConnectionTask,          // Task function
+        "wifi check connection task",      // Task name
         8192,                      // Stack size (adjust as needed)
         NULL,                      // Task parameters
         1,                         // Task priority (1 is low)

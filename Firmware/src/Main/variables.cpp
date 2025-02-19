@@ -85,7 +85,7 @@ const int udpPort = 5005;  // Receiver port
 // Task handles
 TaskHandle_t motorControlTaskHandle = NULL;
 TaskHandle_t ibusTaskHandle = NULL;
-TaskHandle_t wifiComsTaskHandle = NULL;
+TaskHandle_t wifiStatesTaskHandle = NULL;
 TaskHandle_t wifiCheckConnectionTaskHandle = NULL;
 TaskHandle_t updateStateTaskHandle = NULL;
 TaskHandle_t displacementCalcTaskHandle = NULL;
@@ -97,4 +97,4 @@ int32_t runningState = 0;
 int32_t startState = 0;
 
 //debugging values
-int32_t RC_connected = 0;
+int32_t connectedRC = 0;

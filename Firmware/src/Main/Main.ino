@@ -7,7 +7,7 @@
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <math.h>
-
+/*
 void PIComsTask(void *pvParameters) {
   for (;;) {
       ulTaskNotifyTake(pdTRUE, portMAX_DELAY);  // Wait for a notification
@@ -25,7 +25,7 @@ void PIComsTask(void *pvParameters) {
 void wifiStatesTask(void *pvParameters) {
   for( ;; ) {
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);  // Wait for a notification
-    /*
+    
     // Data ID set to 4 for status bits / Number of bytes to send (4*4) / 32-bit ints to send
     int32_t numbers[6] = {4, 16, connectedRC, controlState, -1, -1};
 
@@ -37,11 +37,10 @@ void wifiStatesTask(void *pvParameters) {
     udp.write(buffer, sizeof(buffer));  // Send 24-byte buffer
     udp.endPacket();
     //Serial.println("UDP packet sent!");   
-    */  
+    
   }
-
 }
-
+*/
 // Task to check Wifi connection and reconnect if connection was lost
 void wifiCheckConnectionTask(void *pvParameters) {
   for (;;) {
@@ -52,7 +51,7 @@ void wifiCheckConnectionTask(void *pvParameters) {
       continue;
     }
 
-    WiFi.begin(ssid, password);
+    WiFi.begin(ssid);
 
     unsigned long startAttemptTime = millis();
 
@@ -89,82 +88,82 @@ void displacementCalcTask(void *pvParameters) {
       vTaskDelayUntil( &xLastWakeTime_disp, xFrequency_disp);
 
       // Take the mutex to safely access the shared position variables
-      if (xSemaphoreTake(xPositionMutex, portMAX_DELAY) == pdTRUE) {
+      //if (xSemaphoreTake(xPositionMutex, portMAX_DELAY) == pdTRUE) {
 
-          // Safely read the shared position variables
-          int posCopy1 = pos_1;
-          int posCopy2 = pos_2;
-          int posCopy3 = pos_3;
-          int posCopy4 = pos_4;
-          int posCopy5 = pos_5;
-          int posCopy6 = pos_6;
+      // Safely read the shared position variables
+      int posCopy1 = pos_1;
+      int posCopy2 = pos_2;
+      int posCopy3 = pos_3;
+      int posCopy4 = pos_4;
+      int posCopy5 = pos_5;
+      int posCopy6 = pos_6;
 
-          // reset position counters
-          pos_1 = 0;
-          pos_2 = 0;
-          pos_3 = 0;
-          pos_4 = 0;
-          pos_5 = 0;
-          pos_6 = 0;
+      // reset position counters
+      pos_1 = 0;
+      pos_2 = 0;
+      pos_3 = 0;
+      pos_4 = 0;
+      pos_5 = 0;
+      pos_6 = 0;
 
-          // Release the mutex after reading the data
-          xSemaphoreGive(xPositionMutex);
+      // Release the mutex after reading the data
+      //xSemaphoreGive(xPositionMutex);
 
-          // when all the encoders are added in will need to average the values
-          // 1,2,3 are the right side motors
-          // 4,5,6 are the left side motors
-          // convert to linear displacement
-          displacement = ((((posCopy1 + posCopy6)/2.0) / PPR) * 2.0 * PI * WHEEL_RADIUS) * 1000; // to mm
+      // when all the encoders are added in will need to average the values
+      // 1,2,3 are the right side motors
+      // 4,5,6 are the left side motors
+      // convert to linear displacement
+      displacement = ((((posCopy1 + posCopy6)/2.0) / PPR) * 2.0 * PI * WHEEL_RADIUS) * 1000; // to mm
 
-          // read heading from IMU (use previous value for updating position)
-          static float Axyz[3], Mxyz[3]; //centered and scaled accel/mag data
+      // read heading from IMU (use previous value for updating position)
+      static float Axyz[3], Mxyz[3]; //centered and scaled accel/mag data
 
-          if ( imu.dataReady() ) imu.getAGMT();
+      if ( imu.dataReady() ) imu.getAGMT();
 
-          get_scaled_IMU(Axyz, Mxyz);  //apply relative scale and offset to RAW data. UNITS are not important
+      get_scaled_IMU(Axyz, Mxyz);  //apply relative scale and offset to RAW data. UNITS are not important
 
-          // reconcile mag and accel coordinate axes
-          // Note: the illustration in the ICM_90248 data sheet implies that the magnetometer
-          // Y and Z axes are inverted with respect to the accelerometer axes, verified to be correct (SJR).
+      // reconcile mag and accel coordinate axes
+      // Note: the illustration in the ICM_90248 data sheet implies that the magnetometer
+      // Y and Z axes are inverted with respect to the accelerometer axes, verified to be correct (SJR).
 
-          Mxyz[1] = -Mxyz[1]; //align magnetometer with accelerometer (reflect Y and Z)
-          Mxyz[2] = -Mxyz[2];
+      Mxyz[1] = -Mxyz[1]; //align magnetometer with accelerometer (reflect Y and Z)
+      Mxyz[2] = -Mxyz[2];
 
-        
-          float headingTemp = get_heading(Axyz, Mxyz, p, declination);
-          if (headingTemp < headingOffset) {
-            heading = 360 - (headingOffset - headingTemp);
-          } else {
-            heading = headingTemp - headingOffset;
-          }
-
-          float headingRad = heading * (PI / 180.0);
-                 
-          // update position 
-          currentPos.x += (displacement * (float)cos(prevHeading));
-          currentPos.y += (displacement * (float)sin(prevHeading));
-          //Serial.print("x:  ");
-          //Serial.println(currentPos.x);
-          //Serial.print("y:  ");
-          //Serial.println(currentPos.y);
-
-          int32_t x = (int32_t)(currentPos.x);
-          int32_t y = (int32_t)(currentPos.y);
-
-          // transmit using UDP, or flag for another task to transmit the data
-          
-          int32_t numbers[6] = {3, 16, x, y, -1, -1};
-
-          uint8_t buffer[24];  // 6 integers * 4 bytes each = 24 bytes
-          memcpy(buffer, numbers, sizeof(numbers));  // Copy data into buffer
-
-          // Send UDP message
-          udp.beginPacket(udpAddress, udpPort);
-          udp.write(buffer, sizeof(buffer));  // Send 24-byte buffer
-          udp.endPacket();
-          // 
-          prevHeading = headingRad;   
+    
+      float headingTemp = get_heading(Axyz, Mxyz, p, declination);
+      if (headingTemp < headingOffset) {
+        heading = 360 - (headingOffset - headingTemp);
+      } else {
+        heading = headingTemp - headingOffset;
       }
+
+      float headingRad = heading * (PI / 180.0);
+            
+      // update position 
+      currentPos.x += (displacement * (float)cos(prevHeading));
+      currentPos.y += (displacement * (float)sin(prevHeading));
+      //Serial.print("x:  ");
+      //Serial.println(currentPos.x);
+      //Serial.print("y:  ");
+      //Serial.println(currentPos.y);
+
+      int32_t x = (int32_t)(currentPos.x);
+      int32_t y = (int32_t)(currentPos.y);
+
+      // transmit using UDP, or flag for another task to transmit the data
+      
+      int32_t numbers[6] = {3, 16, x, y, int32_t(prevHeading), int32_t(posCopy6)};
+
+      uint8_t buffer[24];  // 6 integers * 4 bytes each = 24 bytes
+      memcpy(buffer, numbers, sizeof(numbers));  // Copy data into buffer
+
+      // Send UDP message
+      udp.beginPacket(udpAddress, udpPort);
+      udp.write(buffer, sizeof(buffer));  // Send 24-byte buffer
+      udp.endPacket();
+      // 
+      prevHeading = headingRad;   
+      
     }
 }
 
@@ -190,12 +189,12 @@ void updateStateTask(void *pvParameters) {
 
       // if one of the state varibales have changed send to the PI
       if (controlState != prevControlState || runningState != prevRunning || startState != prevStart) {
-        xTaskNotifyGive(PIComsTaskHandle);
+        //xTaskNotifyGive(PIComsTaskHandle);
       }
 
       // if the RC connected was lost or the control state was chnaged send to GUI
       if (controlState != prevControlState || connectedRC != prevConnectedRC) {
-        xTaskNotifyGive(wifiStatesTaskHandle);
+        //xTaskNotifyGive(wifiStatesTaskHandle);
       }
 
       prevControlState = controlState;
@@ -203,11 +202,11 @@ void updateStateTask(void *pvParameters) {
       prevStart = startState;
       prevConnectedRC = connectedRC;
 
-      vTaskDelay(100 / portTICK_PERIOD_MS);  // Run every 10ms
+      vTaskDelay(1000 / portTICK_PERIOD_MS);  // Run every 10ms
   }
 }
 
-// Perform an action every 10 ticks.
+
 void motorControlTask( void * pvParameters )
 {
   TickType_t xLastWakeTime;
@@ -253,21 +252,28 @@ void setup() {
     attachInterrupt(digitalPinToInterrupt(ENA_1), readEncoder1, RISING);
     attachInterrupt(digitalPinToInterrupt(ENA_6), readEncoder6, RISING);
 
-    Serial.begin(115200);
+    //Serial.begin(115200);
     WIRE_PORT.begin(21, 22);
     WIRE_PORT.setClock(400000);
     imu.begin(WIRE_PORT, AD0_VAL);
     if (imu.status != ICM_20948_Stat_Ok) {
       //Serial.println(F("ICM_90248 not detected"));
     }
+
     
     // Connect to WiFi
-    WiFi.begin(ssid, password);
+    WiFi.begin(ssid);
     //Serial.print("Connecting to WiFi");
     while (WiFi.status() != WL_CONNECTED) {
         //Serial.print(".");
         delay(500);
     }
+
+    digitalWrite(ledPin, HIGH);
+    delay(1000);
+    digitalWrite(ledPin, LOW);
+    delay(1000);
+    
     
     //Serial.println("\nConnected to WiFi!");
 
@@ -285,6 +291,11 @@ void setup() {
     }
 
     headingOffset = sum / 200.0;
+
+    digitalWrite(ledPin, HIGH);
+    delay(1000);
+    digitalWrite(ledPin, LOW);
+    delay(1000);
 
     // Create the motor control task
     xTaskCreate(
@@ -305,7 +316,7 @@ void setup() {
         1,                         // Task priority (1 is low)
         &ibusTaskHandle    // Task handle
     );
-
+/*
     // send updated states UDP
     xTaskCreate(
         wifiStatesTask,          // Task function
@@ -314,7 +325,7 @@ void setup() {
         NULL,                      // Task parameters
         1,                         // Task priority (1 is low)
         &wifiStatesTaskHandle    // Task handle
-    );
+    ); */
 
     // Create the wifi connection check task
     xTaskCreate(
@@ -325,6 +336,7 @@ void setup() {
         1,                         // Task priority (1 is low)
         &wifiCheckConnectionTaskHandle    // Task handle
     );
+    
 
     // Create task to read RC state values from switches
     xTaskCreate(
@@ -346,7 +358,7 @@ void setup() {
         &displacementCalcTaskHandle    // Task handle
     );
 
-    
+    /*
     // Create the PI coms task to communicate states
     xTaskCreate(
         PIComsTask,          // Task function
@@ -355,7 +367,7 @@ void setup() {
         NULL,                      // Task parameters
         1,                         // Task priority (1 is low)
         &PIComsTaskHandle    // Task handle
-    );
+    );*/
 
 }
 

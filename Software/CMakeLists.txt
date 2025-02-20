@@ -14,8 +14,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 file(GLOB SOURCES 
     "src/*.cpp" 
     "utils/common/src/*.cpp"
-    "utils/frontend/src/*.cpp"
-    "utils/backend/src/*.cpp"
 )
 
 if (WIN32)
@@ -89,8 +87,6 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 target_include_directories(${PROJECT_NAME} PRIVATE 
     include 
     utils/common/include
-    utils/frontend/include
-    utils/backend/include
     ${LIBCAER_INCLUDE_DIRS} 
     ${LIBUSB_INCLUDE_DIRS} 
     ${LIBSERIAL_INCLUDE_DIRS} 

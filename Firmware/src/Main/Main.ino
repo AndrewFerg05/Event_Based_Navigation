@@ -152,7 +152,7 @@ void displacementCalcTask(void *pvParameters) {
 
       // transmit using UDP, or flag for another task to transmit the data
       
-      int32_t numbers[6] = {3, 16, x, y, int32_t(prevHeading), int32_t(posCopy6)};
+      int32_t numbers[6] = {3, 16, x, y, int32_t(posCopy1), int32_t(posCopy6)};
 
       uint8_t buffer[24];  // 6 integers * 4 bytes each = 24 bytes
       memcpy(buffer, numbers, sizeof(numbers));  // Copy data into buffer
@@ -249,6 +249,11 @@ void setup() {
     xPositionMutex = xSemaphoreCreateMutex();
 
     // Attach interrupt for encoder A
+    pinMode(ENA_1, INPUT);
+    pinMode(ENA_6, INPUT);
+    pinMode(ENB_L, INPUT);
+    pinMode(ENB_R, INPUT);
+
     attachInterrupt(digitalPinToInterrupt(ENA_1), readEncoder1, RISING);
     attachInterrupt(digitalPinToInterrupt(ENA_6), readEncoder6, RISING);
 

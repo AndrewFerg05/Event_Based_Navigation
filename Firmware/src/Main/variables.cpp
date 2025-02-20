@@ -20,6 +20,7 @@ const int ledPin = 2;  // Define the onboard LED pin
 const int ENA_1 = 18;
 const int ENB_R = 4;
 
+// left
 const int ENA_6 = 32;
 const int ENB_L = 33;
 

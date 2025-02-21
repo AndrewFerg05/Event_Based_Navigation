@@ -19,13 +19,13 @@ def receiveData():
         # Receive data from the sender
         data, _ = sock.recvfrom(MAX_PACKET_SIZE)
         buffer += data
-        data_id = 0
 
         # Parse the header (id and size) if not already done
         if data_size is None and len(buffer) >= 8:
             data_id = int.from_bytes(buffer[:4], byteorder='little')
             data_size = int.from_bytes(buffer[4:8], byteorder='little')
             buffer = buffer[8:]  # Remove the header from the buffer
+            print(f"Receiving frame ID: {data_id}, size: {data_size} bytes")
             if data_id > 3:
                 print('Invalid Data')
                 return None
@@ -51,9 +51,9 @@ def receiveData():
                         x = int.from_bytes(buffer[:4], byteorder='little')
                         y = int.from_bytes(buffer[4:8], byteorder='little')
                         z = int.from_bytes(buffer[8:12], byteorder='little')
-                        yaw = int.from_bytes(buffer[12:], byteorder='little')
-                        pitch = int.from_bytes(buffer[12:], byteorder='little')
-                        roll = int.from_bytes(buffer[12:], byteorder='little')
+                        yaw = int.from_bytes(buffer[12:16], byteorder='little')
+                        pitch = int.from_bytes(buffer[16:20], byteorder='little')
+                        roll = int.from_bytes(buffer[20:], byteorder='little')
 
                         return data_id, data_size, x, y, z, yaw, pitch, roll
                     elif data_id == 3:

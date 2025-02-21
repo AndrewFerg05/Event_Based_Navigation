@@ -41,14 +41,6 @@ void loop() {
       // Append the character to the message string
       receivedMessage += incomingChar;
     }
-
-    if (incomingChar == 'Z') {
-      // Print the message
-      Serial.println(longmessage);
-      
-      // Clear the message buffer for the next input
-      longmessage = "";
-    }
   }
 
 }

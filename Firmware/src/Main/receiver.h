@@ -5,6 +5,6 @@
 #include <IBusBM.h>
 
 int readChannel(byte channelInput, int minLimit, int maxLimit, int defaultValue);
-bool redSwitch(byte channelInput, bool defaultValue);
+bool readSwitch(byte channelInput, bool defaultValue);
 
 #endif

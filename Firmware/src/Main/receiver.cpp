@@ -7,7 +7,7 @@ int readChannel(byte channelInput, int minLimit, int maxLimit, int defaultValue)
     return map(ch, 992, 1995, minLimit, maxLimit);
 }
 
-bool redSwitch(byte channelInput, bool defaultValue) {
+bool readSwitch(byte channelInput, bool defaultValue) {
     int intDefaultValue = (defaultValue) ? 100 : 0;
     int ch = readChannel(channelInput, 0, 100, intDefaultValue);
     return (ch > 50);

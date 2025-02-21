@@ -21,8 +21,8 @@ imu_gyro_scale: 3
 
 exposure: 4000
 
-autoexposure_desired_intensity: 150
-autoexposure_gain: 4.0  
+autoexposure_desired_intensity: 100
+autoexposure_gain: 2.0  
 
 frame_delay: 0
 max_events: 0

@@ -36,7 +36,7 @@ Change History
 #define TEST_RUN_TIME 30
 
 #define MAX_PACKET_SIZE 65507            // Max packet in bytes for UDP
-#define PC_IP           "192.168.43.245" // Change to base station IP (SARK's laptop)
+#define PC_IP           "10.12.7.29" // Change to base station IP (SARK's laptop)
 #define PC_PORT         5005             // Application address for base station
 #define ID_FRAME        0
 #define ID_EVENT        1

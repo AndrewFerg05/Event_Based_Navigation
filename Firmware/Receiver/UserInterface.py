@@ -48,19 +48,19 @@ def receiveData():
             else:               # Status data type
                 try:
                     if data_id == 2:
-                        x = int.from_bytes(buffer[:4], byteorder='little')
-                        y = int.from_bytes(buffer[4:8], byteorder='little')
-                        z = int.from_bytes(buffer[8:12], byteorder='little')
-                        yaw = int.from_bytes(buffer[12:16], byteorder='little')
-                        pitch = int.from_bytes(buffer[16:20], byteorder='little')
-                        roll = int.from_bytes(buffer[20:], byteorder='little')
+                        x = int.from_bytes(buffer[:4], byteorder='little', signed=True)
+                        y = int.from_bytes(buffer[4:8], byteorder='little', signed=True)
+                        z = int.from_bytes(buffer[8:12], byteorder='little', signed=True)
+                        yaw = int.from_bytes(buffer[12:], byteorder='little', signed=True)
+                        pitch = int.from_bytes(buffer[12:], byteorder='little', signed=True)
+                        roll = int.from_bytes(buffer[12:], byteorder='little', signed=True)
 
                         return data_id, data_size, x, y, z, yaw, pitch, roll
                     elif data_id == 3:
-                        x = int.from_bytes(buffer[:4], byteorder='little')
-                        y = int.from_bytes(buffer[4:8], byteorder='little')
-                        battery = int.from_bytes(buffer[8:12], byteorder='little')
-                        time = int.from_bytes(buffer[12:], byteorder='little')
+                        x = int.from_bytes(buffer[:4], byteorder='little', signed=True)
+                        y = int.from_bytes(buffer[4:8], byteorder='little', signed=True)
+                        battery = int.from_bytes(buffer[8:12], byteorder='little', signed=True)
+                        time = int.from_bytes(buffer[12:], byteorder='little', signed=True)
 
                         return data_id, data_size, x, y, battery, time
                     else:

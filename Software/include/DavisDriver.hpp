@@ -15,11 +15,14 @@ Description : Header file for the Davis Camera Driver
 //==============================================================================
 // External Files
 //------------------------------------------------------------------------------
+
+// Local
 #include "ThreadInterface.hpp"
 #include "TypeAliases.hpp"
 #include "Types.hpp"
 #include "Logging.hpp"
 
+// External
 #include <libcaer/libcaer.h>
 #include <libcaer/devices/davis.h>
 #include <yaml-cpp/yaml.h>
@@ -29,7 +32,6 @@ Description : Header file for the Davis Camera Driver
 //==============================================================================
 //      Classes
 //------------------------------------------------------------------------------
-
 
 
 class ConfigManager {
@@ -61,7 +63,7 @@ public:
     int imu_sample_rate_divider;
 
     // Hardware Filtering (DVS)
-    bool pixel_auto_train;
+    volatile bool pixel_auto_train;
     int pixel_0_row, pixel_0_column;
     int pixel_1_row, pixel_1_column;
     int pixel_2_row, pixel_2_column;
@@ -114,7 +116,6 @@ public:
 
 private:
     std::string config_file_path; // Path to YAML file
-    std::mutex config_mutex;      // Thread safety for updates
 };
 
 
@@ -123,6 +124,9 @@ public:
   DavisDriver(const std::string& config_path, std::shared_ptr<DataQueues> data_queues);
   ~DavisDriver();
   static void onDisconnectUSB(void*);
+  void start();
+  void stop();
+  void idle();
 private:
 
   void caerConnect();
@@ -138,12 +142,13 @@ private:
   ConfigManager config_manager_;
   std::chrono::microseconds delta_;
 
-  std::thread parameter_thread_;
   std::thread readout_thread_;    
 
   caerDeviceHandle davis_handle_;
   struct caer_davis_info davis_info_;
-  volatile bool running_ = true;
+
+  std::atomic<bool> running_{false};  
+  std::atomic<bool> idle_{false};   
 
   bool parameter_update_required_;
   bool parameter_bias_update_required_;

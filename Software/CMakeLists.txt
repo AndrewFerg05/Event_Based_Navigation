@@ -1,4 +1,3 @@
-# Prerequisites
 cmake_minimum_required(VERSION 3.10)
 
 # Project name
@@ -12,110 +11,65 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 file(GLOB SOURCES 
     "src/*.cpp" 
     "utils/common/src/*.cpp"
-    "utils/frontend/src/*.cpp"
-    "utils/backend/src/*.cpp"
 )
 
-if (WIN32)
-    message("Windows Device")
+message("Building for Raspberry Pi (Linux)")
 
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_TIMESPEC_DEFINED")
+# Find libraries using pkg-config
+find_package(PkgConfig REQUIRED)
 
-    # Paths to MSYS compiler installation
-    set(LIBCAER_INCLUDE_DIRS "C:/msys64/mingw64/include")
-    set(LIBCAER_LIBRARY_DIRS "C:/msys64/mingw64/lib")
-    set(LIBCAER_LIBRARIES "libcaer")
+pkg_check_modules(LIBCAER REQUIRED libcaer)
+pkg_check_modules(LIBUSB REQUIRED libusb-1.0)
+pkg_check_modules(LIBSERIAL REQUIRED libserialport)
+find_package(OpenCV REQUIRED)
+find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+find_package(glog REQUIRED)
+find_package(Boost REQUIRED COMPONENTS filesystem system)
+find_package(Ceres REQUIRED)
+find_package(yaml-cpp REQUIRED)
 
-    set(OpenCV_INCLUDE_DIRS "C:/msys64/mingw64/include/opencv4")
-    set(OpenCV_LIBRARY_DIRS "C:/msys64/mingw64/lib")
-    set(OpenCV_LIBRARIES opencv_core opencv_imgcodecs opencv_highgui)
+# OpenVINS
+set(OPENVINS_INCLUDE_DIR /usr/local/include/open_vins/)
+set(OPENVINS_LIBRARIES /usr/local/lib/libov_msckf_lib.so)
 
-    set(LIBSERIAL_INCLUDE_DIRS "C:/msys64/mingw64/include")
-    set(LIBSERIAL_LIBRARY_DIRS "C:/msys64/mingw64/lib")
-    set(LIBSERIAL_LIBRARIES "libserialport")
-
-    set(YAML_INCLUDE_DIRS "C:/msys64/mingw64/include")
-    set(YAML_LIBRARY_DIRS "C:/msys64/mingw64/lib")
-    set(YAML_LIBRARIES "yaml-cpp")
-
-    find_package(glog REQUIRED)
-
-    # Find Eigen3 on Windows
-    find_path(EIGEN3_INCLUDE_DIR NAMES Eigen/Core PATHS "C:/msys64/mingw64/include/eigen3")
-    if(NOT EIGEN3_INCLUDE_DIR)
-        message(FATAL_ERROR "Eigen3 not found! Install it via MSYS2 using 'pacman -S mingw-w64-x86_64-eigen3'")
-    endif()
-
-else()
-    message("Mac or Linux Device")
-
-    # Find libraries using pkg-config
-    find_package(PkgConfig REQUIRED)
-
-    pkg_check_modules(LIBCAER REQUIRED libcaer)
-    pkg_check_modules(LIBUSB REQUIRED libusb-1.0)
-    pkg_check_modules(LIBSERIAL REQUIRED libserialport)
-    find_package(yaml-cpp REQUIRED)
-
-    # Find OpenCV the correct way
-    find_package(OpenCV REQUIRED)
-    
-    # Ensure OpenCV include directories are used
-    include_directories(${OpenCV_INCLUDE_DIRS})
-    link_directories(${OpenCV_LIBRARY_DIRS})
-
-    # Find Eigen3 on macOS/Linux
-    find_package(Eigen3 3.3 REQUIRED NO_MODULE)
-
-    # Find Google glog
-    find_package(glog REQUIRED)
-endif()
-
-# Add the library path for linking
-
-link_directories(${LIBCAER_LIBRARY_DIRS} ${LIBUSB_LIBRARY_DIRS} ${LIBSERIAL_LIBRARY_DIRS} ${OpenCV_LIBRARY_DIRS} ${YAML_LIBRARY_DIRS})
-
-
-# Add executable
-add_executable(${PROJECT_NAME} ${SOURCES})
-
-# Target Include Directory
-target_include_directories(${PROJECT_NAME} PRIVATE 
+# Include directories
+include_directories(
     include 
     utils/common/include
-    utils/frontend/include
-    utils/backend/include
     ${LIBCAER_INCLUDE_DIRS} 
     ${LIBUSB_INCLUDE_DIRS} 
     ${LIBSERIAL_INCLUDE_DIRS} 
     ${OpenCV_INCLUDE_DIRS}  # Use OpenCV's detected include directories
-    ${YAML_INCLUDE_DIRS}
+    ${Eigen3_INCLUDE_DIRS}
+    ${Boost_INCLUDE_DIRS}
+    ${CERES_INCLUDE_DIRS}
+    ${YAML_CPP_INCLUDE_DIRS}
+    ${OPENVINS_INCLUDE_DIR}  # OpenVINS headers
 )
 
-# Add Eigen include directory
-if (WIN32)
-    target_include_directories(${PROJECT_NAME} PRIVATE ${EIGEN3_INCLUDE_DIR})
-else()
-    target_include_directories(${PROJECT_NAME} PRIVATE ${EIGEN3_INCLUDE_DIRS})
-endif()
+# Link directories
+link_directories(
+    ${LIBCAER_LIBRARY_DIRS} 
+    ${LIBUSB_LIBRARY_DIRS} 
+    ${LIBSERIAL_LIBRARY_DIRS} 
+    ${OpenCV_LIBRARY_DIRS}
+    ${Boost_LIBRARY_DIRS}
+)
+
+# Add executable
+add_executable(${PROJECT_NAME} ${SOURCES})
 
 # Link required libraries
-if (WIN32)
-    target_link_libraries(${PROJECT_NAME} PRIVATE 
-        ${LIBCAER_LIBRARIES} 
-        ${OpenCV_LIBRARIES} 
-        ${LIBSERIAL_LIBRARIES} 
-        ws2_32
-        glog::glog
-        ${YAML_LIBRARIES}
-    )
-else()
-    target_link_libraries(${PROJECT_NAME} PRIVATE 
-        ${LIBCAER_LIBRARIES} 
-        ${LIBUSB_LIBRARIES}
-        ${LIBSERIAL_LIBRARIES} 
-        ${OpenCV_LIBS}  # Correctly links OpenCV components
-        yaml-cpp        # Add YAML support
-        glog::glog      # Link Google glog
-    )
-endif()
+target_link_libraries(${PROJECT_NAME} PRIVATE 
+    ${LIBCAER_LIBRARIES} 
+    ${LIBUSB_LIBRARIES}
+    ${LIBSERIAL_LIBRARIES} 
+    ${OpenCV_LIBS}  # Correctly links OpenCV components
+    glog::glog      # Link Google glog
+    ${Boost_LIBRARIES}
+    ${CERES_LIBRARIES}
+    yaml-cpp        # YAML-CPP
+    Boost::filesystem 
+    Boost::system
+    ${OPENVINS_LIBRARIES}  # Link OpenVINS
+)

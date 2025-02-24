@@ -76,7 +76,7 @@ int main(int argc, char* argv[])
     size_t test_queue_capacity = 100;
     // ThreadSafeFIFO<InputDataSync> data_DA_to_FE(test_queue_capacity, "Sync_data", true);
     
-    std::shared_ptr<CommunicationManager> comms_interface = std::make_shared<CommunicationManager>(test_queue_capacity, test_queue_capacity, test_queue_capacity);
+    std::shared_ptr<CommunicationManager> comms_interface = std::make_shared<CommunicationManager>(test_queue_capacity, test_queue_capacity, test_queue_capacity, test_queue_capacity);
 
     // Perform initial setup
     // LOG(INFO) << "MAIN: Setting up...";

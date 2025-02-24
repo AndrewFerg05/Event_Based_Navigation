@@ -110,41 +110,24 @@ void CM_loop(
 
             // Base Station Communication
             //      Get frames from DA and transmit on UDP
-            frameCamera = comms->getFrameData();
-            if (frameCamera.width == 0) {
+            frameCamera = comms->getFrameCamera();
+            if (frameCamera.empty()) {
                 // No camera frame ready
             }
             else {
-                LOG(INFO) << "CM: Frame data made it to CM, formatting...";
-                frame = CM_formatCameraFrame(frameCamera);
-                LOG(INFO) << "CM: Frame formatted, sending...";
-                CM_transmitFrame(frame, 0);
-
-                if (frame.empty())
-                {
-
-                }
-                else
-                {
-                    cv::imshow("Display", frame);
-                    cv::waitKey(1);
-                }
+                LOG(INFO) << "CM: Frame data made it to CM, transmitting...";
+                CM_transmitFrame(frameCamera, 0);
             }
 
-            frameEvents = comms->getTrackedFrameData();
-            if (frameEvents.width == 0) {
-                // No camera frame ready
-                
-                // For testing send test frame to show working
-                LOG(INFO) << "CM: Frame formatted, sending...";
-                CM_transmitFrame(frameTest, 1);
+            frameEvents = comms->getFrameEvents();
+            if (frameEvents.empty()) {
+                // No event frame ready
             }
             else {
-                frame = CM_formatEventFrame(frameEvents);
-                CM_transmitFrame(frame, 1);
+                CM_transmitFrame(frameEvents, 1);
             }
 
-            pose = comms->getOtherData();
+            pose = comms->getPose();
             if (pose == 0) {
                 // No camera frame ready
             }

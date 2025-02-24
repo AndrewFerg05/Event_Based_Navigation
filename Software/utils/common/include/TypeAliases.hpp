@@ -120,14 +120,13 @@ using StampedEventArrays = std::vector<StampedEventArray>;
 using EventBuffer = std::deque<Event>;
 
 //------------------------------------------------------------------------------
-// Callbacks
-using ImuCallback =
-  std::function<void (int64_t /*timestamp*/,
-                      const Vector3& /*acc*/,
-                      const Vector3& /*gyr*/)>;
-
-
+using ImagePtr = std::shared_ptr<ImageData>;
+using StampedImage = std::pair<int64_t, ImagePtr>;
+using StampedImages = std::vector<StampedImage>;
 //------------------------------------------------------------------------------
+
+
+                      
 // Testing Types - Will be Changed
 using InputDataSync = uint8_t;
 using OtherData = uint8_t;

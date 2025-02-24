@@ -20,22 +20,13 @@ Change History
 #include <cstdint>
 
 //==============================================================================
-//      Classes
+//      Global Variables
 //------------------------------------------------------------------------------
 
-// GFlag replacements
-constexpr bool VIO_CERES_VERBOSE = false;
-constexpr bool VIO_CERES_MARGINALIZE = true;
-constexpr int VIO_CERES_ITERATIONS = 3;
-constexpr int VIO_CERES_SLIDING_WINDOW_SIZE = 3;
-constexpr int VIO_CERES_NUM_KEYFRAMES = 5;
-constexpr int VIO_CERES_NUM_THREADS = 1;
-
-
-inline bool FLAGS_data_use_time_interval = 0;
-inline uint64_t FLAGS_data_interval_between_event_packets = 15000; //number of frames in event packet/ ms between packets set which by above flag
-inline size_t FLAGS_data_size_augmented_event_packet = 15000;
-
+// Synchronisation Flags
+inline size_t FLAGS_data_size_augmented_event_packet = 15000;   // Number of events in event frame
+inline float FLAGS_timeshift_cam_imu = 0.0018555400978173433;   // IMU and Frame timestamp offset (s) - SET FROM CALIB
+inline int32_t FLAGS_data_sync_init_skip_n_frames = 0;          // How many frames should be skipped at the beginning
 
 //==============================================================================
 //      Function Prototypes

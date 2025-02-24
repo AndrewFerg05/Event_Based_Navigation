@@ -19,13 +19,13 @@ def receiveData():
         # Receive data from the sender
         data, _ = sock.recvfrom(MAX_PACKET_SIZE)
         buffer += data
-        data_id = 0
 
         # Parse the header (id and size) if not already done
         if data_size is None and len(buffer) >= 8:
             data_id = int.from_bytes(buffer[:4], byteorder='little')
             data_size = int.from_bytes(buffer[4:8], byteorder='little')
             buffer = buffer[8:]  # Remove the header from the buffer
+            print(f"Receiving frame ID: {data_id}, size: {data_size} bytes")
             if data_id > 3:
                 print('Invalid Data')
                 return None

@@ -98,7 +98,7 @@ inline void initLogging(char* argv0, AlignedLogSink* sink) {
 
     //    0 - logs only go to log files
     //    1 - logs to both log files and console
-    FLAGS_alsologtostderr = 1;
+    FLAGS_alsologtostderr = 0;
 
 
     //    0 = INFO    (Logs everything: INFO, WARNING, ERROR, FATAL)

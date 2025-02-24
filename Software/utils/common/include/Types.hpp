@@ -58,6 +58,10 @@ struct Event {
     uint64_t timestamp_ns;
     bool polarity;
 
+    // Default constructor (zero-initialize fields)
+    Event() : x(0), y(0), timestamp_ns(0), polarity(false) {}
+
+    // Parameterized constructor
     Event(uint16_t x_, uint16_t y_, uint64_t ts_, bool p_)
         : x(x_), y(y_), timestamp_ns(ts_), polarity(p_) {}
 };
@@ -82,6 +86,17 @@ struct ImageData {
 
     // Constructor
     ImageData() = default;
+
+    // Copy Constructor
+    ImageData(const ImageData& other)
+    : header(other.header), 
+        width(other.width), 
+        height(other.height), 
+        step(other.step), 
+        is_bigendian(other.is_bigendian), 
+        encoding(other.encoding), 
+        data(other.data)
+    {}
 };
 //------------------------------------------------------------------------------
 struct TrackedFrames {

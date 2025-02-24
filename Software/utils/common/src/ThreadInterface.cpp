@@ -37,6 +37,7 @@ Change History
 // Functions
 //------------------------------------------------------------------------------
 
+
 ImageData CommunicationManager::getFrameData()
 {
     // Return latest from FIFO

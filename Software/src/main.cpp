@@ -129,19 +129,13 @@ int main(int argc, char* argv[])
         std::bind(&FrontEnd::addImuData, FrontEnd_.get(),
                 std::placeholders::_1, std::placeholders::_2,
                 std::placeholders::_3));
-
-
-    driver->start();
-    DataAquistion_->start();
   
     // Start this thread
-    CM_loop(std::ref(data_aquire_state), 
-            std::ref(frontend_state), 
-            std::ref(backend_state),
-            &data_DA_to_FE,
-            &DataAquistion_,
-            comms_interface,
-            &serial);
+    CM_loop(&driver,          // Davis Driver
+            &DataAquistion_,  // DA Thread
+            &FrontEnd_,       // FE Thread
+            comms_interface,  // CM Thread Interface
+            &serial);         // CM Serial Interface
 
 
     LOG(INFO) << "MAIN: CM Thread Ended";

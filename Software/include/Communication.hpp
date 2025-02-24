@@ -81,16 +81,16 @@ void CM_cleanupNet();
 
 std::uint8_t CM_serialReceive(CM_serialInterface* serial);
 
+void CM_serialSendState(CM_serialInterface* serial, int32_t state);
+
 void CM_serialSendStatus(CM_serialInterface* serial, int32_t x, int32_t y);
 
 void CM_transmitStatus(int32_t x, int32_t y, int32_t z, int32_t yaw, int32_t pitch, int32_t roll);
 
 void CM_loop(
-    std::atomic<ThreadState>& data_sync_state,
-    std::atomic<ThreadState>& frontend_state,
-    std::atomic<ThreadState>& backend_state,
-    ThreadSafeFIFO<InputDataSync>* data_DA,
+    DavisDriver* driver_,
     DataAcquisition* dataAcquistion_,
+    FrontEnd* frontEnd_,
     std::shared_ptr<CommunicationManager> comms,
     CM_serialInterface* serial);
 

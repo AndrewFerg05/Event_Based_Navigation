@@ -69,38 +69,39 @@ int main(int argc, char* argv[])
 
     
     // Create atomic control flags
-    // std::atomic<ThreadState> frontend_state(ThreadState::Idle);
-    // std::atomic<ThreadState> backend_state(ThreadState::Idle);
+    std::atomic<ThreadState> frontend_state(ThreadState::Idle);
+    std::atomic<ThreadState> backend_state(ThreadState::Idle);
 
     // //Create data interfaces
     size_t test_queue_capacity = 100;
-    // ThreadSafeFIFO<InputDataSync> data_DA_to_FE(test_queue_capacity, "Sync_data", true);
+    ThreadSafeFIFO<InputDataSync> data_DA_to_FE(test_queue_capacity, "Sync_data", true);
     
     std::shared_ptr<CommunicationManager> comms_interface = std::make_shared<CommunicationManager>(test_queue_capacity, test_queue_capacity, test_queue_capacity, test_queue_capacity);
 
     // Perform initial setup
-    // LOG(INFO) << "MAIN: Setting up...";
+    LOG(INFO) << "MAIN: Setting up...";
 
     // Initialise camera
 
     // Initialise WiFi
-    // if (CM_initNet() != 0) 
-    // {
-    //     LOG(ERROR) << "MAIN: WiFi Setup Failed";
-    //     return 0;
-    // }
-    // LOG(INFO) << "MAIN: WiFi Initialised";
+    if (CM_initNet() != 0) 
+    {
+        LOG(ERROR) << "MAIN: WiFi Setup Failed";
+        return 0;
+    }
+    LOG(INFO) << "MAIN: WiFi Initialised";
     
 
-    // // Initialise serial
-    // CM_serialInterface serial;
+    // Initialise serial
+    CM_serialInterface serial;
     // Prepare ESP for connection
-    // if (serial.ESPOpen() != 0){
-    //     LOG(ERROR) << "MAIN: Failed to open ESP32";
-    // }
-    // else{
-    //     LOG(INFO) << "MAIN: ESP32 Serial Initialised";
-    // }
+    if (serial.ESPOpen() != 0){
+        LOG(ERROR) << "MAIN: Failed to open ESP32";
+    }
+    else{
+        LOG(INFO) << "MAIN: ESP32 Serial Initialised";
+        FLAG_CONNECTED_ESP = 1;
+    }
  
     std::shared_ptr<DataAcquisition> DataAquistion_ = std::make_shared<DataAcquisition>(data_queues);
 
@@ -132,73 +133,30 @@ int main(int argc, char* argv[])
 
     driver->start();
     DataAquistion_->start();
-
-    auto start_time = std::chrono::steady_clock::now();  // Capture the start time
-    bool triggered_3s = false, triggered_6s = false, triggered_9s = false, triggered_12s = false;
-
-    int hold = 0;
-    while(true) {hold ++;hold--;};
-    
-    // while (true) {
-    //     auto current_time = std::chrono::steady_clock::now();
-    //     auto elapsed_time = std::chrono::duration_cast<std::chrono::seconds>(current_time - start_time).count();
-    
-    //     if (elapsed_time >= 3 && !triggered_3s) {
-    //         std::cout << "3 seconds elapsed! Switching to idle..." << std::endl;
-    //         DataAquistion_->idle();
-    //         triggered_3s = true;
-    //     }
-    
-    //     if (elapsed_time >= 6 && !triggered_6s) {
-    //         std::cout << "6 seconds elapsed! Resuming data acquisition..." << std::endl;
-    //         DataAquistion_->start();
-    //         triggered_6s = true;
-    //     }
-    
-    //     if (elapsed_time >= 9 && !triggered_9s) {
-    //         std::cout << "9 seconds elapsed! Switching to idle..." << std::endl;
-    //         DataAquistion_->idle();
-    //         triggered_9s = true;
-    //     }
-    
-    //     if (elapsed_time >= 12 && !triggered_12s) {
-    //         std::cout << "12 seconds elapsed! Resuming data acquisition..." << std::endl;
-    //         DataAquistion_->start();
-    //         triggered_12s = true;
-    //     }
-    
-    //     if (elapsed_time >= 15) {
-    //         std::cout << "Stopping timer loop." << std::endl;
-    //         DataAquistion_->stop();
-    //         break;
-    //     }
-    // }
-    
   
-    
     // Start this thread
-    // CM_loop(std::ref(data_aquire_state), 
-    //         std::ref(frontend_state), 
-    //         std::ref(backend_state),
-    //         &data_DA_to_FE,
-    //         &DataAquistion_,
-    //         comms_interface,
-    //         &serial);
+    CM_loop(std::ref(data_aquire_state), 
+            std::ref(frontend_state), 
+            std::ref(backend_state),
+            &data_DA_to_FE,
+            &DataAquistion_,
+            comms_interface,
+            &serial);
 
 
-    // LOG(INFO) << "MAIN: CM Thread Ended";
+    LOG(INFO) << "MAIN: CM Thread Ended";
 
-    // // Wait for other threads to exit
-    // DataAquistion_.stop();
-    // LOG(INFO) << "MAIN: DA Thread Ended";
+    // Wait for other threads to exit
+    DataAquistion_.stop();
+    LOG(INFO) << "MAIN: DA Thread Ended";
 
-    // // // Close WiFi
-    // CM_cleanupNet();
-    // LOG(INFO) << "MAIN: WiFi closed";
+    // // Close WiFi
+    CM_cleanupNet();
+    LOG(INFO) << "MAIN: WiFi closed";
 
-    // // Close ESP connection
-    // serial.ESPClose();
-    // LOG(INFO) << "MAIN: Serial closed";
+    // Close ESP connection
+    serial.ESPClose();
+    LOG(INFO) << "MAIN: Serial closed";
 
     LOG(INFO) << "MAIN: Program ended";
     endLogging(&sink);

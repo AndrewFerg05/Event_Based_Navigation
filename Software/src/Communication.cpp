@@ -97,15 +97,22 @@ void CM_loop(
                 state_change_called = false;
             }
 
-            // ESP Receive code mode
-            // commandReceived = CM_serialReceive(serial);
-            // if (commandReceived != 42){     // If not no response
-            //     command = commandReceived;
-            // }
-            if (elapsed > TEST_RUN_TIME)
+            if (FLAG_CONNECTED_ESP)
             {
-                state_change_called = true;
-                command = STOP;
+                // ESP Receive state
+                commandReceived = CM_serialReceive(serial);
+                if (commandReceived != 42){     // If not no response
+                    command = commandReceived;
+                }
+            }
+            else
+            {
+                // If no ESP, operate based on time
+                if (elapsed > TEST_RUN_TIME)
+                {
+                    state_change_called = true;
+                    command = STOP;
+                }
             }
 
             // Base Station Communication
@@ -171,22 +178,27 @@ void CM_loop(
                 backend_state = ThreadState::Idle;
                 state_change_called = false;
             }
-
-            // Wait for run command from ESP
-            // commandReceived = CM_serialReceive(serial);
-            // if (commandReceived != 42){     // If not no response
-            //     command = commandReceived;
-            // }
+            
+            if (FLAG_CONNECTED_ESP)
+            {
+                // Wait for run command from ESP
+                commandReceived = CM_serialReceive(serial);
+                if (commandReceived != 42){     // If not no response
+                    command = commandReceived;
+                }
+            }
+            else
+            {
+                // If no ESP, operate based on time
+                if (elapsed > 1)
+                {
+                    state_change_called = true;
+                    command = STOP;
+                }
+            }
 
             sleep_ms(100);
-            
-            //(FOR TESTING WITHOUT ESP)
-            if (elapsed > 1)
-            {
-                LOG(INFO) << "CM: Transitioning to RUN";
-                state_change_called = true;
-                command = RUN;
-            }
+
         }
     }
 }

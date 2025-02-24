@@ -14,6 +14,7 @@
 #define PPR 1133
 #define WIRE_PORT Wire1 // desired Wire port.
 #define AD0_VAL 1      // value of the last bit of the I2C address.
+#define WINDOW_SIZE 20
 
 
 struct MotorDriver {
@@ -61,6 +62,7 @@ extern float heading;
 extern float prevHeading;
 extern float prevHeading2;
 extern float headingOffsets[200];
+extern float filteredHeading;
 
 //IMU stuff 
 extern ICM_20948_I2C imu;
@@ -74,10 +76,13 @@ extern float p[3];
 
 extern float headingOffset;
 
+extern float headingBuffer[WINDOW_SIZE];
+extern int headingBufferIdx;
+extern float headingSum;
 
 
 // Mutex for protecting access to the shared variables
-extern SemaphoreHandle_t xPositionMutex;
+extern SemaphoreHandle_t xHeadingMutex;
 
 extern int prevLeftDirection;
 extern int prevRightDirection;
@@ -99,6 +104,7 @@ extern TaskHandle_t wifiCheckConnectionTaskHandle;
 extern TaskHandle_t updateStateTaskHandle;
 extern TaskHandle_t displacementCalcTaskHandle;
 extern TaskHandle_t PIComsTaskHandle;
+extern TaskHandle_t filterHeadingTaskHandle;
 
 // state variables
 extern int32_t controlState;

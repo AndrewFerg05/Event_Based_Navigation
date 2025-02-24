@@ -33,8 +33,6 @@ volatile int pos_6 = 0;
 
 float displacement = 0;
 float heading = 0;
-float prevHeading = 0;
-float prevHeading2 = 0;
 
 float headingOffsets[200] = {0};
 
@@ -68,7 +66,12 @@ float p[3] = {1, 0, 0};  //X marking on sensor board points toward yaw = 0
 
 float headingOffset = 0;
 
-SemaphoreHandle_t xPositionMutex;
+float headingBuffer[WINDOW_SIZE] = {0};
+int headingBufferIdx = 0;
+float headingSum = 0;
+float filteredHeading = 0;
+
+SemaphoreHandle_t xHeadingMutex;
 
 // previous direction pins for deciding if the motors need to stop
 int prevRightDirection = 1;
@@ -91,6 +94,7 @@ TaskHandle_t wifiCheckConnectionTaskHandle = NULL;
 TaskHandle_t updateStateTaskHandle = NULL;
 TaskHandle_t displacementCalcTaskHandle = NULL;
 TaskHandle_t PIComsTaskHandle = NULL;
+TaskHandle_t filterHeadingTaskHandle = NULL;
 
 //states
 int32_t controlState = 0;

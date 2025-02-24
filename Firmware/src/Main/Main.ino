@@ -77,6 +77,58 @@ void ibusTask(void *pvParameters) {
   }
 }
 
+//get heading values at maximum sample rate and filter using a moving average filter
+void filterHeadingTask(void *pvParameters) {
+  TickType_t xLastWakeTime_h;
+  // 100 Hz (the max frequency of the mag)
+  const TickType_t xFrequency_h = 10/ portTICK_PERIOD_MS;
+    xLastWakeTime_h = xTaskGetTickCount();
+    for( ;; ) {
+
+      vTaskDelayUntil( &xLastWakeTime_h, xFrequency_h);
+
+      headingSum -= headingBuffer[headingBufferIdx];
+
+      // read heading from IMU (use previous value for updating position)
+      static float Axyz[3], Mxyz[3]; //centered and scaled accel/mag data
+
+      if (imu.dataReady()) {
+        imu.getAGMT();
+      }
+
+      get_scaled_IMU(Axyz, Mxyz);  //apply relative scale and offset to RAW data. UNITS are not important
+
+      Mxyz[1] = -Mxyz[1]; //align magnetometer with accelerometer (reflect Y and Z)
+      Mxyz[2] = -Mxyz[2];
+
+      float headingTemp = get_heading(Axyz, Mxyz, p, declination);
+      if (headingTemp < headingOffset) {
+        headingBuffer[headingBufferIdx] = 360 - (headingOffset - headingTemp);
+      } else {
+        headingBuffer[headingBufferIdx] = headingTemp - headingOffset;
+      }
+
+      // convert to rads
+      headingBuffer[headingBufferIdx] = headingBuffer[headingBufferIdx] * (PI / 180.0);
+      headingSum += headingBuffer[headingBufferIdx];
+
+      headingBufferIdx = (headingBufferIdx + 1) % WINDOW_SIZE;
+
+      // put mutex around this (window size is 20)
+      // this gives a delay of 10 samples which means the displacement calculation
+      // gets the heading from 1 time step before since it runs 10 times slower
+      // this is intensional to due to the way the displacement is calculated
+
+      if (xSemaphoreTake(xHeadingMutex, portMAX_DELAY)) {  // Lock mutex
+    
+        filteredHeading = headingSum / float(WINDOW_SIZE);
+        xSemaphoreGive(xHeadingMutex);  // Unlock mutex
+      }
+
+    }
+
+}
+
 // calculate the displacement of the Rover and transmit it though UDP 
 void displacementCalcTask(void *pvParameters) {
   TickType_t xLastWakeTime_disp;
@@ -115,33 +167,15 @@ void displacementCalcTask(void *pvParameters) {
       // convert to linear displacement
       displacement = ((((posCopy1 + posCopy6)/2.0) / PPR) * 2.0 * PI * WHEEL_RADIUS) * 1000; // to mm
 
-      // read heading from IMU (use previous value for updating position)
-      static float Axyz[3], Mxyz[3]; //centered and scaled accel/mag data
-
-      if ( imu.dataReady() ) imu.getAGMT();
-
-      get_scaled_IMU(Axyz, Mxyz);  //apply relative scale and offset to RAW data. UNITS are not important
-
-      // reconcile mag and accel coordinate axes
-      // Note: the illustration in the ICM_90248 data sheet implies that the magnetometer
-      // Y and Z axes are inverted with respect to the accelerometer axes, verified to be correct (SJR).
-
-      Mxyz[1] = -Mxyz[1]; //align magnetometer with accelerometer (reflect Y and Z)
-      Mxyz[2] = -Mxyz[2];
-
+      if (xSemaphoreTake(xHeadingMutex, portMAX_DELAY)) {  // Lock mutex
     
-      float headingTemp = get_heading(Axyz, Mxyz, p, declination);
-      if (headingTemp < headingOffset) {
-        heading = 360 - (headingOffset - headingTemp);
-      } else {
-        heading = headingTemp - headingOffset;
+        float copyfilteredHeading = filteredHeading;
+        xSemaphoreGive(xHeadingMutex);  // Unlock mutex
       }
-
-      float headingRad = heading * (PI / 180.0);
             
       // update position 
-      currentPos.x += (displacement * (float)cos(prevHeading));
-      currentPos.y += (displacement * (float)sin(prevHeading));
+      currentPos.x += (displacement * (float)cos(filteredHeading));
+      currentPos.y += (displacement * (float)sin(filteredHeading));
       //Serial.print("x:  ");
       //Serial.println(currentPos.x);
       //Serial.print("y:  ");
@@ -162,7 +196,6 @@ void displacementCalcTask(void *pvParameters) {
       udp.write(buffer, sizeof(buffer));  // Send 24-byte buffer
       udp.endPacket();
       // 
-      prevHeading = headingRad;   
       
     }
 }
@@ -246,7 +279,7 @@ void setup() {
     ibusRc.begin(ibusRcSerial, IBUSBM_NOTIMER);
 
     // mutex to block access to position values
-    xPositionMutex = xSemaphoreCreateMutex();
+    xHeadingMutex = xSemaphoreCreateMutex();
 
     // Attach interrupt for encoder A
     pinMode(ENA_1, INPUT);
@@ -373,6 +406,16 @@ void setup() {
         1,                         // Task priority (1 is low)
         &PIComsTaskHandle    // Task handle
     );*/
+
+    // Create the filter heading task
+    xTaskCreate(
+        filterHeadingTask,          // Task function
+        "filter Heading task",      // Task name
+        2048,                      // Stack size (adjust as needed)
+        NULL,                      // Task parameters
+        1,                         // Task priority (1 is low)
+        &filterHeadingTaskHandle    // Task handle
+    );
 
 }
 

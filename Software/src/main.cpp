@@ -64,19 +64,18 @@ int main(int argc, char* argv[])
     size_t input_queue_size = 100; //Actually manually set in constructor
     auto data_queues = std::make_shared<DataQueues>(input_queue_size);
     std::string config_path = "../config/camera_configuration.yaml";
+
+    size_t test_queue_capacity = 100;
+    std::shared_ptr<CommunicationManager> comms_interface = std::make_shared<CommunicationManager>(test_queue_capacity, test_queue_capacity, test_queue_capacity, test_queue_capacity);
     
     std::shared_ptr<DavisDriver> driver = std::make_shared<DavisDriver>(config_path, data_queues);   //Starts driver to add data to input queues
 
-    
     // Create atomic control flags
     std::atomic<ThreadState> frontend_state(ThreadState::Idle);
     std::atomic<ThreadState> backend_state(ThreadState::Idle);
 
     // //Create data interfaces
-    size_t test_queue_capacity = 100;
     ThreadSafeFIFO<InputDataSync> data_DA_to_FE(test_queue_capacity, "Sync_data", true);
-    
-    std::shared_ptr<CommunicationManager> comms_interface = std::make_shared<CommunicationManager>(test_queue_capacity, test_queue_capacity, test_queue_capacity, test_queue_capacity);
 
     // Perform initial setup
     LOG(INFO) << "MAIN: Setting up...";
@@ -100,7 +99,6 @@ int main(int argc, char* argv[])
     }
     else{
         LOG(INFO) << "MAIN: ESP32 Serial Initialised";
-        FLAG_CONNECTED_ESP = 1;
     }
  
     std::shared_ptr<DataAcquisition> DataAquistion_ = std::make_shared<DataAcquisition>(data_queues);
@@ -131,18 +129,14 @@ int main(int argc, char* argv[])
                 std::placeholders::_3));
   
     // Start this thread
-    CM_loop(&driver,          // Davis Driver
-            &DataAquistion_,  // DA Thread
-            &FrontEnd_,       // FE Thread
+    CM_loop(driver,          // Davis Driver
+            DataAquistion_,  // DA Thread
+            FrontEnd_,       // FE Thread
             comms_interface,  // CM Thread Interface
             &serial);         // CM Serial Interface
 
 
     LOG(INFO) << "MAIN: CM Thread Ended";
-
-    // Wait for other threads to exit
-    DataAquistion_.stop();
-    LOG(INFO) << "MAIN: DA Thread Ended";
 
     // // Close WiFi
     CM_cleanupNet();

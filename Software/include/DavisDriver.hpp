@@ -156,8 +156,7 @@ private:
   bool imu_calibration_running_;
   std::vector<IMUData> imu_calibration_samples_;
 
-  static constexpr double STANDARD_GRAVITY = 9.81;
-  
+  static constexpr double STANDARD_GRAVITY = 9.81;  
 };
 
 //==============================================================================

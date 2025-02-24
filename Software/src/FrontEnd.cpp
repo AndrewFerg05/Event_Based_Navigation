@@ -45,7 +45,7 @@ cv::Mat event_frame = cv::Mat::zeros(EVENT_FRAME_HEIGHT, EVENT_FRAME_WIDTH, CV_3
 cv::Mat aps_frame;  // Will store the latest APS frame
 
 // Function to display events from each incoming packet separately
-void displayStampedEvents(const StampedEventArray& stamped_events) {
+void displayStampedEvents(const StampedEventArray& stamped_events, std::shared_ptr<CommunicationManager> comms) {
     // Clear the event frame at the start of each function call
     event_frame = cv::Mat::zeros(EVENT_FRAME_HEIGHT, EVENT_FRAME_WIDTH, CV_32FC3);
 
@@ -81,7 +81,7 @@ void displayStampedEvents(const StampedEventArray& stamped_events) {
 }
 
 // Function to display images in a continuous video stream
-void displayStampedImage(const StampedImage& stamped_image) {
+void displayStampedImage(const StampedImage& stamped_image,  std::shared_ptr<CommunicationManager> comms) {
     // Extract timestamp and image pointer
     int64_t timestamp = stamped_image.first;
     ImagePtr imagePtr = stamped_image.second;
@@ -118,7 +118,7 @@ void displayStampedImage(const StampedImage& stamped_image) {
     comms->queueFrameCamera(aps_frame);
 }
 
-void displayCombinedFrame() {
+void displayCombinedFrame(std::shared_ptr<CommunicationManager> comms) {
     if (aps_frame.empty() || event_frame.empty()) {
         std::cerr << "Warning: One or both frames are empty!" << std::endl;
         return;
@@ -300,9 +300,9 @@ void FrontEnd::addData(
     }
 
     vio_manager_->feed_measurement_camera(camera_data);
-    displayStampedEvents(stamped_events);
-    displayStampedImage(stamped_image);
-    displayCombinedFrame();
+    displayStampedEvents(stamped_events, comms_interface_);
+    displayStampedImage(stamped_image, comms_interface_);
+    displayCombinedFrame(comms_interface_);
     // Log global position - Check
     auto state = vio_manager_->get_state();
 

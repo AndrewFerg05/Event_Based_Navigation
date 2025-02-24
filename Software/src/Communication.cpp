@@ -36,7 +36,7 @@ Change History
 #define TEST_RUN_TIME 30
 
 #define MAX_PACKET_SIZE 65507            // Max packet in bytes for UDP
-#define PC_IP           "10.12.7.29" // Change to base station IP (SARK's laptop)
+#define PC_IP           "192.168.43.245" // Change to base station IP (SARK's laptop)
 #define PC_PORT         5005             // Application address for base station
 #define ID_FRAME        0
 #define ID_EVENT        1
@@ -45,19 +45,18 @@ Change History
 // Global Variable Initialisation
 //------------------------------------------------------------------------------
 
-
 //==============================================================================
 // Functions
 //------------------------------------------------------------------------------
 void CM_loop(
-    DavisDriver* driver_,
-    DataAcquisition* dataAcquistion_,
-    FrontEnd* frontEnd_,
+    std::shared_ptr<DavisDriver> driver_,
+    std::shared_ptr<DataAcquisition> dataAcquistion_,
+    std::shared_ptr<FrontEnd> frontEnd_,
     std::shared_ptr<CommunicationManager> comms,
     CM_serialInterface* serial) {
 
-    auto start_time = std::chrono::steady_clock::now();   
-    auto sinceLastSerialSend = std::chrono::steady_clock::now();   
+    auto start_time = std::chrono::high_resolution_clock::now();   
+    auto sinceLastSerialSend = std::chrono::high_resolution_clock::now();   
 
     std::uint8_t commandReceived = 100; //Get this from external serial source
     std::uint8_t command = IDLE; //Get this from external source
@@ -65,8 +64,8 @@ void CM_loop(
     bool state_change_called = false; //Used to only set the atomics once
 	
     // Frames for transmitting
-    ImageData frameCamera;
-    TrackedFrames frameEvents;
+    cv::Mat frameCamera;
+    cv::Mat frameEvents;
     cv::Mat frameTest = cv::imread(TEST_IMAGE);
     if (frameTest.empty()) {
         LOG(ERROR) << "CM: Failed to load test image. ";
@@ -82,14 +81,14 @@ void CM_loop(
     std::optional<int> last_output;
     while (true) {
 
-        auto now = std::chrono::steady_clock::now();
+        auto now = std::chrono::high_resolution_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - start_time).count();
 
         // Every 100 ms remind ESP what state Pi is in
-        auto elapsedSerialSend = std::chrono::duration_cast<std::chrono::milliseconds>(now - sinceLastSerialSend).count();
-        if (elapsedSerialSend > 100) {
+        auto elapsedHundredMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - sinceLastSerialSend);
+        if (elapsedHundredMs.count() > 500) {
             CM_serialSendState(serial, command);
-            auto sinceLastSerialSend = std::chrono::steady_clock::now();  
+            sinceLastSerialSend = std::chrono::high_resolution_clock::now(); 
         }
 
         // Thread control
@@ -102,7 +101,7 @@ void CM_loop(
                 state_change_called = false;
             }
 
-            if (FLAG_CONNECTED_ESP)
+            if (serial->ESPCheckOpen())
             {
                 // ESP Receive state
                 commandReceived = CM_serialReceive(serial);
@@ -145,7 +144,9 @@ void CM_loop(
                 // No pose ready
 
                 // (For testing still transmit status)
-                CM_transmitStatus(1, 2, 0, pose, -1, -2);
+                if (elapsedHundredMs.count() > 500) {
+                    CM_transmitStatus(1, 2, 0, pose, -1, -2);
+                }
             }
             else {
                 //Transmit position estimate from BE
@@ -167,7 +168,6 @@ void CM_loop(
                 state_change_called = false;
             }
 
-            data_DA->stop_queue();  //Wake FE if waiting on data
             break;
 
         } else if (command == IDLE) {
@@ -182,7 +182,7 @@ void CM_loop(
                 state_change_called = false;
             }
             
-            if (FLAG_CONNECTED_ESP)
+            if (serial->ESPCheckOpen())
             {
                 // Wait for run command from ESP
                 commandReceived = CM_serialReceive(serial);
@@ -197,7 +197,7 @@ void CM_loop(
                 if (elapsed > 1)
                 {
                     state_change_called = true;
-                    command = STOP;
+                    command = RUN;
                 }
             }
 
@@ -227,7 +227,7 @@ void CM_serialSendState(CM_serialInterface* serial, int32_t state){
     {
         char message[50];
         
-        snprintf(message, sizeof(message), "State: %d\n", iterations);
+        snprintf(message, sizeof(message), "State: %d\n", state);
 
         serial->ESPWrite(message);
     }

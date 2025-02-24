@@ -167,12 +167,11 @@ DavisDriver::DavisDriver(const std::string& config_path, std::shared_ptr<DataQue
 {
     config_manager_.loadConfig(config_path);
     caerConnect();
-    if (FLAG_CONNECTED_DAVIS) {
-        // triggerImuCalibration();
-        config_manager_.streaming_rate = 30;
-        bias = config_manager_.getBias();
-        delta_ = std::chrono::microseconds(static_cast<long>(1e6 / config_manager_.streaming_rate));
-    }
+
+    // triggerImuCalibration();
+    config_manager_.streaming_rate = 30;
+    bias = config_manager_.getBias();
+    delta_ = std::chrono::microseconds(static_cast<long>(1e6 / config_manager_.streaming_rate));
 }
 
 DavisDriver::~DavisDriver()
@@ -186,24 +185,22 @@ DavisDriver::~DavisDriver()
 void DavisDriver::start()
 {
     // Only start reading camera if connected
-    if (FLAG_CONNECTED_DAVIS) {
-        if (!running_) 
-        {
-            LOG(INFO) << "Driver: Starting Driver...";
-            running_ = true;  
-            idle_ = false;
+    if (!running_) 
+    {
+        LOG(INFO) << "Driver: Starting Driver...";
+        running_ = true;  
+        idle_ = false;
 
-            changeDvsParameters();  //Set camera parameters
+        changeDvsParameters();  //Set camera parameters
 
-            readout_thread_ = std::thread(&DavisDriver::readout, this);     //Start readout
-            LOG(INFO) << "Driver started successfully!";
+        readout_thread_ = std::thread(&DavisDriver::readout, this);     //Start readout
+        LOG(INFO) << "Driver started successfully!";
 
-            sleep_ms(500);
-        }
-        else
-        {
-            LOG(WARNING) << "Driver: Driver already running!";
-        }
+        sleep_ms(500);
+    }
+    else
+    {
+        LOG(WARNING) << "Driver: Driver already running!";
     }
 }
 
@@ -218,15 +215,15 @@ void DavisDriver::stop()
         readout_thread_.join();
     }
 
-    if (FLAG_CONNECTED_DAVIS) {
-        if(!idle_)
-        {
-            caerDeviceDataStop(davis_handle_); 
-        }
-        caerDeviceClose(&davis_handle_);
-        
-        LOG(INFO) << "Driver: Driver stopped successfully";
+
+    if(!idle_)
+    {
+        caerDeviceDataStop(davis_handle_); 
     }
+    caerDeviceClose(&davis_handle_);
+    
+    LOG(INFO) << "Driver: Driver stopped successfully";
+
 }
 
 void DavisDriver::idle()
@@ -256,9 +253,8 @@ void DavisDriver::caerConnect()
     LOG(INFO) << "Driver: Connecting to camera... ";
 
     bool device_is_running = false;
-    uint8_t attempts = 0;           // Give 6 chances to connect (3 seconds)
 
-    while (!device_is_running || attempts < 6) {
+    while (!device_is_running) {
         const char* serial_number_restrict = (config_manager_.device_id_.empty()) ? nullptr : config_manager_.device_id_.c_str();
 
         // Attempt to open the DAVIS camera
@@ -274,30 +270,26 @@ void DavisDriver::caerConnect()
 
     }
 
-    if (device_is_running) {
-        // Retrieve device information
-        davis_info_ = caerDavisInfoGet(davis_handle_);
-        config_manager_.device_id_ = "DAVIS-" + std::string(davis_info_.deviceString).substr(14, 8);
+    // Retrieve device information
+    davis_info_ = caerDavisInfoGet(davis_handle_);
+    config_manager_.device_id_ = "DAVIS-" + std::string(davis_info_.deviceString).substr(14, 8);
 
-        // Print device info
-        LOG(INFO) << "Driver: Connected to camera successfully!";
-        LOG(INFO) << "Driver: " << davis_info_.deviceString << "--- ID: " << davis_info_.deviceID
-        << ", Master: " << davis_info_.deviceIsMaster
-        << ", DVS X: " << davis_info_.dvsSizeX
-        << ", DVS Y: " << davis_info_.dvsSizeY
-        << ", Logic: " << davis_info_.firmwareVersion;
+    // Print device info
+    LOG(INFO) << "Driver: Connected to camera successfully!";
+    LOG(INFO) << "Driver: " << davis_info_.deviceString << "--- ID: " << davis_info_.deviceID
+    << ", Master: " << davis_info_.deviceIsMaster
+    << ", DVS X: " << davis_info_.dvsSizeX
+    << ", DVS Y: " << davis_info_.dvsSizeY
+    << ", Logic: " << davis_info_.firmwareVersion;
 
 
-        // Send the default configuration before using the device.
-        caerDeviceSendDefaultConfig(davis_handle_);;
-        // Set default exposure
-        caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_APS, DAVIS_CONFIG_APS_EXPOSURE, config_manager_.exposure);
+    // Send the default configuration before using the device.
+    caerDeviceSendDefaultConfig(davis_handle_);;
+    // Set default exposure
+    caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_APS, DAVIS_CONFIG_APS_EXPOSURE, config_manager_.exposure);
 
-        parameter_bias_update_required_ = true;
-        parameter_update_required_ = true;
-    }
-
-    FLAG_CONNECTED_DAVIS = device_is_running;
+    parameter_bias_update_required_ = true;
+    parameter_update_required_ = true;
 }
 
 void DavisDriver::updateImuBias()
@@ -783,12 +775,9 @@ void DavisDriver::changeDvsParameters()
 
 void DavisDriver::onDisconnectUSB(void* driver)
 {
-    // Only if camera was meant to be connected
-    if (FLAG_CONNECTED_DAVIS) {
-        LOG(ERROR) << "Driver: USB connection lost with DVS!";
-        static_cast<DavisDriver*>(driver)->caerConnect();
-        static_cast<DavisDriver*>(driver)->start();
-    }
+    LOG(ERROR) << "Driver: USB connection lost with DVS!";
+    static_cast<DavisDriver*>(driver)->caerConnect();
+    static_cast<DavisDriver*>(driver)->start();
 }
 //==============================================================================
 // End of File : Software/src/DavisDriver.cpp

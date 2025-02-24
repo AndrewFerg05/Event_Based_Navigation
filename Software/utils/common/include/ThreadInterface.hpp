@@ -41,18 +41,12 @@ Change History
 #include <atomic>
 #include <condition_variable>
 #include <optional>
+#include <opencv2/opencv.hpp>
 
 #include "TypeAliases.hpp"
 #include "Types.hpp"
 #include "Flags.hpp"
 #include "Logging.hpp"
-
-
-//==============================================================================
-//      Development Global variables
-//------------------------------------------------------------------------------
-volatile bool FLAG_CONNECTED_ESP    = 0;
-volatile bool FLAG_CONNECTED_DAVIS  = 0;
 
 
 //==============================================================================
@@ -169,13 +163,14 @@ class CommunicationManager
         ThreadSafeFIFO<cv::Mat> framesEvents;
         ThreadSafeFIFO<cv::Mat> framesAugmented;
         ThreadSafeFIFO<OtherData> pose;
+
     public:
         //Constructor sets size of each input queue
         CommunicationManager(size_t queue_size_1, size_t queue_size_2, size_t queue_size_3, size_t queue_size_4)
             : framesCamera(queue_size_1, "Comms_1", false),
             framesEvents(queue_size_2, "Comms_2", false),
             framesAugmented(queue_size_3, "Comms_3", false),
-            framesAugmented(queue_size_4, "Comms_4", false)
+            pose(queue_size_4, "Comms_4", false)
         {}
         ~CommunicationManager() = default;
 

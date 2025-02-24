@@ -43,6 +43,8 @@ Change History
 #include <libserialport.h>
 
 #include "DataAcquisition.hpp"
+#include "FrontEnd.hpp"
+#include "DavisDriver.hpp"
 #include "ThreadInterface.hpp"
 #include "TypeAliases.hpp"
 #include "Types.hpp"
@@ -88,9 +90,9 @@ void CM_serialSendStatus(CM_serialInterface* serial, int32_t x, int32_t y);
 void CM_transmitStatus(int32_t x, int32_t y, int32_t z, int32_t yaw, int32_t pitch, int32_t roll);
 
 void CM_loop(
-    DavisDriver* driver_,
-    DataAcquisition* dataAcquistion_,
-    FrontEnd* frontEnd_,
+    std::shared_ptr<DavisDriver> driver_,
+    std::shared_ptr<DataAcquisition> dataAcquistion_,
+    std::shared_ptr<FrontEnd> frontEnd_,
     std::shared_ptr<CommunicationManager> comms,
     CM_serialInterface* serial);
 

@@ -41,22 +41,22 @@ ICM_20948_I2C imu; // create an ICM_20948_I2C object imu;
 
 //Accel scale: divide by 16604.0 to normalize. These corrections are quite small and probably can be ignored.
 float A_B[3]
-{-133.47 , 1.7 , -117.47};
+{-226.42 , -321.67 , -251.03};
 
 float A_Ainv[3][3]
-{ {  0.06271 , 0.00087 , 0.00021},
-  {  0.00087 , 0.0617 , -0.00046},
-  { 0.00021 , -0.00046 , 0.06051}
+{ {  0.0615 , 0.00062 , 0.00024},
+  {  0.00062 , 0.06114 , -0.00025},
+  { 0.00024 , -0.00025 , 0.05994}
 };
 
 //Mag scale divide by 369.4 to normalize. These are significant corrections, especially the large offsets.
 float M_B[3]
-{ 98.42 , 5.53 , 388.54};
+{ -109.57 , 395.27 , 444.33};
 
 float M_Ainv[3][3]
-{ {  4.01436 , -0.14836 , -0.05006},
-  { -0.14836 , 3.78476 , 0.05516},
-  { -0.05006 , 0.05516 , 3.72039}
+{ {  4.48904 , -0.09416 , 0.02685},
+  { -0.09416 , 4.21929 , 0.17338},
+  { 0.02685 , 0.17338 , 4.53558}
 };
 
 // local magnetic declination in degrees
@@ -66,10 +66,13 @@ float p[3] = {1, 0, 0};  //X marking on sensor board points toward yaw = 0
 
 float headingOffset = 0;
 
-float headingBuffer[WINDOW_SIZE] = {0};
+float headingBufferCos[WINDOW_SIZE] = {0};
+float headingBufferSin[WINDOW_SIZE] = {0};
 int headingBufferIdx = 0;
-float headingSum = 0;
+float headingSumSin = 0;
+float headingSumCos = 0;
 float filteredHeading = 0;
+float filteredHeading1 = 0;
 
 SemaphoreHandle_t xHeadingMutex;
 

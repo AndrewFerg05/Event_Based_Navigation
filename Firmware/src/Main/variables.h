@@ -59,8 +59,6 @@ extern volatile int pos_6;
 
 extern float displacement;
 extern float heading;
-extern float prevHeading;
-extern float prevHeading2;
 extern float headingOffsets[200];
 extern float filteredHeading;
 
@@ -76,9 +74,12 @@ extern float p[3];
 
 extern float headingOffset;
 
-extern float headingBuffer[WINDOW_SIZE];
+extern float headingBufferCos[WINDOW_SIZE];
+extern float headingBufferSin[WINDOW_SIZE];
 extern int headingBufferIdx;
-extern float headingSum;
+extern float headingSumSin;
+extern float headingSumCos;
+extern float filteredHeading1;
 
 
 // Mutex for protecting access to the shared variables

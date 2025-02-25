@@ -39,7 +39,9 @@ void wifiStatesTask(void *pvParameters) {
     //Serial.println("UDP packet sent!");   
     
   }
-}
+} 
+
+*/
 
 // Task to check Wifi connection and reconnect if connection was lost
 void wifiCheckConnectionTask(void *pvParameters) {
@@ -67,7 +69,7 @@ void wifiCheckConnectionTask(void *pvParameters) {
     
   }
 }
-*/
+
 
 
 void ibusTask(void *pvParameters) {
@@ -132,6 +134,10 @@ void filterHeadingTask(void *pvParameters) {
       // cart to pol
       float copyFilteredHeading = atan2f(averagedSin, averagedCos);
 
+      if (copyFilteredHeading < 0) {
+        copyFilteredHeading += (2*PI);
+      }
+
       // put mutex around this (window size is 20)
       // this gives a delay of 10 samples which means the displacement calculation
       // gets the heading from 1 time step before since it runs 10 times slower
@@ -155,10 +161,6 @@ void displacementCalcTask(void *pvParameters) {
     for( ;; ) {
       
       vTaskDelayUntil( &xLastWakeTime_disp, xFrequency_disp);
-
-      pos_1 += 20;
-      pos_6 += 20;
-
       // Take the mutex to safely access the shared position variables
       //if (xSemaphoreTake(xPositionMutex, portMAX_DELAY) == pdTRUE) {
 
@@ -168,7 +170,7 @@ void displacementCalcTask(void *pvParameters) {
       int posCopy3 = pos_3;
       int posCopy4 = pos_4;
       int posCopy5 = pos_5;
-      int posCopy6 = pos_6;
+      int posCopy6 = -pos_6;
 
       // reset position counters
       pos_1 = 0;
@@ -192,9 +194,6 @@ void displacementCalcTask(void *pvParameters) {
         filteredHeading1 = filteredHeading;
         xSemaphoreGive(xHeadingMutex);  // Unlock mutex
       }
-
-      Serial.print("filtered heading:  ");
-      Serial.println(filteredHeading1);
             
       // update position 
       currentPos.x += (displacement * (float)cos(filteredHeading1));
@@ -204,7 +203,7 @@ void displacementCalcTask(void *pvParameters) {
       int32_t y = (int32_t)(currentPos.y);
 
       // transmit using UDP, or flag for another task to transmit the data
-      /*
+      
       int32_t numbers[6] = {3, 16, x, y, int32_t(posCopy1), int32_t(posCopy6)};
 
       uint8_t buffer[24];  // 6 integers * 4 bytes each = 24 bytes
@@ -214,7 +213,7 @@ void displacementCalcTask(void *pvParameters) {
       udp.beginPacket(udpAddress, udpPort);
       udp.write(buffer, sizeof(buffer));  // Send 24-byte buffer
       udp.endPacket();
-      */
+      
       
     }
 }
@@ -309,7 +308,7 @@ void setup() {
     attachInterrupt(digitalPinToInterrupt(ENA_1), readEncoder1, RISING);
     attachInterrupt(digitalPinToInterrupt(ENA_6), readEncoder6, RISING);
 
-    Serial.begin(115200);
+    //Serial.begin(115200);
     WIRE_PORT.begin(21, 22);
     WIRE_PORT.setClock(400000);
     imu.begin(WIRE_PORT, AD0_VAL);
@@ -317,7 +316,7 @@ void setup() {
       //Serial.println(F("ICM_90248 not detected"));
     }
 
-    /*
+    
     // Connect to WiFi
     WiFi.begin(ssid);
     //Serial.print("Connecting to WiFi");
@@ -325,7 +324,7 @@ void setup() {
         //Serial.print(".");
         delay(500);
     }
-    */
+    
 
     digitalWrite(ledPin, HIGH);
     delay(1000);
@@ -383,7 +382,7 @@ void setup() {
         NULL,                      // Task parameters
         1,                         // Task priority (1 is low)
         &wifiStatesTaskHandle    // Task handle
-    ); 
+    ); */
 
     // Create the wifi connection check task
     xTaskCreate(
@@ -393,7 +392,7 @@ void setup() {
         NULL,                      // Task parameters
         1,                         // Task priority (1 is low)
         &wifiCheckConnectionTaskHandle    // Task handle
-    );*/
+    );
     
 
     // Create task to read RC state values from switches

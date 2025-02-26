@@ -27,9 +27,9 @@ Change History
 //------------------------------------------------------------------------------
 
 // Control Signals
-#define RUN     0
-#define STOP    1
-#define IDLE    2
+#define IDLE    0
+#define RUN     1
+#define STOP    2
 
 
 #define TEST_IMAGE  "../example.jpg"
@@ -40,7 +40,8 @@ Change History
 #define PC_PORT         5005             // Application address for base station
 #define ID_FRAME        0
 #define ID_EVENT        1
-#define ID_STATUS       2
+#define ID_AUGMENTED    2
+#define ID_STATUS       4
 //==============================================================================
 // Global Variable Initialisation
 //------------------------------------------------------------------------------
@@ -66,6 +67,7 @@ void CM_loop(
     // Frames for transmitting
     cv::Mat frameCamera;
     cv::Mat frameEvents;
+    cv::Mat frameAugmented;
     cv::Mat frameTest = cv::imread(TEST_IMAGE);
     if (frameTest.empty()) {
         LOG(ERROR) << "CM: Failed to load test image. ";
@@ -99,6 +101,8 @@ void CM_loop(
                 dataAcquistion_->start();
                 frontEnd_->start();
                 state_change_called = false;
+
+                CM_serialSendState(serial, command);
             }
 
             if (serial->ESPCheckOpen())
@@ -127,8 +131,8 @@ void CM_loop(
                 // No camera frame ready
             }
             else {
-                LOG(INFO) << "CM: Frame data made it to CM, transmitting...";
-                CM_transmitFrame(frameCamera, 0);
+                //LOG(INFO) << "CM: Frame data made it to CM, transmitting...";
+                CM_transmitFrame(frameCamera, ID_FRAME);
             }
 
             frameEvents = comms->getFrameEvents();
@@ -136,7 +140,15 @@ void CM_loop(
                 // No event frame ready
             }
             else {
-                CM_transmitFrame(frameEvents, 1);
+                CM_transmitFrame(frameEvents, ID_EVENT);
+            }
+
+            frameAugmented = comms->getFrameAugmented();
+            if (frameAugmented.empty()) {
+                // No event frame ready
+            }
+            else {
+                CM_transmitFrame(frameAugmented, ID_AUGMENTED);
             }
 
             pose = comms->getPose();
@@ -168,6 +180,8 @@ void CM_loop(
                 state_change_called = false;
             }
 
+            CM_serialSendState(serial, command);
+
             break;
 
         } else if (command == IDLE) {
@@ -175,7 +189,7 @@ void CM_loop(
 
             // Pause Condition
            if(state_change_called){
-            LOG(INFO) << "CM: Changed to idle state ";
+                LOG(INFO) << "CM: Changed to idle state ";
                 driver_->idle();
                 dataAcquistion_->idle();
                 frontEnd_->idle();
@@ -209,16 +223,25 @@ void CM_loop(
 
 std::uint8_t CM_serialReceive(CM_serialInterface* serial){
     char* message;
+    int newState = 42;
 
     if (serial->ESPCheckOpen() == 1)
     {
         while (serial->ESPCheckBuffer() > 0) {
-        message = serial->ESPRead();
-        printf("Received message: %s \n", message);
+            message = serial->ESPRead();
+            if (sscanf(message, "State: %d", &newState) == 1)
+            {
+                //newState assigned successfully
+                LOG(INFO) << "CM: Received from ESP: " << message;
+            }
+            else
+            {
+                newState = 42;
+            }
         }
     }
 
-    return 42;
+    return newState;
 }
 
 void CM_serialSendState(CM_serialInterface* serial, int32_t state){

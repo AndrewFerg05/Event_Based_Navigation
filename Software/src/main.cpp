@@ -46,7 +46,7 @@ CM - Communication
 //==============================================================================
 // MACROs
 //------------------------------------------------------------------------------
-#define THIS_IS_MACRO_EXAMPLE   15
+#define RUN_ON_STARTUP   1
 
 //==============================================================================
 // Global Variable Initialisation
@@ -57,6 +57,11 @@ CM - Communication
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[]) 
 {
+    // Don't run anything if set low
+    if (RUN_ON_STARTUP == 0) {
+        return 0;
+    }
+
     static AlignedLogSink sink;
     initLogging(argv[0], &sink);
 

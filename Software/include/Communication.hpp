@@ -38,6 +38,7 @@ Change History
 
 #include <cstring>
 #include <cstdlib>
+#include <cstdio>
 #include <unistd.h>
 
 #include <libserialport.h>

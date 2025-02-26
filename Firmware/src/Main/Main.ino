@@ -7,19 +7,45 @@
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <math.h>
-/*
-void PIComsTask(void *pvParameters) {
-  for (;;) {
-      ulTaskNotifyTake(pdTRUE, portMAX_DELAY);  // Wait for a notification
 
-      // Run UART communication code here
-      // the states are stored in global varaibles 
-      // controlState, (RC vs Control System)
-      // runningState, (idle, running )
-      // startState, (complete stop, complete start)
+
+void PIComsTask(void *pvParameters) {
+  TickType_t xLastWakeTime_PI;
+  // 100 ms 
+  const TickType_t xFrequency_PI = 100/ portTICK_PERIOD_MS;
+  xLastWakeTime_PI = xTaskGetTickCount();
+  for (;;) {
+    vTaskDelayUntil( &xLastWakeTime_PI, xFrequency_PI);
+
+    if (stateChanged == 1) {
+      // transmit
+    }
+
+    while (Serial.available()) {
+      char incomingChar = Serial.read();  // Read each character from the buffer
       
+      if (incomingChar == '\n') {  // Check if end of message
+
+        if (receivedMessage.startsWith("State: ")) {        // If message is about pi state
+            piState = receivedMessage.substring(7).toInt();   // Extract integer state
+
+            if (FLAG_PI_STARTED == false && piState == 0) {       // If Pi just booted and ready in Idle allow other code to start
+              FLAG_PI_STARTED = true;
+            }
+        }
+        receivedMessage = ""; // Clear the message buffer
+      } else {
+        // Append the character to the message string
+        receivedMessage += incomingChar;
+      }      
+    }
+    if (piState == desiredState) {
+      stateChanged = 0;
+    }
   }
 }
+
+/*
 
 // make this a debugging task, ie (show coms status, current sate etc)
 void wifiStatesTask(void *pvParameters) {
@@ -40,8 +66,9 @@ void wifiStatesTask(void *pvParameters) {
     
   }
 } 
-
 */
+
+
 
 // Task to check Wifi connection and reconnect if connection was lost
 void wifiCheckConnectionTask(void *pvParameters) {
@@ -156,7 +183,7 @@ void filterHeadingTask(void *pvParameters) {
 void displacementCalcTask(void *pvParameters) {
   TickType_t xLastWakeTime_disp;
   // every 100 ms
-  const TickType_t xFrequency_disp = 100/ portTICK_PERIOD_MS;
+  const TickType_t xFrequency_disp = 500/ portTICK_PERIOD_MS;
     xLastWakeTime_disp = xTaskGetTickCount ();
     for( ;; ) {
       
@@ -187,7 +214,7 @@ void displacementCalcTask(void *pvParameters) {
       // 1,2,3 are the right side motors
       // 4,5,6 are the left side motors
       // convert to linear displacement
-      displacement = ((((posCopy1 + posCopy6)/2.0) / PPR) * 2.0 * PI * WHEEL_RADIUS) * 1000; // to mm
+      displacement = ((((posCopy1 + posCopy6)/2.0) / PPR) * 2.0 * PI * WHEEL_RADIUS) * 1000 * slip; // to mm
 
       if (xSemaphoreTake(xHeadingMutex, portMAX_DELAY)) {  // Lock mutex
     
@@ -212,13 +239,9 @@ void displacementCalcTask(void *pvParameters) {
       // Send UDP message
       udp.beginPacket(udpAddress, udpPort);
       udp.write(buffer, sizeof(buffer));  // Send 24-byte buffer
-      udp.endPacket();
-      
-      
+      udp.endPacket();      
     }
 }
-
-
 // update the states 
 void updateStateTask(void *pvParameters) {
   static int32_t prevControlState = -1;
@@ -232,15 +255,25 @@ void updateStateTask(void *pvParameters) {
       runningState = readChannel(7, 0, 1, 2);
       startState = readChannel(8, 0, 1, 2);
 
+      if (runningState != 2 && startState != 2 && runningState != -1 && runningState != -1) {
+        int result = (startState << 1) | runningState;
+        if (result == 4) {
+          result = 2;
+        }
+        // add mutex
+        desiredState = result;
+      }
+
       if (controlState == 2 || runningState == 2 || startState == 2){
+        desiredState = 2;
         connectedRC = 0;
       } else {
         connectedRC = 1;
       }
 
       // if one of the state varibales have changed send to the PI
-      if (controlState != prevControlState || runningState != prevRunning || startState != prevStart) {
-        //xTaskNotifyGive(PIComsTaskHandle);
+      if (runningState != prevRunning || startState != prevStart) {
+        stateChanged = 1;
       }
 
       // if the RC connected was lost or the control state was chnaged send to GUI
@@ -253,7 +286,7 @@ void updateStateTask(void *pvParameters) {
       prevStart = startState;
       prevConnectedRC = connectedRC;
 
-      vTaskDelay(1000 / portTICK_PERIOD_MS);  // Run every 10ms
+      vTaskDelay(100 / portTICK_PERIOD_MS);  // Run every 10ms
   }
 }
 
@@ -415,7 +448,7 @@ void setup() {
         &displacementCalcTaskHandle    // Task handle
     );
 
-    /*
+    
     // Create the PI coms task to communicate states
     xTaskCreate(
         PIComsTask,          // Task function
@@ -424,7 +457,8 @@ void setup() {
         NULL,                      // Task parameters
         1,                         // Task priority (1 is low)
         &PIComsTaskHandle    // Task handle
-    );*/
+    );
+    
 
     // Create the filter heading task
     xTaskCreate(
@@ -435,6 +469,8 @@ void setup() {
         1,                         // Task priority (1 is low)
         &filterHeadingTaskHandle    // Task handle
     );
+
+    vTaskSuspend(PIComsTaskHandle);
 
 }
 

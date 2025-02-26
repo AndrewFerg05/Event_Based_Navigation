@@ -32,6 +32,7 @@ volatile int pos_5 = 0;
 volatile int pos_6 = 0;
 
 float displacement = 0;
+float slip = 0.5882;
 float heading = 0;
 
 float headingOffsets[200] = {0};
@@ -86,7 +87,7 @@ const char* password = "samsamsam802";
 
 // UDP configuration
 WiFiUDP udp;
-const char* udpAddress = "10.42.0.79";  // Doug's laptop
+const char* udpAddress = "10.42.0.79";  // Sam's laptop
 const int udpPort = 5005;  // Receiver port
 
 // Task handles
@@ -100,9 +101,15 @@ TaskHandle_t PIComsTaskHandle = NULL;
 TaskHandle_t filterHeadingTaskHandle = NULL;
 
 //states
-int32_t controlState = 0;
-int32_t runningState = 0;
-int32_t startState = 0;
+int32_t controlState = -1;
+int32_t runningState = -1;
+int32_t startState = -1;
+int stateChanged = 0;
+// idle = 0, run =1, stop = 2
+int desiredState = -1;
+int piState = -1;
+bool FLAG_PI_STARTED = false;
+String receivedMessage = "";  // Variable to store the complete message
 
 //debugging values
 int32_t connectedRC = 0;

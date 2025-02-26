@@ -58,6 +58,7 @@ extern volatile int pos_5;
 extern volatile int pos_6;
 
 extern float displacement;
+extern float slip;
 extern float heading;
 extern float headingOffsets[200];
 extern float filteredHeading;
@@ -111,6 +112,11 @@ extern TaskHandle_t filterHeadingTaskHandle;
 extern int32_t controlState;
 extern int32_t runningState;
 extern int32_t startState;
+extern int stateChanged;
+extern int desiredState;
+extern int piState;
+extern bool FLAG_PI_STARTED;
+extern String receivedMessage;
 
 // debugging varaibles
 extern int32_t connectedRC;

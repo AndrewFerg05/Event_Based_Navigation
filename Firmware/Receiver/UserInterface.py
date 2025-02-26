@@ -11,6 +11,9 @@ import matplotlib.pyplot as plt
 
 running = True
 
+graphSizeX = [-1000, 5000]
+graphSizeY = [-1000, 5000]
+
 def receiveData():
     buffer = b""
     data_size = None
@@ -26,7 +29,7 @@ def receiveData():
             data_size = int.from_bytes(buffer[4:8], byteorder='little')
             buffer = buffer[8:]  # Remove the header from the buffer
             print(f"Receiving frame ID: {data_id}, size: {data_size} bytes")
-            if data_id > 3:
+            if data_id > 4:
                 print('Invalid Data')
                 return None
 
@@ -35,7 +38,7 @@ def receiveData():
             # Extract the complete data
             sent_data = buffer[:data_size]
 
-            if data_id < 2:     # Frame data type
+            if data_id < 3:     # Frame data type
                 # Decode the frame using OpenCV
                 encoded_frame = np.frombuffer(sent_data, dtype=np.uint8)
                 frame = cv2.imdecode(encoded_frame, cv2.IMREAD_COLOR)
@@ -47,22 +50,26 @@ def receiveData():
                     return data_id, data_size, frame
             else:               # Status data type
                 try:
-                    if data_id == 2:
+                    if data_id == 4:        #Pi
                         x = int.from_bytes(buffer[:4], byteorder='little', signed=True)
                         y = int.from_bytes(buffer[4:8], byteorder='little', signed=True)
                         z = int.from_bytes(buffer[8:12], byteorder='little', signed=True)
-                        yaw = int.from_bytes(buffer[12:], byteorder='little', signed=True)
-                        pitch = int.from_bytes(buffer[12:], byteorder='little', signed=True)
-                        roll = int.from_bytes(buffer[12:], byteorder='little', signed=True)
+                        yaw = int.from_bytes(buffer[12:16], byteorder='little', signed=True)
+                        pitch = int.from_bytes(buffer[16:20], byteorder='little', signed=True)
+                        roll = int.from_bytes(buffer[20:], byteorder='little', signed=True)
 
                         return data_id, data_size, x, y, z, yaw, pitch, roll
-                    elif data_id == 3:
+                    elif data_id == 3:              #ESP Position
                         x = int.from_bytes(buffer[:4], byteorder='little', signed=True)
                         y = int.from_bytes(buffer[4:8], byteorder='little', signed=True)
-                        battery = int.from_bytes(buffer[8:12], byteorder='little', signed=True)
-                        time = int.from_bytes(buffer[12:], byteorder='little', signed=True)
+                        z = int.from_bytes(buffer[8:12], byteorder='little', signed=True)
+                        yaw = int.from_bytes(buffer[12:16], byteorder='little', signed=True)
+                        pitch = int.from_bytes(buffer[16:20], byteorder='little', signed=True)
+                        roll = int.from_bytes(buffer[20:], byteorder='little', signed=True)
 
-                        return data_id, data_size, x, y, battery, time
+                        return data_id, data_size, x, y, z, yaw, pitch, roll
+                    elif data_id == 4:      #ESP Debug
+                        RCConnected = int.from_bytes(buffer[:4], byteorder='little', signed=True)
                     else:
                         return data_id, data_size
                 except Exception as e:
@@ -79,51 +86,48 @@ class userInterface(QWidget):
         self.layout = QGridLayout()
         self.layout.setSpacing(0)
         self.layout.setContentsMargins(0, 0, 0, 0)
-        self.init_q1()
-        self.init_q2()
-        self.init_q3()
-        self.init_q4()
+        self.init_s1()
+        self.init_s2()
+        self.init_s3()
+        self.init_s4()
+        self.init_s5()
+        self.init_s6()
 
         # Center alignment for text placeholders
-        for label in [self.q1_border, self.q2_border, self.q3_border, self.q4_border]:
+        for label in [self.s1_border, self.s2_border, self.s3_border, self.s4_border, self.s5_border, self.s6_border,]:
             label.setAlignment(Qt.AlignCenter)
             label.setStyleSheet("QGroupBox { border: 2px solid black; margin: -1px; padding: 0px; }")
 
         # Add widgets to the grid (row, column)
-        self.layout.addWidget(self.q1_border, 0, 0)  # Top-left
-        self.layout.addWidget(self.q2_border, 0, 1)  # Top-right
-        self.layout.addWidget(self.q3_border, 1, 0)  # Bottom-left
-        self.layout.addWidget(self.q4_border, 1, 1)  # Bottom-right
+        self.layout.addWidget(self.s1_border, 0, 0)  # Top-left
+        self.layout.addWidget(self.s2_border, 0, 1)  # Top-middle
+        self.layout.addWidget(self.s3_border, 0, 2)  # Top-right
+        self.layout.addWidget(self.s4_border, 1, 0)  # Bottom-left
+        self.layout.addWidget(self.s5_border, 1, 1)  # Bottom-middle
+        self.layout.addWidget(self.s6_border, 1, 2)  # Bottom-right
         self.setLayout(self.layout)
 
-    def init_q1(self):
+    def init_s1(self):
         # Create a group box for Quarter 1
-        self.q1_border = QGroupBox()
+        self.s1_border = QGroupBox()
 
         # Style the title of the group box
-        self.q1_title = QLabel("Status")
+        self.s1_title = QLabel("Pi Status")
         title_font = QFont("Arial", 14, QFont.Bold)
         title_font.setUnderline(True)
-        self.q1_title.setFont(title_font)
-        self.q1_title.setAlignment(Qt.AlignCenter)  # Center-align the title
+        self.s1_title.setFont(title_font)
+        self.s1_title.setStyleSheet("color: green;")
+        self.s1_title.setAlignment(Qt.AlignCenter)  # Center-align the title
 
         # Event pipeline labels (Green)
         self.label_eventCoord = QLabel("Event Pipeline Position: (0.0, 0.0, 0.0)")
         self.label_eventAngle = QLabel("Event Pipeline Heading: (0.0, 0.0, 0.0)")
         self.label_eventVel = QLabel("Event Pipeline Speed: 0.0")
 
-        self.label_eventCoord.setStyleSheet("color: green;")
-        self.label_eventAngle.setStyleSheet("color: green;")
-        self.label_eventVel.setStyleSheet("color: green;")
-
-        # Alt pipeline labels (Blue)
-        self.label_altCoord = QLabel("Alt. Pipeline Position: (0.0, 0.0)")
-        self.label_altAngle = QLabel("Alt. Pipeline Heading: (0.0)")
-        self.label_altVel = QLabel("Alt. Pipeline Speed: 0.0")
-
-        self.label_altCoord.setStyleSheet("color: blue;")
-        self.label_altAngle.setStyleSheet("color: blue;")
-        self.label_altVel.setStyleSheet("color: blue;")
+        self.label_piTime = QLabel("fTime since last receive: 0.0")
+        self.label_frameTime = QLabel("fTime since last camera frame: 0.0")
+        self.label_eventTime = QLabel("fTime since last event frame: 0.0")
+        self.label_augmentedTime = QLabel("fTime since last augmented frame: 0.0")
 
         # Other labels (Black)
         self.label_battery = QLabel("Rover Battery: 100%")
@@ -133,34 +137,40 @@ class userInterface(QWidget):
         self.label_connection.setStyleSheet("color: black;")
 
         # Set font for all labels
-        info_font = QFont("Arial", 10)  # Set font size for labels
+        info_font = QFont("Arial", 10)
         self.label_eventCoord.setFont(info_font)
         self.label_eventAngle.setFont(info_font)
         self.label_eventVel.setFont(info_font)
-        self.label_altCoord.setFont(info_font)
-        self.label_altAngle.setFont(info_font)
-        self.label_altVel.setFont(info_font)
+
+        self.label_piTime.setFont(info_font)
+        self.label_frameTime.setFont(info_font)
+        self.label_eventTime.setFont(info_font)
+        self.label_augmentedTime.setFont(info_font)
+
         self.label_battery.setFont(info_font)
         self.label_connection.setFont(info_font)
 
         # Create a vertical layout for Quarter 1
         vbox = QVBoxLayout()
-        vbox.addWidget(self.q1_title)  # Add title at the top
+        vbox.addWidget(self.s1_title)  # Add title at the top
         vbox.addWidget(self.label_eventCoord)
         vbox.addWidget(self.label_eventAngle)
         vbox.addWidget(self.label_eventVel)
-        vbox.addWidget(self.label_altCoord)
-        vbox.addWidget(self.label_altAngle)
-        vbox.addWidget(self.label_altVel)
+
+        vbox.addWidget(self.label_piTime)
+        vbox.addWidget(self.label_frameTime)
+        vbox.addWidget(self.label_eventTime)
+        vbox.addWidget(self.label_augmentedTime)
+
         vbox.addWidget(self.label_battery)
         vbox.addWidget(self.label_connection)
         vbox.setAlignment(Qt.AlignTop)  # Keep layout aligned to the top
 
         # Set the layout for Quarter 1
-        self.q1_border.setLayout(vbox)
+        self.s1_border.setLayout(vbox)
 
-    def init_q2(self):
-        self.q2_border = QGroupBox("Position Tracker")
+    def init_s2(self):
+        self.s2_border = QGroupBox("Position Tracker")
 
         # Matplotlib Figure & Canvas
         self.figure, self.ax = plt.subplots()
@@ -176,30 +186,78 @@ class userInterface(QWidget):
         # Graph layout
         vbox = QVBoxLayout()
         vbox.addWidget(self.canvas)
-        self.q2_border.setLayout(vbox)
+        self.s2_border.setLayout(vbox)
 
         # Initialize graph
         self.ax.set_title("Live Position Tracking")
         self.ax.set_xlabel("X Position")
         self.ax.set_ylabel("Y Position")
+        self.ax.set_xlim(graphSizeX)
+        self.ax.set_ylim(graphSizeY)
         self.ax.grid(True)
         self.ax.legend(["Event Pipeline (Pi)", "Alt Pipeline (ESP)"])
 
-    def init_q3(self):
-        self.q3_border = QGroupBox()
-        self.q3_label = QLabel("Frames")
-        vbox = QVBoxLayout()
-        vbox.addWidget(self.q3_label)
-        vbox.setAlignment(Qt.AlignCenter)
-        self.q3_border.setLayout(vbox)
+    def init_s3(self):
+        # Create a group box for Alt. Pipeline
+        self.s3_border = QGroupBox("")
 
-    def init_q4(self):
-        self.q4_border = QGroupBox()
-        self.q4_label = QLabel("Events")
+        # Style the title of the group box
+        self.s3_title = QLabel("ESP32 Status")
+        title_font = QFont("Arial", 14, QFont.Bold)
+        title_font.setUnderline(True)
+        self.s3_title.setFont(title_font)
+        self.s3_title.setStyleSheet("color: blue;")
+        self.s3_title.setAlignment(Qt.AlignCenter)  # Center-align the title
+
+        # Alt pipeline labels (Blue)
+        self.label_altCoord = QLabel("Alt. Pipeline Position: (0.0, 0.0)")
+        self.label_altAngle = QLabel("Alt. Pipeline Heading: (0.0)")
+        self.label_altVel = QLabel("Alt. Pipeline Speed: 0.0")
+
+        self.label_espTime = QLabel("fTime since last receive: 0.0")
+
+        # Set font for Alt. Pipeline labels
+        info_font = QFont("Arial", 10)
+        self.label_altCoord.setFont(info_font)
+        self.label_altAngle.setFont(info_font)
+        self.label_altVel.setFont(info_font)
+        self.label_espTime.setFont(info_font)
+
+        # Create a vertical layout for Alt. Pipeline
         vbox = QVBoxLayout()
-        vbox.addWidget(self.q4_label)
+        vbox.addWidget(self.s3_title)  # Add title at the top
+        vbox.addWidget(self.label_altCoord)
+        vbox.addWidget(self.label_altAngle)
+        vbox.addWidget(self.label_altVel)
+        vbox.addWidget(self.label_espTime)
+        vbox.setAlignment(Qt.AlignTop)
+
+        # Set the layout for Alt. Pipeline
+        self.s3_border.setLayout(vbox)
+
+    def init_s4(self):
+        self.s4_border = QGroupBox()
+        self.s4_label = QLabel("Frames")
+        vbox = QVBoxLayout()
+        vbox.addWidget(self.s4_label)
         vbox.setAlignment(Qt.AlignCenter)
-        self.q4_border.setLayout(vbox)
+        self.s4_border.setLayout(vbox)
+
+    def init_s5(self):
+        self.s5_border = QGroupBox()
+        self.s5_label = QLabel("Events")
+        vbox = QVBoxLayout()
+        vbox.addWidget(self.s5_label)
+        vbox.setAlignment(Qt.AlignCenter)
+        self.s5_border.setLayout(vbox)
+
+    def init_s6(self):
+        self.s6_border = QGroupBox()
+        self.s6_label = QLabel("Augmented")
+        vbox = QVBoxLayout()
+        vbox.addWidget(self.s6_label)
+        vbox.setAlignment(Qt.AlignCenter)
+        self.s6_border.setLayout(vbox)
 
     def update_PiStatus(self, event_coordinates, event_angle, event_velocity):
         # Update the event pipeline labels (Green)
@@ -217,20 +275,83 @@ class userInterface(QWidget):
         self.label_battery.setText(f"Rover Battery: {battery}%")
         self.label_connection.setText(f"WiFi Connection: {connection}")
 
+    def update_ESPTime(self, time):
+        self.label_espTime.setText(f"Time since last receive: {time:.3f}")
+        if time > 3:
+            self.label_espTime.setStyleSheet("color: red;")
+        else:
+            self.label_espTime.setStyleSheet("color: black;")
+
+    def update_PiTime(self, time):
+        self.label_piTime.setText(f"Time since last receive: {time:.3f}")
+        if time > 3:
+            self.label_piTime.setStyleSheet("color: red;")
+        else:
+            self.label_piTime.setStyleSheet("color: black;")
+
+    def update_frameTime(self, time):
+        self.label_frameTime.setText(f"Time since last camera frame: {time:.3f}")
+        if time > 3:
+            self.label_frameTime.setStyleSheet("color: red;")
+        else:
+            self.label_frameTime.setStyleSheet("color: black;")
+
+    def update_eventTime(self, time):
+        self.label_eventTime.setText(f"Time since last event frame: {time:.3f}")
+        if time > 3:
+            self.label_eventTime.setStyleSheet("color: red;")
+        else:
+            self.label_eventTime.setStyleSheet("color: black;")
+
+    def update_augmentedTime(self, time):
+        self.label_augmentedTime.setText(f"Time since last augmented frame: {time:.3f}")
+        if time > 3:
+            self.label_augmentedTime.setStyleSheet("color: red;")
+        else:
+            self.label_augmentedTime.setStyleSheet("color: black;")
+
     def display_error(self, label, error_message):
         # Display an error message on the given label
         label.setText(error_message)
         label.setStyleSheet("color: red; font-weight: bold; font-size: 20px")
 
     def display_frame(self, label, frame):
-        # Convert the frame to RGB format and then to QImage
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        h, w, ch = frame.shape
+        # Get the current window size
+        window_width = self.width()
+        window_height = self.height()
+
+        # Define how much of the window the frame should take up
+        frame_width = window_width // 3  # Assuming 3 frames in bottom half
+        frame_height = window_height // 2  # Half of the window for frames
+
+        # Ensure a minimum size for frames
+        min_frame_width = 320
+        min_frame_height = 240
+
+        frame_width = max(frame_width, min_frame_width)
+        frame_height = max(frame_height, min_frame_height)
+
+        # Resize the frame to fit the computed size
+        resized_frame = cv2.resize(frame, (frame_width, frame_height), interpolation=cv2.INTER_LINEAR)
+
+        # Convert the frame to RGB format for Qt
+        resized_frame = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2RGB)
+        h, w, ch = resized_frame.shape
         bytes_per_line = ch * w
-        qimg = QImage(frame.data, w, h, bytes_per_line, QImage.Format_RGB888)
+        qimg = QImage(resized_frame.data, w, h, bytes_per_line, QImage.Format_RGB888)
+
+        # Convert to pixmap and set to label
         pixmap = QPixmap.fromImage(qimg)
         label.setPixmap(pixmap)
-        label.setScaledContents(True)
+
+        # Ensure contents fill the label without distortion
+        label.setScaledContents(False)
+
+        # Prevent the window from being resized too small
+        min_window_width = min_frame_width * 3  # Minimum width for 3 frames
+        min_window_height = min_frame_height * 2  # Half window for info + frames
+
+        self.setMinimumSize(min_window_width, min_window_height)
 
     def closeEvent(self, event):
         print("Closing user interface...")
@@ -250,30 +371,38 @@ class userInterface(QWidget):
         self.ax.clear()
 
         # Plot both pipelines
-        self.ax.plot(self.x_data_pi, self.y_data_pi, marker="o", linestyle="-", color="green",
+        self.ax.plot(self.x_data_pi, self.y_data_pi, marker="none", linestyle="-", color="green",
                      label="Event Pipeline (Pi)")
-        self.ax.plot(self.x_data_esp, self.y_data_esp, marker="s", linestyle="-", color="blue",
+        self.ax.plot(self.x_data_esp, self.y_data_esp, marker="none", linestyle="-", color="blue",
                      label="Alt Pipeline (ESP)")
 
         # Redraw the graph
         self.ax.set_title("Live Position Tracking")
         self.ax.set_xlabel("X Position")
         self.ax.set_ylabel("Y Position")
+
+        if graphSizeX[0] > x:
+            graphSizeX[0] = x - 10
+        if graphSizeX[1] < x:
+            graphSizeX[1] = x + 10
+        if graphSizeY[0] > y:
+            graphSizeY[0] = y - 10
+        if graphSizeY[1] < y:
+            graphSizeY[1] = y + 10
+
+        self.ax.set_xlim(graphSizeX)
+        self.ax.set_ylim(graphSizeY)
         self.ax.grid(True)
         self.ax.legend()
 
         self.canvas.draw()
 
 class timingTracker():
-    def __init__(self, to):
+    def __init__(self):
         self.startTime = time.time()
-        self.timeout = to
 
     def checkElapse(self):
-        if self.startTime + self.timeout > time.time():
-            return False    #Time has not elapsed yet
-        else:
-            return True
+        return time.time() - self.startTime
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
@@ -295,31 +424,27 @@ if __name__ == "__main__":
     frame_size = None
 
     # Initialise timing trackers
-    eventStream = timingTracker(1)
-    frameStream = timingTracker(1)
-    statusPiStream = timingTracker(1)
-    statusESPStream = timingTracker(1)
+    eventStream = timingTracker()
+    frameStream = timingTracker()
+    augmentedStream = timingTracker()
+    statusPiStream = timingTracker()
+    statusESPStream = timingTracker()
 
-    print(f"Listening for video stream on {PC_IP}:{PC_PORT}...")
+    updateGUITimings = timingTracker()
+
+    print(f"Listening for data stream on {PC_IP}:{PC_PORT}...")
 
     try:
         while running:
-            # Indicate if no message
-            if statusPiStream.checkElapse() == True:
-                window.update_PiStatus("ERROR", "ERROR", "ERROR")
+            # Indicate time since last message receive
+            if updateGUITimings.checkElapse() > 0.1:
+                window.update_PiTime(statusPiStream.checkElapse())
+                window.update_ESPTime(statusESPStream.checkElapse())
+                window.update_frameTime(frameStream.checkElapse())
+                window.update_eventTime(eventStream.checkElapse())
+                window.update_augmentedTime(augmentedStream.checkElapse())
                 cv2.waitKey(1)
-
-            if statusESPStream.checkElapse() == True:
-                window.update_ESPStatus("ERROR", "ERROR", "ERROR", "ERROR", "ERROR")
-                cv2.waitKey(1)
-
-            if frameStream.checkElapse() == True:
-                window.display_error(window.q3_label, "Frames Lost!")
-                cv2.waitKey(1)
-
-            if eventStream.checkElapse() == True:
-                window.display_error(window.q4_label, "Events Lost!")
-                cv2.waitKey(1)
+                updateGUITimings.startTime = time.time()
 
             try:
                 frame_data = receiveData()
@@ -331,15 +456,20 @@ if __name__ == "__main__":
                 # Display the frame with its video ID in a different window for each ID
                 if data_id == 0:
                     frame = frame_data[2]
-                    window.display_frame(window.q3_label, frame)
+                    window.display_frame(window.s4_label, frame)
                     cv2.waitKey(1)
                     frameStream.startTime = time.time()
                 elif data_id == 1:
                     frame = frame_data[2]
-                    window.display_frame(window.q4_label, frame)
+                    window.display_frame(window.s5_label, frame)
                     cv2.waitKey(1)
                     eventStream.startTime = time.time()
                 elif data_id == 2:
+                    frame = frame_data[2]
+                    window.display_frame(window.s6_label, frame)
+                    cv2.waitKey(1)
+                    augmentedStream.startTime = time.time()
+                elif data_id == 4:
                     x = frame_data[2]
                     y = frame_data[3]
                     z = frame_data[4]

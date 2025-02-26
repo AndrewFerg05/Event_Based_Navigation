@@ -216,6 +216,8 @@ void displacementCalcTask(void *pvParameters) {
       // convert to linear displacement
       displacement = ((((posCopy1 + posCopy6)/2.0) / PPR) * 2.0 * PI * WHEEL_RADIUS) * 1000 * slip; // to mm
 
+      float velocity = displacement/0.5;
+
       if (xSemaphoreTake(xHeadingMutex, portMAX_DELAY)) {  // Lock mutex
     
         filteredHeading1 = filteredHeading;
@@ -231,7 +233,7 @@ void displacementCalcTask(void *pvParameters) {
 
       // transmit using UDP, or flag for another task to transmit the data
       
-      int32_t numbers[6] = {3, 16, x, y, int32_t(posCopy1), int32_t(posCopy6)};
+      int32_t numbers[6] = {3, 16, x, y, int32_t(filteredHeading1), int32_t(velocity)};
 
       uint8_t buffer[24];  // 6 integers * 4 bytes each = 24 bytes
       memcpy(buffer, numbers, sizeof(numbers));  // Copy data into buffer
@@ -264,6 +266,12 @@ void updateStateTask(void *pvParameters) {
         desiredState = result;
       }
 
+      if (desiredState == 2) {
+        // reset position variables so I dont have to restart it everytime
+        currentPos.x = 0;
+        currentPos.y = 0;
+      }
+
       if (controlState == 2 || runningState == 2 || startState == 2){
         desiredState = 2;
         connectedRC = 0;
@@ -280,6 +288,7 @@ void updateStateTask(void *pvParameters) {
       if (controlState != prevControlState || connectedRC != prevConnectedRC) {
         //xTaskNotifyGive(wifiStatesTaskHandle);
       }
+      
 
       prevControlState = controlState;
       prevRunning = runningState;

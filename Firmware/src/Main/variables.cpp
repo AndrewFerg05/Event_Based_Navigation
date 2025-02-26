@@ -32,7 +32,7 @@ volatile int pos_5 = 0;
 volatile int pos_6 = 0;
 
 float displacement = 0;
-float slip = 0.5882;
+float slip = 0.54338;
 float heading = 0;
 
 float headingOffsets[200] = {0};

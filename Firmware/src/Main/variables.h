@@ -109,6 +109,7 @@ extern TaskHandle_t PIComsTaskHandle;
 extern TaskHandle_t filterHeadingTaskHandle;
 
 // state variables
+
 extern int32_t controlState;
 extern int32_t runningState;
 extern int32_t startState;

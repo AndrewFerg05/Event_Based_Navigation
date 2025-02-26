@@ -33,6 +33,16 @@ void loop() {
           }
       }
 
+      if (receivedMessage.startsWith("Pose: ")) {        // If message is about pi state
+          piState = receivedMessage.substring(7).toInt();   // Extract integer state
+
+          if (FLAG_PI_STARTED == false && piState == 2) {       // If Pi just booted and ready in Idle allow other code to start
+            FLAG_PI_STARTED = true;
+            desiredState = piState;                       // Want to be in idle same time at start
+            startTime_TEST = millis();           // (In test start timer until want to switch to running)
+          }
+      }
+
       receivedMessage = ""; // Clear the message buffer
     } else {
       // Append the character to the message string

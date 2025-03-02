@@ -361,8 +361,11 @@ void setup() {
     
     // Connect to WiFi
     WiFi.begin(ssid);
-    //Serial.print("Connecting to WiFi");
-    while (WiFi.status() != WL_CONNECTED) {
+
+    int startTimeWC = millis();
+
+    //attempt to connevt to wifi for 10 seconds
+    while (WiFi.status() != WL_CONNECTED && millis() - startTimeWC < 10000) {
         //Serial.print(".");
         delay(500);
     }

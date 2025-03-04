@@ -77,6 +77,9 @@ else()
     # Find Eigen3 on macOS/Linux
     find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
+    set(YAML_CPP_INCLUDE_DIR /opt/homebrew/include)
+    set(YAML_CPP_LIB /opt/homebrew/lib/libyaml-cpp.dylib)
+    include_directories(${YAML_CPP_INCLUDE_DIR})
     # --- Add OpenGV ---
     find_package(OpenGV REQUIRED)
 endif()
@@ -102,6 +105,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${OpenCV_INCLUDE_DIRS}  # Use OpenCV's detected include directories
     ${YAML_INCLUDE_DIRS}
     ${kindr_INCLUDE_DIRS}    # Include Kindr directories
+    ${YAML_CPP_INCLUDE_DIR}
     "/usr/local/include"      # Manually ensure Kindr is included
     ${OpenGV_INCLUDE_DIRS}    # Include OpenGV
     ${CERES_INCLUDE_DIRS}     # Include Ceres Solver directories
@@ -133,7 +137,7 @@ else()
         ${LIBUSB_LIBRARIES}
         ${LIBSERIAL_LIBRARIES} 
         ${OpenCV_LIBS}  # Correctly links OpenCV components
-        yaml-cpp        # Add YAML support
+        ${YAML_CPP_LIB}
         glog::glog      # Ensure glog is linked first
         OpenGV          # Link OpenGV
         Ceres::ceres    # Link Ceres Solver

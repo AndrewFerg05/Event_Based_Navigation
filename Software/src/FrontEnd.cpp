@@ -304,18 +304,53 @@ void FrontEnd::addData(
 
     vio_manager_->feed_measurement_camera(camera_data);
 
+    if (!vio_manager_->initialized())
+    {
+        return;
+    }
+    
     // Log global position - Check
     auto state = vio_manager_->get_state();
 
-    if (state) 
+    // Check if state is valid before accessing
+    if (state && state->_imu)
     {
-        std::lock_guard<std::mutex> lock(state->_mutex_state);
-    
-        // Retrieve global position
-        Eigen::Vector3d global_position = state->_imu->pos(); 
-    
-        LOG(INFO) << "Global Position: " << global_position.transpose();
+        Eigen::Vector3d position = state->_imu->pos();  // Global position (x, y, z)
+        Eigen::Quaterniond orientation(
+            state->_imu->quat()(3),  // w
+            state->_imu->quat()(0),  // x
+            state->_imu->quat()(1),  // y
+            state->_imu->quat()(2)   // z
+        );
+        
+
+        // poseIinM.header.frame_id = "global";
+        // poseIinM.pose.pose.orientation.x = state->_imu->quat()(0);
+        // poseIinM.pose.pose.orientation.y = state->_imu->quat()(1);
+        // poseIinM.pose.pose.orientation.z = state->_imu->quat()(2);
+        // poseIinM.pose.pose.orientation.w = state->_imu->quat()(3);
+        // poseIinM.pose.pose.position.x = state->_imu->pos()(0);
+        // poseIinM.pose.pose.position.y = state->_imu->pos()(1);
+        // poseIinM.pose.pose.position.z = state->_imu->pos()(2);
+
+        // Log global pose
+        LOG(INFO) << "Global Position: ["
+                    << state->_imu->pos()(0) << ", " 
+                    << state->_imu->pos()(1) << ", " 
+                    << state->_imu->pos()(2) << "]";
+
+        LOG(INFO) << "Global Orientation (Quaternion): ["
+                    << orientation.w() << ", "
+                    << orientation.x() << ", "
+                    << orientation.y() << ", "
+                    << orientation.z() << "]";
     }
+    else
+    {
+        LOG(WARNING) << "VIO state is not initialized yet.";
+    }
+
+
 }
 
 void FrontEnd::addImuData(

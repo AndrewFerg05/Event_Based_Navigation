@@ -12,7 +12,7 @@ imu0:
   gyroscope_random_walk: 4.0e-06    # [ rad / s^2 / sqrt(Hz) ] ( gyro bias diffusion )
 
   rostopic: /snappy_imu
-  time_offset: 0.0018555400978173433
+  time_offset: 0.0
   update_rate: 1000.0
   # three different modes supported:
   # "calibrated" (same as "kalibr"), "kalibr", "rpng"

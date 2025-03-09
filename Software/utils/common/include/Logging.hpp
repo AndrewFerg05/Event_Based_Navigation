@@ -90,7 +90,6 @@ class AlignedLogSink : public google::LogSink {
 inline void initLogging(char* argv0, AlignedLogSink* sink) {
 
     google::InitGoogleLogging(argv0);
-
     // Specifies the directory where logs should be stored.
     FLAGS_log_dir = "../logs"; 
 

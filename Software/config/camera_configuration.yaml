@@ -3,12 +3,18 @@ reset_timestamps_delay: -1.0
 imu_calibration_sample_size: 2000
 
 imu_bias:
-  ax: 0.181629
-  ay: -9.94785
-  az: 9.25731
-  wx: -0.0356587
-  wy: -0.00267168
-  wz: 0.0295803
+ # ax: 0.181629
+ # ay: -9.94785
+ # az: 9.25731
+  ax: 0
+  ay: 0
+  az: 0
+ # wx: -0.0356587
+ # wy: -0.00267168
+ # wz: 0.0295803
+  wx: 0
+  wy: 0
+  wz: 0
 
 
 # DAVIS346 Specific Parameters - From ROS Driver example - may need changed
@@ -16,13 +22,13 @@ aps_enabled: true
 dvs_enabled: true
 imu_enabled: true
 
-imu_acc_scale: 3
-imu_gyro_scale: 3
+imu_acc_scale: 30
+imu_gyro_scale: 30
 
 exposure: 4000
 
-autoexposure_desired_intensity: 150
-autoexposure_gain: 4.0  
+autoexposure_desired_intensity: 100
+autoexposure_gain: 2.0  
 
 frame_delay: 0
 max_events: 0

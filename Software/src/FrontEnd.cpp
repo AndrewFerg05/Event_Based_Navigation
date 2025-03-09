@@ -17,6 +17,7 @@ Change History
 
 // Local
 #include "FrontEnd.hpp"
+#include "Communication.hpp"
 
 //==============================================================================
 // Function Prototypes
@@ -77,10 +78,10 @@ void displayStampedEvents(const StampedEventArray& stamped_events) {
     event_frame.convertTo(event_frame_8bit, CV_8UC3, 255.0); // Scale float to 8-bit
 
     // Display the cleaned event frame
-    cv::imshow("Processed Event Frame", event_frame_8bit);
+   // cv::imshow("Processed Event Frame", event_frame_8bit);
 
     // Short delay for smooth video playback
-    cv::waitKey(1);
+    //cv::waitKey(1);
 }
 
 // Function to display images in a continuous video stream
@@ -118,10 +119,10 @@ void displayStampedImage(const StampedImage& stamped_image) {
     }
 
     // Display the APS image
-    cv::imshow("Stamped Image Stream", aps_frame);
+   // cv::imshow("Stamped Image Stream", aps_frame);
     
     // Short delay to allow OpenCV to refresh the display
-    cv::waitKey(1);  // 1ms delay, ensures smooth video playback
+    //cv::waitKey(1);  // 1ms delay, ensures smooth video playback
 }
 
 void displayCombinedFrame() {
@@ -142,12 +143,13 @@ void displayCombinedFrame() {
     // Blend APS frame with event frame
     cv::Mat combined_frame;
     cv::addWeighted(aps_frame, 0.7, event_frame_8bit, 0.5, 0, combined_frame);
+    CM_transmitFrame(combined_frame, 1);
     return;
     // Display the combined frame
-    cv::imshow("Combined Event + APS Frame", combined_frame);
+   // cv::imshow("Combined Event + APS Frame", combined_frame);
 
     // Short delay for smooth video playback
-    cv::waitKey(1);
+    //cv::waitKey(1);
 }
 
 //==============================================================================
@@ -180,10 +182,10 @@ void FrontEnd::setupVIO()
 {
     // Load configuration file
      auto parser = std::make_shared<ov_core::YamlParser>(config_path_);
-
     // Initialize VIO options
     ov_msckf::VioManagerOptions params;
     params.print_and_load(parser);
+    std::cout << "\nDEBUG JME - checking when T_imu searched for" << std::endl;
 
     params.num_opencv_threads = 0; // for repeatability
 
@@ -219,13 +221,18 @@ void FrontEnd::initState(int64_t stamp, const Vector3& acc, const Vector3& gyr)
     imustate(10, 0) = 0.0; // z
     
     // **IMU Biases (b_gyro, b_accel)**: Assume initial biases from factory calibration
-    imustate(11, 0) = -0.0356587;  // Gyro bias x
-    imustate(12, 0) = -0.00267168;  // Gyro bias y
-    imustate(13, 0) = 0.0295803;  // Gyro bias z
-    imustate(14, 0) = 0.181629;  // Accel bias x
-    imustate(15, 0) = -9.94785;  // Accel bias y
-    imustate(16, 0) = 9.25731;  // Accel bias z
-
+    // imustate(11, 0) = -0.0356587;  // Gyro bias x
+    // imustate(12, 0) = -0.00267168;  // Gyro bias y
+    // imustate(13, 0) = 0.0295803;  // Gyro bias z
+    imustate(11, 0) = 0;  // Gyro bias x
+    imustate(12, 0) = 0;  // Gyro bias y
+    imustate(13, 0) = 0;  // Gyro bias z
+    //imustate(14, 0) = 0.181629;  // Accel bias x
+    //imustate(15, 0) = -9.94785;  // Accel bias y
+    //imustate(16, 0) = 9.25731;  // Accel bias z
+    imustate(14, 0) = 0;  // Accel bias x
+    imustate(15, 0) = 0;  // Accel bias y
+    imustate(16, 0) = 0;  // Accel bias z
 
     vio_manager_->initialize_with_gt(imustate);
 
@@ -273,6 +280,8 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
         return false;
     }
 
+    CM_transmitFrame(frame, 0);
+
     camera_data.timestamp = timestamp;    // Set timestamp
     camera_data.sensor_ids.push_back(0);  // Assuming single-camera setup (ID=0)
     camera_data.images.push_back(frame);  // Add converted image
@@ -303,7 +312,9 @@ void FrontEnd::addData(
     }
 
     vio_manager_->feed_measurement_camera(camera_data);
-
+    displayStampedEvents(stamped_events);
+    displayStampedImage(stamped_image);
+    displayCombinedFrame();
     // Log global position - Check
     auto state = vio_manager_->get_state();
 
@@ -313,6 +324,10 @@ void FrontEnd::addData(
     
         // Retrieve global position
         Eigen::Vector3d global_position = state->_imu->pos(); 
+
+        std::ofstream cam_log("camera_pose.csv");
+        cam_log << pos.x() << "," << pos.y() << "," << pos.z() << "\n";
+        cam_log.close();
     
         LOG(INFO) << "Global Position: " << global_position.transpose();
     }
@@ -321,6 +336,10 @@ void FrontEnd::addData(
 void FrontEnd::addImuData(
     int64_t stamp, const Vector3& acc, const Vector3& gyr)
 {
+    std::ofstream imu_log("imu_data.csv");
+    imu_log << stamp << "," << acc.x() << "," << acc.y() << "," << acc.z() << ","
+            << gyr.x() << "," << gyr.y() << "," << gyr.z() << "\n";
+    imu_log.close();
     // initState does not work  - not sure if needed
     // if (!stateInitialised_)
     // {

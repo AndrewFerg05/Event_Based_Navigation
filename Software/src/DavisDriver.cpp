@@ -45,7 +45,7 @@ ConfigManager::ConfigManager(const std::string& config_path)
     : config_file_path(config_path) {}
 
 void ConfigManager::loadConfig(const std::string& config_path){ 
-    LOG(INFO) << "Driver: Loading camer parameters...";
+    LOG(INFO) << "Driver: Loading camera parameters...";
     try {
         // Load Camera Configuration from YAML file
         YAML::Node config = YAML::LoadFile(config_path);

@@ -1,14 +1,22 @@
 serial_number: 00000092
 reset_timestamps_delay: -1.0
-imu_calibration_sample_size: 2000
+imu_calibration_sample_size: 1000
+
+# imu_bias:
+#   ax: 0.181629
+#   ay: -9.94785
+#   az: 9.25731
+#   wx: -0.0356587
+#   wy: -0.00267168
+#   wz: 0.0295803
 
 imu_bias:
-  ax: 0.181629
-  ay: -9.94785
-  az: 9.25731
-  wx: -0.0356587
-  wy: -0.00267168
-  wz: 0.0295803
+ax: 0.0
+ay: 0.0
+az: 0.0
+wx: 0.0
+wy: 0.0
+wz: 0.0
 
 
 # DAVIS346 Specific Parameters - From ROS Driver example - may need changed

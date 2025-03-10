@@ -242,44 +242,80 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
     const StampedImage& stamped_image,
     const StampedEventArray& stamped_events,
     const ImuStamps& imu_stamps,
-    const ImuAccGyrContainer& imu_accgyr)
-{
-    double timestamp = stamped_image.first / 1e9;  // Convert nanoseconds to seconds
-    ImagePtr imagePtr = stamped_image.second;
-
-    if (!imagePtr)
+    const ImuAccGyrContainer& imu_accgyr,
+    FrameType frame_type)
     {
-        LOG(ERROR) << "FE: Error: Null ImagePtr!";
-        return false;
+        double timestamp = stamped_image.first / 1e9;  // Convert nanoseconds to seconds
+        ImagePtr imagePtr = stamped_image.second;
+    
+        if (!imagePtr)
+        {
+            LOG(ERROR) << "FE: Error: Null ImagePtr!";
+            return false;
+        }
+    
+        int width = imagePtr->width;
+        int height = imagePtr->height;
+        std::string encoding = imagePtr->encoding;
+    
+        if (imagePtr->data.empty())
+        {
+            LOG(ERROR) << "FE: Error: Image data is empty!";
+            return false;
+        }
+    
+        // Convert APS image (ensure grayscale)
+        cv::Mat frame;
+        if (encoding == "mono8") {
+            frame = cv::Mat(height, width, CV_8UC1, imagePtr->data.data()).clone();
+        }
+        else 
+        {
+            LOG(ERROR) << "FE: Unsupported encoding format: " << encoding;
+            return false;
+        }
+    
+        cv::Mat processed_frame = frame.clone();
+    
+        // Process event data if needed
+        if (frame_type == EVENT_FRAME || frame_type == COMBINED_FRAME)
+        {
+            cv::Mat event_frame = cv::Mat::zeros(height, width, CV_8UC1); // Blank event frame
+    
+            // ✅ Dereference shared pointer before iteration
+            for (const auto& event : *stamped_events.second)
+            {
+                int x = event.x;
+                int y = event.y;
+                bool polarity = event.polarity;
+    
+                if (x >= 0 && x < width && y >= 0 && y < height)
+                {
+                    event_frame.at<uint8_t>(y, x) = polarity ? 255 : 128; // White for ON, Gray for OFF
+                }
+            }
+    
+            if (frame_type == EVENT_FRAME)
+            {
+                processed_frame = event_frame.clone();
+            }
+            else if (frame_type == COMBINED_FRAME)
+            {
+                // Blend APS frame and event frame (keeping grayscale)
+                cv::addWeighted(frame, 0.5, event_frame, 0.5, 0, processed_frame);
+            }
+        }
+    
+        // Store results in camera data
+        camera_data.timestamp = timestamp;
+        camera_data.sensor_ids.push_back(0);  // Assuming single-camera setup (ID=0)
+        camera_data.images.push_back(processed_frame);
+        camera_data.masks.push_back(cv::Mat::zeros(height, width, CV_8UC1)); // Adding blank mask
+
+        // cv::imshow("Processed Frame", processed_frame);
+        // cv::waitKey(1);
+        return true;
     }
-
-    cv::Mat frame;
-    int width = imagePtr->width;
-    int height = imagePtr->height;
-    std::string encoding = imagePtr->encoding;
-
-    if (imagePtr->data.empty())
-    {
-        LOG(ERROR) << "FE: Error: Image data is empty!";
-        return false;
-    }
-
-    if (encoding == "mono8") {
-        frame = cv::Mat(height, width, CV_8UC1, imagePtr->data.data());
-    }
-    else 
-    {
-        LOG(ERROR) << "FE: Unsupported encoding format: " << encoding;
-        return false;
-    }
-
-    camera_data.timestamp = timestamp;    // Set timestamp
-    camera_data.sensor_ids.push_back(0);  // Assuming single-camera setup (ID=0)
-    camera_data.images.push_back(frame);  // Add converted image
-    camera_data.masks.push_back(cv::Mat::zeros(height, width, CV_8UC1)); //Adding blank mask as errors otherwise
-
-    return true;
-}
 
 void FrontEnd::addData(
     const StampedImage& stamped_image,
@@ -296,7 +332,7 @@ void FrontEnd::addData(
 
     //Build Image frame to input to VIO frontend
     ov_core::CameraData camera_data;
-    if(!buildImage(camera_data, stamped_image, stamped_events, imu_stamps, imu_accgyr))
+    if(!buildImage(camera_data, stamped_image, stamped_events, imu_stamps, imu_accgyr, COMBINED_FRAME))
     {
         LOG(ERROR) << "FE: Error building frame";
         return;

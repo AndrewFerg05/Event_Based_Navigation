@@ -59,7 +59,8 @@ class FrontEnd
         const StampedImage& stamped_image,
         const StampedEventArray& stamped_events,
         const ImuStamps& imu_stamps,
-        const ImuAccGyrContainer& imu_accgyr);
+        const ImuAccGyrContainer& imu_accgyr,
+        FrameType frame_type);
 
     private:
     std::atomic<bool> stateInitialised_{false};

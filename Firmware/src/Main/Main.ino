@@ -4,9 +4,13 @@
 #include "displacement.h"
 #include "PCF8575.h"
 #include <IBusBM.h>
-#include <WiFi.h>
-#include <WiFiUdp.h>
+//#include <WiFi.h>
+//#include <WiFiUdp.h>
 #include <math.h>
+#include "BluetoothSerial.h"
+
+
+BluetoothSerial SerialBT;  // Bluetooth Serial object
 
 
 void PIComsTask(void *pvParameters) {
@@ -73,6 +77,7 @@ void wifiStatesTask(void *pvParameters) {
 // Task to check Wifi connection and reconnect if connection was lost
 void wifiCheckConnectionTask(void *pvParameters) {
   for (;;) {
+    /*
     
     if(WiFi.status() == WL_CONNECTED) {
       //Serial.println("Connected");
@@ -93,6 +98,8 @@ void wifiCheckConnectionTask(void *pvParameters) {
       
       vTaskDelay(100 / portTICK_PERIOD_MS);  // Retry every 100 ms
     }
+    */
+    vTaskDelay(100 / portTICK_PERIOD_MS);  // Retry every 100 ms
     
   }
 }
@@ -111,7 +118,7 @@ void ibusTask(void *pvParameters) {
 void filterHeadingTask(void *pvParameters) {
   TickType_t xLastWakeTime_h;
   // 100 Hz (the max frequency of the mag)
-  const TickType_t xFrequency_h = 10/ portTICK_PERIOD_MS;
+  const TickType_t xFrequency_h = 20/ portTICK_PERIOD_MS;
     xLastWakeTime_h = xTaskGetTickCount();
     for( ;; ) {
 
@@ -124,8 +131,15 @@ void filterHeadingTask(void *pvParameters) {
       // read heading from IMU (use previous value for updating position)
       static float Axyz[3], Mxyz[3]; //centered and scaled accel/mag data
 
+      if (imu.status != ICM_20948_Stat_Ok) {
+        SerialBT.println("CL");
+      }
+
       if (imu.dataReady()) {
         imu.getAGMT();
+      } else {
+        SerialBT.println("data not ready");
+        imu.begin(WIRE_PORT, AD0_VAL);
       }
 
       get_scaled_IMU(Axyz, Mxyz);  //apply relative scale and offset to RAW data. UNITS are not important
@@ -134,6 +148,7 @@ void filterHeadingTask(void *pvParameters) {
       Mxyz[2] = -Mxyz[2];
 
       float headingTemp = get_heading(Axyz, Mxyz, p, declination);
+      
       if (headingTemp < headingOffset) {
         heading = 360 - (headingOffset - headingTemp);
       } else {
@@ -160,10 +175,12 @@ void filterHeadingTask(void *pvParameters) {
 
       // cart to pol
       float copyFilteredHeading = atan2f(averagedSin, averagedCos);
+      
 
       if (copyFilteredHeading < 0) {
         copyFilteredHeading += (2*PI);
       }
+
 
       // put mutex around this (window size is 20)
       // this gives a delay of 10 samples which means the displacement calculation
@@ -175,6 +192,8 @@ void filterHeadingTask(void *pvParameters) {
         xSemaphoreGive(xHeadingMutex);  // Unlock mutex
       }
 
+      
+
     }
 
 }
@@ -182,8 +201,8 @@ void filterHeadingTask(void *pvParameters) {
 // calculate the displacement of the Rover and transmit it though UDP 
 void displacementCalcTask(void *pvParameters) {
   TickType_t xLastWakeTime_disp;
-  // every 100 ms
-  const TickType_t xFrequency_disp = 500/ portTICK_PERIOD_MS;
+  // every 500 ms
+  const TickType_t xFrequency_disp = 100/ portTICK_PERIOD_MS;
     xLastWakeTime_disp = xTaskGetTickCount ();
     for( ;; ) {
       
@@ -223,7 +242,9 @@ void displacementCalcTask(void *pvParameters) {
         filteredHeading1 = filteredHeading;
         xSemaphoreGive(xHeadingMutex);  // Unlock mutex
       }
-            
+
+      SerialBT.println(filteredHeading1);
+           
       // update position 
       currentPos.x += (displacement * (float)cos(filteredHeading1));
       currentPos.y += (displacement * (float)sin(filteredHeading1));
@@ -232,8 +253,8 @@ void displacementCalcTask(void *pvParameters) {
       int32_t y = (int32_t)(currentPos.y);
 
       // transmit using UDP, or flag for another task to transmit the data
-      
-      int32_t numbers[6] = {3, 16, x, y, int32_t(filteredHeading1), int32_t(velocity)};
+      /*
+      int32_t numbers[6] = {3, 16, x, y, int32_t(filteredHeading1*10), int32_t(headingRawTemp)};
 
       uint8_t buffer[24];  // 6 integers * 4 bytes each = 24 bytes
       memcpy(buffer, numbers, sizeof(numbers));  // Copy data into buffer
@@ -241,7 +262,8 @@ void displacementCalcTask(void *pvParameters) {
       // Send UDP message
       udp.beginPacket(udpAddress, udpPort);
       udp.write(buffer, sizeof(buffer));  // Send 24-byte buffer
-      udp.endPacket();      
+      udp.endPacket();    
+      */  
     }
 }
 // update the states 
@@ -358,17 +380,20 @@ void setup() {
       //Serial.println(F("ICM_90248 not detected"));
     }
 
-    
+    /*
     // Connect to WiFi
     WiFi.begin(ssid);
 
-    int startTimeWC = millis();
+    //int startTimeWC = millis();
 
     //attempt to connevt to wifi for 10 seconds
-    while (WiFi.status() != WL_CONNECTED && millis() - startTimeWC < 10000) {
+    while (WiFi.status() != WL_CONNECTED) {
         //Serial.print(".");
         delay(500);
     }
+    */
+    delay(2000);
+    SerialBT.begin("ESP32_BT"); // Set Bluetooth device name
     
 
     digitalWrite(ledPin, HIGH);
@@ -393,6 +418,8 @@ void setup() {
     }
 
     headingOffset = sum / 200.0;
+
+    SerialBT.println(headingOffset);
 
     digitalWrite(ledPin, HIGH);
     delay(1000);

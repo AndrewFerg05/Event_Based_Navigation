@@ -42,22 +42,22 @@ ICM_20948_I2C imu; // create an ICM_20948_I2C object imu;
 
 //Accel scale: divide by 16604.0 to normalize. These corrections are quite small and probably can be ignored.
 float A_B[3]
-{-219.68 , -230.76 , -200.75};
+{-99.77 , -245.86 , -51.74};
 
 float A_Ainv[3][3]
-{ {  0.0613 , 0.00069 , -0.00015},
-  {  0.00069 , 0.06139 , -0.00065},
-  { -0.00015 , -0.00065 , 0.06022}
+{ {  0.06188 , -0.00229 , -0.00037},
+  {  -0.00229 , 0.06067 , 0.00057},
+  { -0.00037 , 0.00057 , 0.06074}
 };
 
 //Mag scale divide by 369.4 to normalize. These are significant corrections, especially the large offsets.
 float M_B[3]
-{ -116.38 , 402.64, 438.74};
+{130.34, 50.09 , -110.24};
 
 float M_Ainv[3][3]
-{ {  5.32487 , -0.05578 , 0.05095},
-  { -0.05578 , 4.94202 , 0.20426},
-  { 0.05095 , 0.20426 , 5.2663}
+{ {  4.40846 , -0.08079 , 0.0605},
+  { -0.08079 , 4.17232 , 0.20164},
+  { 0.0605 , 0.20164 , 4.72483}
 };
 
 // local magnetic declination in degrees

@@ -1,26 +1,50 @@
+import serial
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 
-import socket
+# Configure Serial Port (Change COMx to your ESP32 port)
+ser = serial.Serial('COM5', 9600, timeout=1)
 
-ESP32_MAC = "8C:4F:00:3D:53:64"  # Replace with your ESP32's Bluetooth MAC Address
-PORT = 1  # RFCOMM Port
+# Lists to store x, y values
+x_data, y_data = [], []
 
-try:
-    # Create Bluetooth RFCOMM socket
-    sock = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
-    sock.connect((ESP32_MAC, PORT))
-    print(f"Connected to ESP32 at {ESP32_MAC}")
+def read_serial():
+    """Read and parse serial data"""
+    try:
+        line = ser.readline().decode().strip()  # Read a line from Serial
+        if line:
+            parts = line.split(',')  # Assuming format "10,20"
+            if len(parts) == 2:
+                x, y = float(parts[0]), float(parts[1])
+                return x, y
+    except Exception as e:
+        print(f"Error reading serial: {e}")
+    return None
 
-    while True:
-        data = sock.recv(1024)  # Receive up to 1024 bytes
-        if data:
-            print("Received:", data.decode("utf-8"))
+def update(frame):
+    """Update function for animation"""
+    data = read_serial()
+    if data:
+        x, y = data
+        x_data.append(x)
+        y_data.append(y)
 
-except KeyboardInterrupt:
-    print("\nDisconnected from ESP32.")
+        ax.clear()
+        ax.plot(x_data, y_data, marker='o', linestyle='-')
 
-except Exception as e:
-    print(f"Error: {e}")
+        # Set fixed axis limits
+        ax.set_xlim(-1000, 4000)
+        ax.set_ylim(-1000, 4000)
 
-finally:
-    sock.close()
-    print("Socket closed.")
+        ax.set_xlabel("X Position")
+        ax.set_ylabel("Y Position")
+        ax.set_title("Live XY Plot")
+
+        # Add grid
+        ax.grid(True, linestyle='--', alpha=0.6)
+
+# Set up plot
+fig, ax = plt.subplots()
+ani = animation.FuncAnimation(fig, update, interval=100)  # Update every 100ms
+
+plt.show()

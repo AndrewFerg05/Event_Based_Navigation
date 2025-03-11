@@ -243,11 +243,24 @@ void displacementCalcTask(void *pvParameters) {
         xSemaphoreGive(xHeadingMutex);  // Unlock mutex
       }
 
-      SerialBT.println(filteredHeading1);
-           
+               
       // update position 
       currentPos.x += (displacement * (float)cos(filteredHeading1));
       currentPos.y += (displacement * (float)sin(filteredHeading1));
+
+      String data = String(currentPos.x) + "," + String(currentPos.y) + "\n";
+      SerialBT.print(data); // Send data over Bluetooth
+
+      /*
+      SerialBT.print("Position (");
+      SerialBT.print(currentPos.x);
+      SerialBT.print(", ");
+      SerialBT.print(currentPos.y);
+      SerialBT.print(")  Heading:  ");
+      SerialBT.println(filteredHeading1);
+
+      */
+
 
       int32_t x = (int32_t)(currentPos.x);
       int32_t y = (int32_t)(currentPos.y);

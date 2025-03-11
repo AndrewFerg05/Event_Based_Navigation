@@ -248,8 +248,8 @@ void displacementCalcTask(void *pvParameters) {
       currentPos.x += (displacement * (float)cos(filteredHeading1));
       currentPos.y += (displacement * (float)sin(filteredHeading1));
 
-      String data = String(currentPos.x) + "," + String(currentPos.y) + "\n";
-      SerialBT.print(data); // Send data over Bluetooth
+      String data = String(currentPos.x) + "," + String(currentPos.y) + "," + String(filteredHeading1) +"\n";
+      SerialBT.print(data);
 
       /*
       SerialBT.print("Position (");

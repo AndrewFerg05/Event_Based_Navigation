@@ -12,6 +12,7 @@
    Distributed as-is; no warranty is given.
  ***************************************************************/
 #include "ICM_20948.h" // Click here to get the library: http://librarymanager/All#SparkFun_ICM_20948_IMU
+#include "BluetoothSerial.h"
 
 //#define USE_SPI       // Uncomment this to use SPI
 
@@ -31,6 +32,8 @@ ICM_20948_SPI myICM; // If using SPI create an ICM_20948_SPI object
 ICM_20948_I2C myICM; // Otherwise create an ICM_20948_I2C object
 #endif
 
+BluetoothSerial SerialBT;
+
 // gyro offset values for calibration
 long gyro[3] = {0};
 int offset_count = 500; //average this many values for gyro
@@ -38,11 +41,11 @@ int acc_mag_count = 300; //collect this many values for acc/mag calibration
 
 void setup()
 {
+  SerialBT.begin("ESP32_BT_IMU");  // Bluetooth name
 
-  SERIAL_PORT.begin(9600);
-  while (!SERIAL_PORT)
-  {
-  };
+  delay(10000);
+  
+
 
 #ifdef USE_SPI
   SPI_PORT.begin();
@@ -62,12 +65,8 @@ void setup()
 #else
     myICM.begin(WIRE_PORT, AD0_VAL);
 #endif
-
-    SERIAL_PORT.print(F("Initialization of the sensor returned: "));
-    SERIAL_PORT.println(myICM.statusString());
     if (myICM.status != ICM_20948_Stat_Ok)
     {
-      SERIAL_PORT.println("Trying again...");
       delay(500);
     }
     else
@@ -76,7 +75,7 @@ void setup()
     }
   }
   // find gyro offsets
-  SERIAL_PORT.println(F("Hold sensor still for gyro offset calibration ..."));
+  SerialBT.println("Hold sensor still for gyro offset calibration ...");
   delay(5000);
 
   float goff;
@@ -91,17 +90,14 @@ void setup()
       gyro[2] += myICM.agmt.gyr.axes.z;
     }
   } //done with gyro
-  SERIAL_PORT.print("Gyro offsets x, y, z: ");
   for (i = 0; i < 3; i++) {
     goff = (float)gyro[i] / offset_count;
-    SERIAL_PORT.print(goff, 1);
-    SERIAL_PORT.print(", ");
   }
-  SERIAL_PORT.println();
 
-  SERIAL_PORT.println(F("Turn sensor SLOWLY and STEADILY in all directions until done"));
+
+  SerialBT.println("Turn sensor SLOWLY and STEADILY in all directions until done");
   delay(5000);
-  SERIAL_PORT.println(F("Starting..."));
+  SerialBT.println("Starting...");
 
   // get values for calibration of acc/mag
   for (i = 0; i < acc_mag_count; i++) {
@@ -116,25 +112,25 @@ void setup()
       delay(100); //wait for data ready
     }
   }
-  SERIAL_PORT.print(F("Done collecting"));
+  SerialBT.print("Done collecting");
 }
 
 void loop() {}
 
 void printRawAGMT(ICM_20948_AGMT_t agmt)
 {
-  SERIAL_PORT.print(agmt.acc.axes.x);
-  SERIAL_PORT.print(", ");
-  SERIAL_PORT.print(agmt.acc.axes.y);
-  SERIAL_PORT.print(", ");
-  SERIAL_PORT.print(agmt.acc.axes.z);
-  SERIAL_PORT.print(", ");
+  SerialBT.print(agmt.acc.axes.x);
+  SerialBT.print(", ");
+  SerialBT.print(agmt.acc.axes.y);
+  SerialBT.print(", ");
+  SerialBT.print(agmt.acc.axes.z);
+  SerialBT.print(", ");
 
-  SERIAL_PORT.print(agmt.mag.axes.x);
-  SERIAL_PORT.print(", ");
-  SERIAL_PORT.print(agmt.mag.axes.y);
-  SERIAL_PORT.print(", ");
-  SERIAL_PORT.print(agmt.mag.axes.z);
+  SerialBT.print(agmt.mag.axes.x);
+  SerialBT.print(", ");
+  SerialBT.print(agmt.mag.axes.y);
+  SerialBT.print(", ");
+  SerialBT.print(agmt.mag.axes.z);
 
-  SERIAL_PORT.println();
+  SerialBT.println();
 }

@@ -34,8 +34,8 @@ def update(frame):
         ax.plot(x_data, y_data, marker='o', linestyle='-', label="XY Position")
 
         # Set fixed axis limits
-        ax.set_xlim(-1000, 4000)
-        ax.set_ylim(-1000, 4000)
+        ax.set_xlim(-2000, 2000)
+        ax.set_ylim(-2000, 2000)
 
         ax.set_xlabel("X Position")
         ax.set_ylabel("Y Position")

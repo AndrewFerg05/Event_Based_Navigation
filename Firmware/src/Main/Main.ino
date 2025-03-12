@@ -202,7 +202,7 @@ void filterHeadingTask(void *pvParameters) {
 void displacementCalcTask(void *pvParameters) {
   TickType_t xLastWakeTime_disp;
   // every 500 ms
-  const TickType_t xFrequency_disp = 100/ portTICK_PERIOD_MS;
+  const TickType_t xFrequency_disp = 500/ portTICK_PERIOD_MS;
     xLastWakeTime_disp = xTaskGetTickCount ();
     for( ;; ) {
       
@@ -234,6 +234,10 @@ void displacementCalcTask(void *pvParameters) {
       // 4,5,6 are the left side motors
       // convert to linear displacement
       displacement = ((((posCopy1 + posCopy6)/2.0) / PPR) * 2.0 * PI * WHEEL_RADIUS) * 1000 * slip; // to mm
+
+      if (pointTurn == 0) {
+        displacement = displacement * 0.05;
+      }
 
       float velocity = displacement/0.5;
 

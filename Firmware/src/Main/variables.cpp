@@ -42,22 +42,22 @@ ICM_20948_I2C imu; // create an ICM_20948_I2C object imu;
 
 //Accel scale: divide by 16604.0 to normalize. These corrections are quite small and probably can be ignored.
 float A_B[3]
-{-378.74 , 467.21 , -312.67};
+{-378.47 , 232.22 , 11.68};
 
 float A_Ainv[3][3]
-{ {  0.06074 , 0.00436 , -0.00057},
-  {  0.00436 , 0.05947 , 0.00207},
-  { -0.00057 , 0.00207 , 0.06008}
+{ {  0.06489 , 0.0022 , -0.00043},
+  {  0.0022 , 0.05805 , -0.00064},
+  { -0.00043 , -0.00064 , 0.06075}
 };
 
 //Mag scale divide by 369.4 to normalize. These are significant corrections, especially the large offsets.
 float M_B[3]
-{86.92 , 73.64 , -102.58};
+{110.54 , 83.16 , -118.25};
 
 float M_Ainv[3][3]
-{ {  4.7739 , 0.01303 , 0.04053},
-  { 0.01303 , 4.24978 , 0.17802},
-  { 0.04053 , 0.17802 , 4.8592}
+{ {  4.39877 , 0.04504 , 0.08888},
+  { 0.04504 , 4.08176 , -0.00236},
+  { 0.08888 , -0.00236 , 4.55164}
 };
 
 // local magnetic declination in degrees
@@ -80,6 +80,7 @@ SemaphoreHandle_t xHeadingMutex;
 // previous direction pins for deciding if the motors need to stop
 int prevRightDirection = 1;
 int prevLeftDirection = 1;
+int pointTurn = 0;
 
 // WiFi credentials
 const char* ssid = "PI-SARK";

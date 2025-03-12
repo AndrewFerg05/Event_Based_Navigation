@@ -34,10 +34,12 @@ void controlMotors(int throttleVal, int steeringVal) {
     // Steering determines direction when throttle is neutral
     leftDirection = (steeringVal >= 0) ? 1 : 0;  // Forward if steering is positive, reverse if negative
     rightDirection = (steeringVal >= 0) ? 0 : 1; // Reverse if steering is positive, forward if negative
+    
   } else {
     // Throttle determines direction for both motors
     leftDirection = (throttleVal >= 0) ? 1 : 0;
     rightDirection = (throttleVal >= 0) ? 1 : 0;
+    
   }
     
   // Skid-steer mixing logic
@@ -63,6 +65,12 @@ void controlMotors(int throttleVal, int steeringVal) {
   move_motor(leftDirection, leftPWM,  motorDrivers[1].pwmb, motorDrivers[1].bin1, motorDrivers[1].bin2, prevLeftDirection);
   move_motor(leftDirection, leftPWM, motorDrivers[2].pwma, motorDrivers[2].ain1, motorDrivers[2].ain2, prevLeftDirection);
   move_motor(leftDirection, leftPWM, motorDrivers[2].pwmb, motorDrivers[2].bin1, motorDrivers[2].bin2, prevLeftDirection);
+
+  if (leftDirection != rightDirection) {
+    pointTurn = 1;
+  } else {
+    pointTurn = 0;
+  }
 }
 
 /*moves a motor given the following parameters

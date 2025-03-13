@@ -112,5 +112,7 @@ int piState = -1;
 bool FLAG_PI_STARTED = false;
 String receivedMessage = "";  // Variable to store the complete message
 
+int suspend = 0;
+
 //debugging values
 int32_t connectedRC = 0;

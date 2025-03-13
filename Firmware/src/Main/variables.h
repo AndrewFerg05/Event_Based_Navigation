@@ -120,6 +120,8 @@ extern int piState;
 extern bool FLAG_PI_STARTED;
 extern String receivedMessage;
 
+extern int suspend;
+
 // debugging varaibles
 extern int32_t connectedRC;
 

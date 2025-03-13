@@ -6,6 +6,7 @@
 #include <IBusBM.h>
 //#include <WiFi.h>
 //#include <WiFiUdp.h>
+#include "stateChange.h"
 #include <math.h>
 #include "BluetoothSerial.h"
 
@@ -22,7 +23,7 @@ void PIComsTask(void *pvParameters) {
     vTaskDelayUntil( &xLastWakeTime_PI, xFrequency_PI);
 
     if (stateChanged == 1) {
-      // transmit
+      Serial.println(desiredState);
     }
 
     while (Serial.available()) {
@@ -43,6 +44,9 @@ void PIComsTask(void *pvParameters) {
         receivedMessage += incomingChar;
       }      
     }
+    SerialBT.print("Current State PI:  ");
+    SerialBT.println(piState);
+
     if (piState == desiredState) {
       stateChanged = 0;
     }
@@ -132,13 +136,13 @@ void filterHeadingTask(void *pvParameters) {
       static float Axyz[3], Mxyz[3]; //centered and scaled accel/mag data
 
       if (imu.status != ICM_20948_Stat_Ok) {
-        SerialBT.println("CL");
+        //SerialBT.println("CL");
       }
 
       if (imu.dataReady()) {
         imu.getAGMT();
       } else {
-        SerialBT.println("data not ready");
+        //SerialBT.println("data not ready");
         imu.begin(WIRE_PORT, AD0_VAL);
       }
 
@@ -190,6 +194,10 @@ void filterHeadingTask(void *pvParameters) {
     
         filteredHeading = copyFilteredHeading;
         xSemaphoreGive(xHeadingMutex);  // Unlock mutex
+      }
+
+      if (suspend) {
+        vTaskSuspend(NULL);
       }
 
       
@@ -253,7 +261,7 @@ void displacementCalcTask(void *pvParameters) {
       currentPos.y += (displacement * (float)sin(filteredHeading1));
 
       String data = String(currentPos.x) + "," + String(currentPos.y) + "," + String(filteredHeading1) +"\n";
-      SerialBT.print(data);
+      //SerialBT.print(data);
 
       /*
       SerialBT.print("Position (");
@@ -280,7 +288,11 @@ void displacementCalcTask(void *pvParameters) {
       udp.beginPacket(udpAddress, udpPort);
       udp.write(buffer, sizeof(buffer));  // Send 24-byte buffer
       udp.endPacket();    
-      */  
+      */ 
+      
+      if (suspend) {
+        vTaskSuspend(NULL);
+      }
     }
 }
 // update the states 
@@ -294,11 +306,11 @@ void updateStateTask(void *pvParameters) {
       // code to read in and update the states 
       controlState = readChannel(6, 0, 1, 2);
       runningState = readChannel(7, 0, 1, 2);
-      startState = readChannel(8, 0, 1, 2);
+      startState = readChannel(8, 1, 0, 2);
 
       if (runningState != 2 && startState != 2 && runningState != -1 && runningState != -1) {
         int result = (startState << 1) | runningState;
-        if (result == 4) {
+        if (result == 3) {
           result = 2;
         }
         // add mutex
@@ -327,8 +339,28 @@ void updateStateTask(void *pvParameters) {
       if (controlState != prevControlState || connectedRC != prevConnectedRC) {
         //xTaskNotifyGive(wifiStatesTaskHandle);
       }
-      
 
+      if (desiredState == 1) {
+        suspend = 0;
+        vTaskResume(filterHeadingTaskHandle);
+        vTaskResume(displacementCalcTaskHandle);
+        vTaskResume(motorControlTaskHandle);
+
+        SerialBT.println("tasks reseumed");
+      } else if (desiredState == 2) {
+        suspend = 1;
+        SerialBT.println("tasks suspended");
+        
+        stopAllMotors();
+        SerialBT.println("motors stopped");
+
+        resetVariables();
+        SerialBT.println("variables reset");
+      }
+
+      SerialBT.print("Current State ESP:  ");
+      SerialBT.println(desiredState);
+      
       prevControlState = controlState;
       prevRunning = runningState;
       prevStart = startState;
@@ -363,6 +395,10 @@ void motorControlTask( void * pvParameters )
             digitalWrite(ledPin, HIGH);  // Turn on LED if throttle is zero
         } else {
             digitalWrite(ledPin, LOW);   // Turn off LED otherwise
+        }
+
+        if (suspend) {
+          vTaskSuspend(NULL);
         }
                
     }
@@ -443,16 +479,6 @@ void setup() {
     digitalWrite(ledPin, LOW);
     delay(1000);
 
-    // Create the motor control task
-    xTaskCreate(
-        motorControlTask,          // Task function
-        "Motor Control Task",      // Task name
-        5000,                      // Stack size (adjust as needed)
-        NULL,                      // Task parameters
-        1,                         // Task priority (1 is low)
-        &motorControlTaskHandle    // Task handle
-    );
-
     // Create the RC ibus coms task
     xTaskCreate(
         ibusTask,          // Task function
@@ -488,20 +514,10 @@ void setup() {
     xTaskCreate(
         updateStateTask,          // Task function
         "update State Task",      // Task name
-        1024,                      // Stack size (adjust as needed)
+        2048,                      // Stack size (adjust as needed)
         NULL,                      // Task parameters
         1,                         // Task priority (1 is low)
         &updateStateTaskHandle   // Task handle
-    );
-
-    // Create the displacement estimation task
-    xTaskCreate(
-        displacementCalcTask,          // Task function
-        "displacement estimate",      // Task name
-        8192,                      // Stack size (adjust as needed)
-        NULL,                      // Task parameters
-        1,                         // Task priority (1 is low)
-        &displacementCalcTaskHandle    // Task handle
     );
 
     
@@ -514,20 +530,11 @@ void setup() {
         1,                         // Task priority (1 is low)
         &PIComsTaskHandle    // Task handle
     );
+
+    createPipelinetasks();
+    createMotortask();
     
-
-    // Create the filter heading task
-    xTaskCreate(
-        filterHeadingTask,          // Task function
-        "filter Heading task",      // Task name
-        2048,                      // Stack size (adjust as needed)
-        NULL,                      // Task parameters
-        1,                         // Task priority (1 is low)
-        &filterHeadingTaskHandle    // Task handle
-    );
-
     vTaskSuspend(PIComsTaskHandle);
-
 }
 
 

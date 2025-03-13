@@ -108,3 +108,21 @@ void stop_motor(int pwm, int direct_2, int direct_1) {
     pcf8575.digitalWrite(direct_1, LOW);
     pcf8575.digitalWrite(direct_2, LOW);
 }
+
+void stopAllMotors() {
+    for (int i = 0; i < NUM_MOTOR_DRIVERS; i++) {
+    // Set PWM to 0
+    digitalWrite(motorDrivers[i].pwma, LOW);  // Set PWMA to LOW
+    digitalWrite(motorDrivers[i].pwmb, LOW);  // Set PWMB to LOW
+
+    // Set AIN1, AIN2, BIN1, BIN2 to LOW (braking mode)
+    pcf8575.digitalWrite(motorDrivers[i].ain1, LOW);
+    pcf8575.digitalWrite(motorDrivers[i].ain2, LOW);
+    pcf8575.digitalWrite(motorDrivers[i].bin1, LOW);
+    pcf8575.digitalWrite(motorDrivers[i].bin2, LOW);
+
+    // Set standby pin to LOW (disables motor)
+    pcf8575.digitalWrite(motorDrivers[i].standby, LOW);
+  }
+}
+

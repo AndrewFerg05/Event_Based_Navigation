@@ -27,39 +27,37 @@ Change History
 //------------------------------------------------------------------------------
 
 // Control Signals
-#define RUN     0
-#define STOP    1
-#define IDLE    2
+#define IDLE    0
+#define RUN     1
+#define STOP    2
 
 
 #define TEST_IMAGE  "../example.jpg"
 #define TEST_RUN_TIME 30
 
 #define MAX_PACKET_SIZE 65507            // Max packet in bytes for UDP
-#define PC_IP           "10.12.7.29" // Change to base station IP (SARK's laptop)
+#define PC_IP           "192.168.43.245" // Change to base station IP (SARK's laptop)
 #define PC_PORT         5005             // Application address for base station
 #define ID_FRAME        0
 #define ID_EVENT        1
-#define ID_STATUS       2
+#define ID_AUGMENTED    2
+#define ID_STATUS       4
 //==============================================================================
 // Global Variable Initialisation
 //------------------------------------------------------------------------------
-int iterations = 0;
-
 
 //==============================================================================
 // Functions
 //------------------------------------------------------------------------------
 void CM_loop(
-    std::atomic<ThreadState>& data_sync_state,
-    std::atomic<ThreadState>& frontend_state,
-    std::atomic<ThreadState>& backend_state,
-    ThreadSafeFIFO<InputDataSync>* data_DA,
-    DataAcquisition* dataAcquistion_,
+    std::shared_ptr<DavisDriver> driver_,
+    std::shared_ptr<DataAcquisition> dataAcquistion_,
+    std::shared_ptr<FrontEnd> frontEnd_,
     std::shared_ptr<CommunicationManager> comms,
     CM_serialInterface* serial) {
 
-    auto start_time = std::chrono::steady_clock::now();   
+    auto start_time = std::chrono::high_resolution_clock::now();   
+    auto sinceLastSerialSend = std::chrono::high_resolution_clock::now();   
 
     std::uint8_t commandReceived = 100; //Get this from external serial source
     std::uint8_t command = IDLE; //Get this from external source
@@ -67,8 +65,9 @@ void CM_loop(
     bool state_change_called = false; //Used to only set the atomics once
 	
     // Frames for transmitting
-    ImageData frameCamera;
-    TrackedFrames frameEvents;
+    cv::Mat frameCamera;
+    cv::Mat frameEvents;
+    cv::Mat frameAugmented;
     cv::Mat frameTest = cv::imread(TEST_IMAGE);
     if (frameTest.empty()) {
         LOG(ERROR) << "CM: Failed to load test image. ";
@@ -84,83 +83,90 @@ void CM_loop(
     std::optional<int> last_output;
     while (true) {
 
-        auto now = std::chrono::steady_clock::now();
+        auto now = std::chrono::high_resolution_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - start_time).count();
+
+        // Every 100 ms remind ESP what state Pi is in
+        auto elapsedHundredMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - sinceLastSerialSend);
+        if (elapsedHundredMs.count() > 500) {
+            CM_serialSendState(serial, command);
+            sinceLastSerialSend = std::chrono::high_resolution_clock::now(); 
+        }
 
         // Thread control
         if (command == RUN) {
             if(state_change_called){
                 LOG(INFO) << "CM: Changed to run state ";
+                driver_->start();
                 dataAcquistion_->start();
-                frontend_state = ThreadState::Run;
-                backend_state = ThreadState::Run;
+                frontEnd_->start();
                 state_change_called = false;
+
+                CM_serialSendState(serial, command);
             }
 
-            // ESP Receive code mode
-            // commandReceived = CM_serialReceive(serial);
-            // if (commandReceived != 42){     // If not no response
-            //     command = commandReceived;
-            // }
-            if (elapsed > TEST_RUN_TIME)
+            if (serial->ESPCheckOpen())
             {
-                state_change_called = true;
-                command = STOP;
+                // ESP Receive state
+                commandReceived = CM_serialReceive(serial);
+                if (commandReceived != 42 && command != commandReceived){     // If not no response
+                    state_change_called = true;
+                    command = commandReceived;
+                }
+            }
+            else
+            {
+                // If no ESP, operate based on time
+                if (elapsed > TEST_RUN_TIME)
+                {
+                    state_change_called = true;
+                    command = STOP;
+                }
             }
 
             // Base Station Communication
             //      Get frames from DA and transmit on UDP
-            frameCamera = comms->getFrameData();
-            if (frameCamera.width == 0) {
+            frameCamera = comms->getFrameCamera();
+            if (frameCamera.empty()) {
                 // No camera frame ready
             }
             else {
-                LOG(INFO) << "CM: Frame data made it to CM, formatting...";
-                frame = CM_formatCameraFrame(frameCamera);
-                LOG(INFO) << "CM: Frame formatted, sending...";
-                CM_transmitFrame(frame, 0);
-
-                if (frame.empty())
-                {
-
-                }
-                else
-                {
-                    cv::imshow("Display", frame);
-                    cv::waitKey(1);
-                }
+                //LOG(INFO) << "CM: Frame data made it to CM, transmitting...";
+                CM_transmitFrame(frameCamera, ID_FRAME);
             }
 
-            frameEvents = comms->getTrackedFrameData();
-            if (frameEvents.width == 0) {
-                // No camera frame ready
-                
-                // For testing send test frame to show working
-                LOG(INFO) << "CM: Frame formatted, sending...";
-                CM_transmitFrame(frameTest, 1);
+            frameEvents = comms->getFrameEvents();
+            if (frameEvents.empty()) {
+                // No event frame ready
             }
             else {
-                frame = CM_formatEventFrame(frameEvents);
-                CM_transmitFrame(frame, 1);
+                CM_transmitFrame(frameEvents, ID_EVENT);
             }
 
-            pose = comms->getOtherData();
+            frameAugmented = comms->getFrameAugmented();
+            if (frameAugmented.empty()) {
+                // No event frame ready
+            }
+            else {
+                CM_transmitFrame(frameAugmented, ID_AUGMENTED);
+            }
+
+            pose = comms->getPose();
             if (pose == 0) {
-                // No camera frame ready
+                // No pose ready
+
+                // (For testing still transmit status)
+                if (elapsedHundredMs.count() > 500) {
+                    CM_transmitStatus(1, 2, 0, pose, -1, -2);
+                }
             }
             else {
                 //Transmit position estimate from BE
-                CM_transmitStatus(iterations, iterations, 0, pose, iterations, iterations);
+                CM_transmitStatus(1, 2, 0, pose, -1, -2);
 
                 //Send to ESP32 position estimate from BE
-                CM_serialSendStatus(serial, pose, iterations);
+                CM_serialSendStatus(serial, pose, 1);
             }
-            //Transmit position estimate from BE
-            CM_transmitStatus(iterations, iterations, 0, pose, iterations, iterations);
-
-            //Send to ESP32 position estimate from BE
-            CM_serialSendStatus(serial, pose, iterations);
-
             
         } else if (command == STOP) {
             LOG(INFO) << "CM: STOP Looping";
@@ -168,13 +174,14 @@ void CM_loop(
             // Stop Condition
             if(state_change_called){
                 LOG(INFO) << "CM: Changed to stop state ";
+                driver_->stop();
                 dataAcquistion_->stop();
-                frontend_state = ThreadState::Stop;
-                backend_state = ThreadState::Stop;
+                frontEnd_->stop();
                 state_change_called = false;
             }
 
-            data_DA->stop_queue();  //Wake FE if waiting on data
+            CM_serialSendState(serial, command);
+
             break;
 
         } else if (command == IDLE) {
@@ -182,57 +189,81 @@ void CM_loop(
 
             // Pause Condition
            if(state_change_called){
-            LOG(INFO) << "CM: Changed to idle state ";
-                data_sync_state = ThreadState::Idle;
-                frontend_state = ThreadState::Idle;
-                backend_state = ThreadState::Idle;
+                LOG(INFO) << "CM: Changed to idle state ";
+                driver_->idle();
+                dataAcquistion_->idle();
+                frontEnd_->idle();
                 state_change_called = false;
             }
-
-            // Wait for run command from ESP
-            // commandReceived = CM_serialReceive(serial);
-            // if (commandReceived != 42){     // If not no response
-            //     command = commandReceived;
-            // }
+            
+            if (serial->ESPCheckOpen())
+            {
+                // Wait for run command from ESP
+                commandReceived = CM_serialReceive(serial);
+                if (commandReceived != 42 && command != commandReceived){     // If not no response
+                    state_change_called = true;
+                    command = commandReceived;
+                }
+            }
+            else
+            {
+                // If no ESP, operate based on time
+                if (elapsed > 1)
+                {
+                    state_change_called = true;
+                    command = RUN;
+                }
+            }
 
             sleep_ms(100);
-            
-            //(FOR TESTING WITHOUT ESP)
-            if (elapsed > 1)
-            {
-                LOG(INFO) << "CM: Transitioning to RUN";
-                state_change_called = true;
-                command = RUN;
-            }
+
         }
     }
 }
 
 std::uint8_t CM_serialReceive(CM_serialInterface* serial){
     char* message;
+    int newState = 42;
 
     if (serial->ESPCheckOpen() == 1)
     {
         while (serial->ESPCheckBuffer() > 0) {
-        message = serial->ESPRead();
-        printf("Received message: %s \n", message);
+            message = serial->ESPRead();
+            if (sscanf(message, "State: %d", &newState) == 1)
+            {
+                //newState assigned successfully
+                LOG(INFO) << "CM: Received from ESP: " << message;
+            }
+            else
+            {
+                newState = 42;
+            }
         }
     }
 
-    return 42;
+    return newState;
 }
 
-void CM_serialSendStatus(CM_serialInterface* serial, int32_t x, int32_t y){
-
-    iterations++;
-    LOG(INFO) << "CM : Iteration " << std::to_string(iterations);
+void CM_serialSendState(CM_serialInterface* serial, int32_t state){
 
     if (serial->ESPCheckOpen() == 1)
     {
         char message[50];
         
-        snprintf(message, sizeof(message), "Iteration: %d\n", iterations);
-        // printf(message);
+        snprintf(message, sizeof(message), "State: %d\n", state);
+
+        serial->ESPWrite(message);
+    }
+
+    return;
+}
+
+void CM_serialSendStatus(CM_serialInterface* serial, int32_t x, int32_t y){
+    if (serial->ESPCheckOpen() == 1)
+    {
+        char message[50];
+        
+        snprintf(message, sizeof(message), "x: %d , y: %d\n", x, y);
 
         serial->ESPWrite(message);
     }

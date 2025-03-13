@@ -386,11 +386,6 @@ void FrontEnd::addData(
     const ImuAccGyrContainer& imu_accgyr,
     const bool& no_motion_prior)
 {
-    // initState does not work - not sure if needed
-    // if (!stateInitialised_)
-    // {
-    //     return;
-    // }
 
     //Build Image frame to input to VIO frontend
     ov_core::CameraData camera_data;
@@ -421,16 +416,6 @@ void FrontEnd::addData(
             state->_imu->quat()(2)   // z
         );
         
-
-        // poseIinM.header.frame_id = "global";
-        // poseIinM.pose.pose.orientation.x = state->_imu->quat()(0);
-        // poseIinM.pose.pose.orientation.y = state->_imu->quat()(1);
-        // poseIinM.pose.pose.orientation.z = state->_imu->quat()(2);
-        // poseIinM.pose.pose.orientation.w = state->_imu->quat()(3);
-        // poseIinM.pose.pose.position.x = state->_imu->pos()(0);
-        // poseIinM.pose.pose.position.y = state->_imu->pos()(1);
-        // poseIinM.pose.pose.position.z = state->_imu->pos()(2);
-
         // Log global pose
         LOG(INFO) << "Global Position: ["
                     << state->_imu->pos()(0) << ", " 
@@ -454,13 +439,6 @@ void FrontEnd::addData(
 void FrontEnd::addImuData(
     int64_t stamp, const Vector3& acc, const Vector3& gyr)
 {
-    // initState does not work  - not sure if needed
-    // if (!stateInitialised_)
-    // {
-    //     initState(stamp, acc, gyr);
-    //     return;
-    // }
-
     ov_core::ImuData imu_data;
     imu_data.timestamp = static_cast<double>(stamp) / 1e9;  // Convert nanoseconds to seconds
 

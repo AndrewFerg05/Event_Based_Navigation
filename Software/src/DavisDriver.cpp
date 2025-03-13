@@ -167,7 +167,6 @@ DavisDriver::DavisDriver(const std::string& config_path, std::shared_ptr<DataQue
 {
     config_manager_.loadConfig(config_path);
     caerConnect();
-
     // triggerImuCalibration();
     config_manager_.streaming_rate = 30;
     bias = config_manager_.getBias();
@@ -184,7 +183,6 @@ DavisDriver::~DavisDriver()
 
 void DavisDriver::start()
 {
-    // Only start reading camera if connected
     if (!running_) 
     {
         LOG(INFO) << "Driver: Starting Driver...";
@@ -215,7 +213,6 @@ void DavisDriver::stop()
         readout_thread_.join();
     }
 
-
     if(!idle_)
     {
         caerDeviceDataStop(davis_handle_); 
@@ -223,7 +220,6 @@ void DavisDriver::stop()
     caerDeviceClose(&davis_handle_);
     
     LOG(INFO) << "Driver: Driver stopped successfully";
-
 }
 
 void DavisDriver::idle()
@@ -777,7 +773,7 @@ void DavisDriver::onDisconnectUSB(void* driver)
 {
     LOG(ERROR) << "Driver: USB connection lost with DVS!";
     static_cast<DavisDriver*>(driver)->caerConnect();
-    static_cast<DavisDriver*>(driver)->start();
+    static_cast<DavisDriver*>(driver)->start(); 
 }
 //==============================================================================
 // End of File : Software/src/DavisDriver.cpp

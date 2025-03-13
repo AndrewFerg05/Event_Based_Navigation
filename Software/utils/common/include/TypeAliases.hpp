@@ -75,35 +75,6 @@ using Vector9 = Eigen::Matrix<real_t, 9, 1>;
 using Vector2i = Eigen::Vector2i;
 
 //------------------------------------------------------------------------------
-// Feature containers.
-using Keypoint    = Vector2;
-using Bearing     = Vector3;
-using Position    = Vector3;
-using HomPosition = Vector4;
-using Gradient    = Vector2;
-using Seed        = Vector4;
-using LineMeasurement = Vector3;
-using Keypoints   = Matrix2X;
-using Bearings    = Matrix3X;
-using Positions   = Matrix3X;
-using HomPositions = Matrix4X;
-using Gradients   = Matrix2X;
-using Seeds       = Matrix4X;
-
-// Normal vector on line end-points bearings
-using LineMeasurements = Matrix3X;
-using KeypointLevel = int8_t;
-using KeypointType  = int8_t;
-using KeypointIndex = uint16_t;
-using KeypointLevels = Eigen::Matrix<KeypointLevel, Eigen::Dynamic, 1>;
-using KeypointTypes  = Eigen::Matrix<KeypointType, Eigen::Dynamic, 1>;
-using KeypointAngles = VectorX;
-using KeypointScores = VectorX;
-using KeypointSizes  = VectorX;
-using KeypointIndices  = Eigen::Matrix<KeypointIndex, Eigen::Dynamic, 1>;
-using Descriptors = Eigen::Matrix<uint8_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>;
-
-//------------------------------------------------------------------------------
 // Inertial containers.
 using ImuStamps = Eigen::Matrix<int64_t, Eigen::Dynamic, 1>;
 using ImuAccGyrContainer = Matrix6X;

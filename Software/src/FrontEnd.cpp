@@ -159,6 +159,7 @@ FrontEnd::FrontEnd(std::shared_ptr<CommunicationManager> comms, const std::strin
     : comms_interface_(comms), config_path_(config_path)
     {
         setupVIO();
+        loadCalibrationData();
     }
 
 void FrontEnd::start()
@@ -194,6 +195,67 @@ void FrontEnd::setupVIO()
       LOG(FATAL) << "FE: Unable to parse all parameters";
     }
 }
+
+void FrontEnd::loadCalibrationData()
+{
+    std::string imu_cam_file = "../config/kalibr_imucam_chain.yaml";
+    std::string imu_file = "../config/kalibr_imu_chain.yaml";
+
+    try {
+        YAML::Node imu_cam_config = YAML::LoadFile(imu_cam_file);
+        YAML::Node imu_config = YAML::LoadFile(imu_file);
+
+        // Extract T_cam_imu (Camera-to-IMU transformation)
+        if (imu_cam_config["cam0"]["T_cam_imu"]) {
+            auto t = imu_cam_config["cam0"]["T_cam_imu"];
+            for (int i = 0; i < 4; ++i)
+                for (int j = 0; j < 4; ++j)
+                    calib_.T_cam_imu(i, j) = t[i][j].as<float>();
+        }
+
+        // Extract T_imu_body (IMU-to-body transformation)
+        if (imu_config["imu0"]["T_i_b"]) {
+            auto t = imu_config["imu0"]["T_i_b"];
+            for (int i = 0; i < 4; ++i)
+                for (int j = 0; j < 4; ++j)
+                    calib_.T_imu_body(i, j) = t[i][j].as<float>();
+        } else {
+            calib_.T_imu_body = Eigen::Matrix4f::Identity(); // Default to Identity
+        }
+
+        // Extract distortion coefficients
+        if (imu_cam_config["cam0"]["distortion_coeffs"]) {
+            auto d = imu_cam_config["cam0"]["distortion_coeffs"];
+            for (int i = 0; i < 4; ++i)
+                calib_.distortion_coeffs(i) = d[i].as<float>();
+        }
+
+        // Extract camera intrinsics
+        if (imu_cam_config["cam0"]["intrinsics"]) {
+            auto intrinsics = imu_cam_config["cam0"]["intrinsics"];
+            calib_.K << intrinsics[0].as<float>(), 0.0, intrinsics[2].as<float>(),
+                        0.0, intrinsics[1].as<float>(), intrinsics[3].as<float>(),
+                        0.0, 0.0, 1.0;
+        }
+
+        // Extract camera resolution
+        if (imu_cam_config["cam0"]["resolution"]) {
+            calib_.width = imu_cam_config["cam0"]["resolution"][0].as<int>();
+            calib_.height = imu_cam_config["cam0"]["resolution"][1].as<int>();
+        }
+
+        // Extract time shift between camera and IMU
+        if (imu_cam_config["cam0"]["timeshift_cam_imu"]) {
+            calib_.timeshift_cam_imu = imu_cam_config["cam0"]["timeshift_cam_imu"].as<float>();
+        }
+
+        LOG(INFO) << "FE: Calibration data loaded successfully";
+
+    } catch (const std::exception &e) {
+        LOG(ERROR) << "FE: Error loading calibration file: " << e.what() ;
+    }
+}
+
 
 void FrontEnd::initState(int64_t stamp, const Vector3& acc, const Vector3& gyr)
 {

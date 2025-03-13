@@ -25,12 +25,22 @@ Change History
 #include <open_vins/core/VioManagerOptions.h>
 #include <open_vins/core/VioManager.h>
 #include <open_vins/state/State.h>
+#include <yaml-cpp/yaml.h>
 
 
 
 //==============================================================================
 //      Classes
 //------------------------------------------------------------------------------
+struct CalibrationData {
+    Eigen::Matrix4f T_cam_imu; // Camera-to-IMU transformation
+    Eigen::Matrix4f T_imu_body; // IMU-to-body transformation (Identity in this case)
+    Eigen::Vector4f distortion_coeffs; // Radial-Tangential distortion coefficients
+    Eigen::Matrix3f K; // Intrinsic matrix
+    int width, height; // Camera resolution
+    float timeshift_cam_imu; // Time shift between IMU and Camera
+};
+
 class FrontEnd
 {
     public:
@@ -62,6 +72,9 @@ class FrontEnd
         const ImuAccGyrContainer& imu_accgyr,
         FrameType frame_type);
 
+    void loadCalibrationData();
+
+    CalibrationData calib_; 
     private:
     std::atomic<bool> stateInitialised_{false};
     std::shared_ptr<CommunicationManager> comms_interface_;

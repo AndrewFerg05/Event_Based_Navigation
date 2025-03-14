@@ -126,3 +126,9 @@ void stopAllMotors() {
   }
 }
 
+void enableAllMotors() {
+  for (int i = 0; i < NUM_MOTOR_DRIVERS; i++) {
+    pcf8575.digitalWrite(motorDrivers[i].standby, HIGH);
+  }
+}
+

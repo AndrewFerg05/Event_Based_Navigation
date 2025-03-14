@@ -23,6 +23,7 @@ void PIComsTask(void *pvParameters) {
     vTaskDelayUntil( &xLastWakeTime_PI, xFrequency_PI);
 
     if (stateChanged == 1) {
+      Serial.print("State: ");
       Serial.println(desiredState);
     }
 
@@ -75,8 +76,6 @@ void wifiStatesTask(void *pvParameters) {
   }
 } 
 */
-
-
 
 // Task to check Wifi connection and reconnect if connection was lost
 void wifiCheckConnectionTask(void *pvParameters) {
@@ -301,15 +300,19 @@ void updateStateTask(void *pvParameters) {
   static int32_t prevRunning = -1;
   static int32_t prevStart = -1;
   static int32_t prevConnectedRC = 0;
+  static int32_t prevDesiredState = -1;
 
   for (;;) {
       // code to read in and update the states 
       controlState = readChannel(6, 0, 1, 2);
       runningState = readChannel(7, 0, 1, 2);
-      startState = readChannel(8, 1, 0, 2);
+      startState = readChannel(8, 0, 1, 2);
 
       if (runningState != 2 && startState != 2 && runningState != -1 && runningState != -1) {
         int result = (startState << 1) | runningState;
+        if (result == 1 && FLAG_PI_STARTED == false) {
+          result = 0;
+        }
         if (result == 3) {
           result = 2;
         }
@@ -324,14 +327,14 @@ void updateStateTask(void *pvParameters) {
       }
 
       if (controlState == 2 || runningState == 2 || startState == 2){
-        desiredState = 2;
+        desiredState = -1;
         connectedRC = 0;
       } else {
         connectedRC = 1;
       }
 
-      // if one of the state varibales have changed send to the PI
-      if (runningState != prevRunning || startState != prevStart) {
+      // if the desired state has changed send to the PI
+      if (desiredState != prevDesiredState) {
         stateChanged = 1;
       }
 
@@ -340,22 +343,19 @@ void updateStateTask(void *pvParameters) {
         //xTaskNotifyGive(wifiStatesTaskHandle);
       }
 
-      if (desiredState == 1) {
+      if (desiredState == 0) {
+        if (eTaskGetState(PIComsTaskHandle) == eSuspended) {
+          vTaskResume(PIComsTaskHandle);
+        }
+        suspend = 1;
+        stopAllMotors();
+        resetVariables();
+      } else if (desiredState == 1) {
         suspend = 0;
+        enableAllMotors();
         vTaskResume(filterHeadingTaskHandle);
         vTaskResume(displacementCalcTaskHandle);
         vTaskResume(motorControlTaskHandle);
-
-        SerialBT.println("tasks reseumed");
-      } else if (desiredState == 2) {
-        suspend = 1;
-        SerialBT.println("tasks suspended");
-        
-        stopAllMotors();
-        SerialBT.println("motors stopped");
-
-        resetVariables();
-        SerialBT.println("variables reset");
       }
 
       SerialBT.print("Current State ESP:  ");
@@ -425,7 +425,7 @@ void setup() {
     attachInterrupt(digitalPinToInterrupt(ENA_1), readEncoder1, RISING);
     attachInterrupt(digitalPinToInterrupt(ENA_6), readEncoder6, RISING);
 
-    //Serial.begin(115200);
+    Serial.begin(115200);
     WIRE_PORT.begin(21, 22);
     WIRE_PORT.setClock(400000);
     imu.begin(WIRE_PORT, AD0_VAL);
@@ -479,62 +479,14 @@ void setup() {
     digitalWrite(ledPin, LOW);
     delay(1000);
 
-    // Create the RC ibus coms task
-    xTaskCreate(
-        ibusTask,          // Task function
-        "ibus task",      // Task name
-        2048,                      // Stack size (adjust as needed)
-        NULL,                      // Task parameters
-        1,                         // Task priority (1 is low)
-        &ibusTaskHandle    // Task handle
-    );
-/*
-    // send updated states UDP
-    xTaskCreate(
-        wifiStatesTask,          // Task function
-        "send updated states UDP",      // Task name
-        8192,                      // Stack size (adjust as needed)
-        NULL,                      // Task parameters
-        1,                         // Task priority (1 is low)
-        &wifiStatesTaskHandle    // Task handle
-    ); */
-
-    // Create the wifi connection check task
-    xTaskCreate(
-        wifiCheckConnectionTask,          // Task function
-        "wifi check connection task",      // Task name
-        8192,                      // Stack size (adjust as needed)
-        NULL,                      // Task parameters
-        1,                         // Task priority (1 is low)
-        &wifiCheckConnectionTaskHandle    // Task handle
-    );
-    
-
-    // Create task to read RC state values from switches
-    xTaskCreate(
-        updateStateTask,          // Task function
-        "update State Task",      // Task name
-        2048,                      // Stack size (adjust as needed)
-        NULL,                      // Task parameters
-        1,                         // Task priority (1 is low)
-        &updateStateTaskHandle   // Task handle
-    );
-
-    
-    // Create the PI coms task to communicate states
-    xTaskCreate(
-        PIComsTask,          // Task function
-        "PI ComsTask",      // Task name
-        1024,                      // Stack size (adjust as needed)
-        NULL,                      // Task parameters
-        1,                         // Task priority (1 is low)
-        &PIComsTaskHandle    // Task handle
-    );
-
+    createComsTasks();
     createPipelinetasks();
     createMotortask();
     
     vTaskSuspend(PIComsTaskHandle);
+    vTaskSuspend(filterHeadingTaskHandle);
+    vTaskSuspend(displacementCalcTaskHandle);
+    vTaskSuspend(motorControlTaskHandle);
 }
 
 

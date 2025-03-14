@@ -158,22 +158,24 @@ void displayCombinedFrame() {
 FrontEnd::FrontEnd(std::shared_ptr<CommunicationManager> comms, const std::string& config_path)
     : comms_interface_(comms), config_path_(config_path)
     {
-        setupVIO();
+        // setupVIO();
     }
 
 void FrontEnd::start()
 {
-
+    setupVIO();
 }
 
 void FrontEnd::idle()
 {
-    
+    vioReady_ = false;
+    vio_manager_.reset(); 
 }
 
 void FrontEnd::stop()
 {
-    
+    vioReady_ = false;
+    vio_manager_.reset(); 
 }
 
 void FrontEnd::setupVIO()
@@ -193,6 +195,8 @@ void FrontEnd::setupVIO()
     if (!parser->successful()) {
       LOG(FATAL) << "FE: Unable to parse all parameters";
     }
+
+    vioReady_ = true;
 }
 
 void FrontEnd::initState(int64_t stamp, const Vector3& acc, const Vector3& gyr)
@@ -332,6 +336,8 @@ void FrontEnd::addData(
         return;
     }
 
+    if(!vioReady_) return;
+
     vio_manager_->feed_measurement_camera(camera_data);
 
     if (!vio_manager_->initialized())
@@ -383,6 +389,8 @@ void FrontEnd::addImuData(
     imu_data.wm << gyr.x(), gyr.y(), gyr.z();  // Angular velocity (rad/s)
     imu_data.am << acc.x(), acc.y(), acc.z();  // Linear acceleration (m/s²)
 
+    if(!vioReady_) return;
+    
     vio_manager_->feed_measurement_imu(imu_data);
 }
 //==============================================================================

@@ -64,6 +64,7 @@ class FrontEnd
 
     private:
     std::atomic<bool> stateInitialised_{false};
+    std::atomic<bool> vioReady_{false};
     std::shared_ptr<CommunicationManager> comms_interface_;
     std::shared_ptr<ov_msckf::VioManager> vio_manager_; // OpenVINS VIO manager
     std::string config_path_; // Configuration file path

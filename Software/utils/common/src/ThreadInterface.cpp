@@ -90,19 +90,19 @@ OtherData CommunicationManager::getPose()
 void CommunicationManager::queueFrameCamera(cv::Mat data)
 {
     framesCamera.push(data);
-    LOG(INFO) << "TI: Camera Frame pushed to CM";
+    // LOG(INFO) << "TI: Camera Frame pushed to CM";
 }
 
 
 void CommunicationManager::queueFrameEvents(cv::Mat data){
     framesEvents.push(data);
-    LOG(INFO) << "TI: Event Frame pushed to CM";
+    // LOG(INFO) << "TI: Event Frame pushed to CM";
 }
 
 void CommunicationManager::queueFrameAugmented(cv::Mat data)
 {
     framesAugmented.push(data);
-    LOG(INFO) << "TI: Augmented Frame pushed to CM";
+    // LOG(INFO) << "TI: Augmented Frame pushed to CM";
 }
 
 void CommunicationManager::queuePose(OtherData data){

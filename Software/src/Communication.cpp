@@ -398,8 +398,6 @@ void CM_transmitFrame(cv::Mat frame, int frameId) {
         }
     }
 
-    LOG(INFO) << "CM: Sent frame";
-
     // Clean up
     close(sockfd);
     free(sendBuffer);

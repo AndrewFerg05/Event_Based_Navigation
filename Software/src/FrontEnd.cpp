@@ -44,112 +44,6 @@ const int EVENT_FRAME_HEIGHT = 260;
 cv::Mat event_frame = cv::Mat::zeros(EVENT_FRAME_HEIGHT, EVENT_FRAME_WIDTH, CV_32FC3);
 cv::Mat aps_frame;  // Will store the latest APS frame
 
-// Function to display events from each incoming packet separately
-void displayStampedEvents(const StampedEventArray& stamped_events) {
-    // Clear the event frame at the start of each function call
-    event_frame = cv::Mat::zeros(EVENT_FRAME_HEIGHT, EVENT_FRAME_WIDTH, CV_32FC3);
-
-    // Extract timestamp and event array pointer
-    int64_t timestamp = stamped_events.first;
-    EventArrayPtr eventArrayPtr = stamped_events.second;
-
-    if (!eventArrayPtr || eventArrayPtr->empty()) {
-        std::cerr << "Warning: No events received at timestamp " << timestamp << std::endl;
-        return;
-    }
-
-    // Iterate through all events and plot them on the event_frame
-    for (const Event& e : *eventArrayPtr) {
-        if (e.x >= EVENT_FRAME_WIDTH || e.y >= EVENT_FRAME_HEIGHT) {
-            continue;  // Ignore out-of-bounds events
-        }
-
-        // Set pixel intensity based on event polarity
-        if (e.polarity) {
-            event_frame.at<cv::Vec3f>(e.y, e.x) = cv::Vec3f(1.0f, 1.0f, 1.0f); // ON events → White
-        } else {
-            event_frame.at<cv::Vec3f>(e.y, e.x) = cv::Vec3f(0.0f, 0.0f, 1.0f); // OFF events → Blue
-        }
-    }
-
-    // Convert event frame to 8-bit (CV_8UC3)
-    cv::Mat event_frame_8bit;
-    event_frame.convertTo(event_frame_8bit, CV_8UC3, 255.0); // Scale float to 8-bit
-
-    // Display the cleaned event frame
-    cv::imshow("Processed Event Frame", event_frame_8bit);
-
-    // Short delay for smooth video playback
-    cv::waitKey(1);
-}
-
-// Function to display images in a continuous video stream
-void displayStampedImage(const StampedImage& stamped_image) {
-    // Extract timestamp and image pointer
-    int64_t timestamp = stamped_image.first;
-    ImagePtr imagePtr = stamped_image.second;
-
-    if (!imagePtr) {
-        std::cerr << "Error: Image pointer is null!" << std::endl;
-        return;
-    }
-
-    // Extract image properties
-    int width = imagePtr->width;
-    int height = imagePtr->height;
-    std::string encoding = imagePtr->encoding;
-    std::vector<uint8_t> data = imagePtr->data;
-
-    if (data.empty()) {
-        std::cerr << "Error: Image data is empty!" << std::endl;
-        return;
-    }
-
-    // Convert the data vector to cv::Mat
-    if (encoding == "mono8") {
-        aps_frame = cv::Mat(height, width, CV_8UC1, data.data());
-        cv::cvtColor(aps_frame, aps_frame, cv::COLOR_GRAY2BGR);  // Convert grayscale to 3-channel BGR
-    } else if (encoding == "rgb8") {
-        cv::Mat temp = cv::Mat(height, width, CV_8UC3, data.data());
-        cv::cvtColor(temp, aps_frame, cv::COLOR_RGB2BGR); // Convert RGB to OpenCV's BGR
-    } else {
-        std::cerr << "Error: Unsupported encoding format: " << encoding << std::endl;
-        return;
-    }
-
-    // Display the APS image
-    cv::imshow("Stamped Image Stream", aps_frame);
-    
-    // Short delay to allow OpenCV to refresh the display
-    cv::waitKey(1);  // 1ms delay, ensures smooth video playback
-}
-
-void displayCombinedFrame() {
-    if (aps_frame.empty() || event_frame.empty()) {
-        std::cerr << "Warning: One or both frames are empty!" << std::endl;
-        return;
-    }
-
-    // Ensure both images are the same size
-    if (aps_frame.size() != event_frame.size()) {
-        cv::resize(aps_frame, aps_frame, event_frame.size());
-    }
-
-    // Convert event_frame to 8-bit (CV_8UC3) for blending
-    cv::Mat event_frame_8bit;
-    event_frame.convertTo(event_frame_8bit, CV_8UC3, 255.0); // Scale float to 8-bit
-
-    // Blend APS frame with event frame
-    cv::Mat combined_frame;
-    cv::addWeighted(aps_frame, 0.7, event_frame_8bit, 0.5, 0, combined_frame);
-    return;
-    // Display the combined frame
-    cv::imshow("Combined Event + APS Frame", combined_frame);
-
-    // Short delay for smooth video playback
-    cv::waitKey(1);
-}
-
 //==============================================================================
 // Functions
 //------------------------------------------------------------------------------
@@ -272,6 +166,7 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
         cv::Mat frame;
         if (encoding == "mono8") {
             frame = cv::Mat(height, width, CV_8UC1, imagePtr->data.data()).clone();
+            comms_interface_->queueFrameCamera(frame);
         }
         else 
         {
@@ -297,6 +192,7 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
                     event_frame.at<uint8_t>(y, x) = polarity ? 255 : 128; // White for ON, Gray for OFF
                 }
             }
+            comms_interface_->queueFrameEvents(event_frame);
     
             if (frame_type == EVENT_FRAME)
             {
@@ -306,6 +202,7 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
             {
                 // Blend APS frame and event frame (keeping grayscale)
                 cv::addWeighted(frame, 0.5, event_frame, 0.5, 0, processed_frame);
+                comms_interface_->queueFrameAugmented(processed_frame);
             }
         }
     

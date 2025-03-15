@@ -74,15 +74,15 @@ cv::Mat CommunicationManager::getFrameAugmented()
     }
 }
 
-OtherData CommunicationManager::getPose()
+Pose CommunicationManager::getPose()
 {
     // Return latest from FIFO
     if (auto data = pose.pop()) {
         return data.value();
     }
     else {
-        OtherData nothing;
-        return 0;
+        Pose nothing;
+        return nothing;
     }
 }
 
@@ -105,7 +105,7 @@ void CommunicationManager::queueFrameAugmented(cv::Mat data)
     // LOG(INFO) << "TI: Augmented Frame pushed to CM";
 }
 
-void CommunicationManager::queuePose(OtherData data){
+void CommunicationManager::queuePose(Pose data){
     pose.push(data);
     LOG(INFO) << "TI: Pose pushed to CM";
 }

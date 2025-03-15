@@ -33,7 +33,7 @@ Change History
 
 
 #define TEST_IMAGE  "../example.jpg"
-#define TEST_RUN_TIME 30
+#define TEST_RUN_TIME 600
 
 #define MAX_PACKET_SIZE 65507            // Max packet in bytes for UDP
 #define PC_IP           "192.168.43.245" // Change to base station IP (SARK's laptop)
@@ -77,7 +77,7 @@ void CM_loop(
     cv::Mat frame;
 
     // Found pose
-    OtherData pose;
+    Pose pose;
 
     int bufferSize = 0;
     std::optional<int> last_output;
@@ -152,20 +152,34 @@ void CM_loop(
             }
 
             pose = comms->getPose();
-            if (pose == 0) {
+            if (pose.x == 0) {
                 // No pose ready
 
-                // (For testing still transmit status)
-                if (elapsedHundredMs.count() > 500) {
-                    CM_transmitStatus(1, 2, 0, pose, -1, -2);
-                }
+                // // (For testing still transmit status)
+                // if (elapsedHundredMs.count() > 500) {
+                //     CM_transmitStatus(1, 2, 0, pose, -1, -2);
+                // }
             }
             else {
+
+                // Scale pose to integer cm
+                int32_t poseScaled[6];
+                poseScaled[0] = (int32_t)(pose.x*100);
+                poseScaled[1] = (int32_t)(pose.y*100);
+                poseScaled[2] = (int32_t)(pose.z*100);
+                poseScaled[3] = (int32_t)(pose.yaw*100);
+                poseScaled[4] = (int32_t)(pose.pitch*100);
+                poseScaled[5] = (int32_t)(pose.roll*100);
+
+                LOG(INFO) << "CM: Pose made it with values (" <<
+                 poseScaled[0] << "," << poseScaled[1]  << "," <<  poseScaled[2]  << ") and (" <<  
+                 poseScaled[3] << "," <<  poseScaled[4] << "," <<  poseScaled[5] << ")";
+
                 //Transmit position estimate from BE
-                CM_transmitStatus(1, 2, 0, pose, -1, -2);
+                CM_transmitStatus(poseScaled[0], poseScaled[1], poseScaled[2], poseScaled[3], poseScaled[4], poseScaled[5]);
 
                 //Send to ESP32 position estimate from BE
-                CM_serialSendStatus(serial, pose, 1);
+                CM_serialSendStatus(serial, poseScaled[0], 1);
             }
             
         } else if (command == STOP) {

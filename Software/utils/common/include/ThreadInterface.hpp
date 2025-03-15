@@ -162,7 +162,7 @@ class CommunicationManager
         ThreadSafeFIFO<cv::Mat> framesCamera;
         ThreadSafeFIFO<cv::Mat> framesEvents;
         ThreadSafeFIFO<cv::Mat> framesAugmented;
-        ThreadSafeFIFO<OtherData> pose;
+        ThreadSafeFIFO<Pose> pose;
 
     public:
         //Constructor sets size of each input queue
@@ -178,13 +178,13 @@ class CommunicationManager
         cv::Mat getFrameCamera();
         cv::Mat getFrameEvents();
         cv::Mat getFrameAugmented();
-        OtherData getPose();
+        Pose getPose();
 
         // Add data to send queue
         void queueFrameCamera(cv::Mat data);
         void queueFrameEvents(cv::Mat data);
         void queueFrameAugmented(cv::Mat data);
-        void queuePose(OtherData data);
+        void queuePose(Pose data);
     };
 //==============================================================================
 //      Function Prototypes

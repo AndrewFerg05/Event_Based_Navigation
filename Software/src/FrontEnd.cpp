@@ -267,6 +267,15 @@ void FrontEnd::addData(
                     << orientation.x() << ", "
                     << orientation.y() << ", "
                     << orientation.z() << "]";
+
+        Pose pose;
+        pose.x = state->_imu->pos()(0);
+        pose.y = state->_imu->pos()(1);
+        pose.z = state->_imu->pos()(2);
+        pose.yaw = orientation.x();
+        pose.pitch = orientation.y();
+        pose.roll = orientation.z();
+        comms_interface_->queuePose(pose);
     }
     else
     {

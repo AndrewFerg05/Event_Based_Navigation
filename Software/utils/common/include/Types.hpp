@@ -113,6 +113,20 @@ struct TrackedFrames {
 };
 
 //------------------------------------------------------------------------------
+struct Pose {
+    double x = 0;
+    double y = 0;
+    double z = 0;
+    double yaw = 0;
+    double pitch = 0;
+    double roll = 0;
+
+    // Constructor
+    Pose() = default;
+};
+
+
+//------------------------------------------------------------------------------
 enum FrameType {
     REGULAR_FRAME,
     EVENT_FRAME,

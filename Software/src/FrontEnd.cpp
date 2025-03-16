@@ -153,6 +153,70 @@ void displayCombinedFrame() {
 //==============================================================================
 // Functions
 //------------------------------------------------------------------------------
+void computeBearingLUT(CalibrationData& calib)
+{
+    size_t n = calib.width * calib.height;
+    calib.dvs_bearing_lut_.resize(4, n);
+
+    // Intrinsic parameters
+    double fx = calib.K(0, 0); // Focal length x
+    double fy = calib.K(1, 1); // Focal length y
+    double cx = calib.K(0, 2); // Principal point x
+    double cy = calib.K(1, 2); // Principal point y
+
+    // Distortion coefficients
+    double k1 = calib.distortion_coeffs(0);  // Radial distortion k1
+    double k2 = calib.distortion_coeffs(1);  // Radial distortion k2
+    double p1 = calib.distortion_coeffs(2);  // Tangential distortion p1
+    double p2 = calib.distortion_coeffs(3);  // Tangential distortion p2
+
+    for (int y = 0; y < calib.height; ++y)
+    {
+        for (int x = 0; x < calib.width; ++x)
+        {
+            // Pinhole Projection (Convert pixel to normalized coordinates)
+            double x_norm = (x - cx) / fx;
+            double y_norm = (y - cy) / fy;
+            double r2 = x_norm * x_norm + y_norm * y_norm;
+
+            // Apply Distortion Correction (Iterative Method)
+            double x_undist = x_norm, y_undist = y_norm;
+            for (int i = 0; i < 5; ++i) // 5 Iterations for refinement
+            {
+                double r2_u = x_undist * x_undist + y_undist * y_undist;
+                double radial = 1 + k1 * r2_u + k2 * r2_u * r2_u;
+                double x_tangential = 2 * p1 * x_undist * y_undist + p2 * (r2_u + 2 * x_undist * x_undist);
+                double y_tangential = p1 * (r2_u + 2 * y_undist * y_undist) + 2 * p2 * x_undist * y_undist;
+
+                x_undist = (x_norm - x_tangential) / radial;
+                y_undist = (y_norm - y_tangential) / radial;
+            }
+
+            // Create 3D Bearing Vector
+            Eigen::Vector3f bearing(x_undist, y_undist, 1.0);
+            bearing.normalize();  // Normalize to unit vector
+
+            // Store in LUT (Homogeneous coordinates)
+            calib.dvs_bearing_lut_.col(x + y * calib.width) =
+                Eigen::Vector4f(bearing[0], bearing[1], bearing[2], 1.0);
+        }
+    }
+}
+
+void computeKeypointLUT(CalibrationData& calib)
+{
+    size_t n = calib.width * calib.height;
+    calib.dvs_keypoint_lut_.resize(2, n);
+
+    for (int y = 0; y < calib.height; ++y)
+    {
+        for (int x = 0; x < calib.width; ++x)
+        {
+            calib.dvs_keypoint_lut_.col(x + y * calib.width) =
+                Eigen::Vector2f(x, y);
+        }
+    }
+}
 
 
 FrontEnd::FrontEnd(std::shared_ptr<CommunicationManager> comms, const std::string& config_path)
@@ -233,9 +297,11 @@ void FrontEnd::loadCalibrationData()
         // Extract camera intrinsics
         if (imu_cam_config["cam0"]["intrinsics"]) {
             auto intrinsics = imu_cam_config["cam0"]["intrinsics"];
-            calib_.K << intrinsics[0].as<float>(), 0.0, intrinsics[2].as<float>(),
-                        0.0, intrinsics[1].as<float>(), intrinsics[3].as<float>(),
-                        0.0, 0.0, 1.0;
+            calib_.K << intrinsics[0].as<float>(), 0.0, intrinsics[2].as<float>(), 0.0,
+                    0.0, intrinsics[1].as<float>(), intrinsics[3].as<float>(), 0.0,
+                    0.0, 0.0, 1.0, 0.0,
+                    0.0, 0.0, 0.0, 1.0;
+
         }
 
         // Extract camera resolution
@@ -254,6 +320,8 @@ void FrontEnd::loadCalibrationData()
     } catch (const std::exception &e) {
         LOG(ERROR) << "FE: Error loading calibration file: " << e.what() ;
     }
+    computeBearingLUT(calib_);
+    computeKeypointLUT(calib_);
 }
 
 
@@ -431,6 +499,9 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
                             t0, t1,
                             T_1_0,
                             event_frame);
+                        
+                        const float bmax = FLAGS_vio_frame_norm_factor;
+                        event_frame.convertTo(event_frame, CV_8U, 255./bmax);
                   }
 
 
@@ -479,7 +550,6 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
         return true;
     }
 
-
 void FrontEnd::drawEvents(
     const EventArray::iterator& first,
     const EventArray::iterator& last,
@@ -488,6 +558,60 @@ void FrontEnd::drawEvents(
     const Eigen::Isometry3d& T_1_0,
     cv::Mat &out)
 {
+    size_t n_events = 0;
+
+    Eigen::Matrix<float, 2, Eigen::Dynamic> events;
+    events.resize(2, last - first);
+
+    Eigen::Matrix4f T = calib_.K * T_1_0.matrix().cast<float>() * calib_.K.inverse();
+
+    float depth = FLAGS_static_depth; //Holder for now - is dynamically set in USLAM
+
+    bool do_motion_correction = FLAGS_vio_do_motion_correction;
+
+    float dt = 0;
+    for(auto e = first; e != last; ++e)
+    {
+      if (n_events % 10 == 0)
+      {
+        dt = static_cast<float>(t1 - e->timestamp_ns) / (t1 - t0);
+      }
+  
+      Eigen::Vector4f f;
+      f.head<2>() = calib_.dvs_keypoint_lut_.col(e->x + e->y * calib_.width);
+      f[2] = 1.;
+      f[3] = 1./depth;
+  
+      if (do_motion_correction)
+      {
+        f = (1.f - dt) * f + dt * (T * f);
+      }
+  
+      events.col(n_events++) = f.head<2>();
+    }
+
+    for (size_t i=0; i != n_events; ++i)
+    {
+      const Eigen::Vector2f& f = events.col(i);
+  
+      int x0 = std::floor(f[0]);
+      int y0 = std::floor(f[1]);
+  
+      if(x0 >= 0 && x0 < calib_.width-1 && y0 >= 0 && y0 < calib_.height-1)
+      {
+        const float fx = f[0] - x0,
+                    fy = f[1] - y0;
+        Eigen::Vector4f w((1.f-fx)*(1.f-fy),
+                          (fx)*(1.f-fy),
+                          (1.f-fx)*(fy),
+                          (fx)*(fy));
+  
+        out.at<float>(y0,   x0)   += w[0];
+        out.at<float>(y0,   x0+1) += w[1];
+        out.at<float>(y0+1, x0)   += w[2];
+        out.at<float>(y0+1, x0+1) += w[3];
+      }
+    }
 
 }
 

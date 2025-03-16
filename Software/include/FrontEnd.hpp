@@ -36,9 +36,11 @@ struct CalibrationData {
     Eigen::Matrix4d T_cam_imu; // Camera-to-IMU transformation
     Eigen::Matrix4f T_imu_body; // IMU-to-body transformation (Identity in this case)
     Eigen::Vector4f distortion_coeffs; // Radial-Tangential distortion coefficients
-    Eigen::Matrix3f K; // Intrinsic matrix
+    Eigen::Matrix4f K; // Intrinsic matrix
     int width, height; // Camera resolution
     float timeshift_cam_imu; // Time shift between IMU and Camera
+    Eigen::Matrix<float, 4, Eigen::Dynamic> dvs_bearing_lut_; // 3D bearing vectors
+    Eigen::Matrix<float, 2, Eigen::Dynamic> dvs_keypoint_lut_; // 2D keypoints
 };
 
 struct State

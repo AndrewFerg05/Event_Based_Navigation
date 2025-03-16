@@ -29,6 +29,10 @@ inline int64_t FLAGS_vio_frame_size = 15000;
 inline float FLAGS_timeshift_cam_imu = 0.0;                     // IMU and Frame timestamp offset (s) - SET FROM CALIB
 inline int32_t FLAGS_data_sync_init_skip_n_frames = 0;          // How many frames should be skipped at the beginning
 inline int32_t FLAGS_noise_event_rate = 20000;                  // Minimum Number of events per second   
+
+inline float FLAGS_static_depth = 6;                            //Test as dynamic depth is hard to get
+inline bool FLAGS_vio_do_motion_correction = true;
+inline double FLAGS_vio_frame_norm_factor = 3.0;
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------

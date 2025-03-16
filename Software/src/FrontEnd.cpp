@@ -567,6 +567,8 @@ void FrontEnd::drawEvents(
 
     float depth = FLAGS_static_depth; //Holder for now - is dynamically set in USLAM
 
+    // float depth = calib_.median_depth; // dynamic depth from SLAM features to try
+
     bool do_motion_correction = FLAGS_vio_do_motion_correction;
 
     float dt = 0;
@@ -646,7 +648,7 @@ void FrontEnd::addData(
     {
         Eigen::Vector3d position = state->_imu->pos();  // Global position (x, y, z)
         Eigen::Vector3d velocity = state->_imu->vel();
-
+        std::vector<Eigen::Vector3d> slam_landmarks = vio_manager_->get_features_SLAM();
 
         Eigen::Quaterniond orientation(
             state->_imu->quat()(3),  // w
@@ -667,6 +669,35 @@ void FrontEnd::addData(
                     << orientation.y() << ", "
                     << orientation.z() << "]";
                             // Update previous state
+
+        // Extract Median Depth from Landmarks
+        std::vector<Eigen::Vector3d> slam_landmarks_camera;
+        if (!slam_landmarks.empty()) {
+            std::vector<double> depths;
+
+            for (const auto& point_global : slam_landmarks) {
+                
+                //Tranform to camera reference frame
+                Eigen::Vector4d point_homogeneous(point_global.x(), point_global.y(), point_global.z(), 1.0);
+                Eigen::Vector4d point_cam_homogeneous = calib_.T_cam_imu.inverse() * point_homogeneous;
+                
+                // Store the 3D position 
+                Eigen::Vector3d point_cam = point_cam_homogeneous.head<3>();
+                slam_landmarks_camera.push_back(point_cam);
+
+                // Extract Z (depth) value
+                depths.push_back(point_cam.z());
+            }
+            
+            // Calculated meadian depth
+            std::sort(depths.begin(), depths.end());
+            calib_.median_depth = depths[depths.size() / 2];
+        } 
+        else 
+        {
+           LOG(WARNING) << "FE: No SLAM landmarks available!";
+        }
+
 
         prevState_.velocity = velocity;
         prevState_.T_Bk_W.linear() = orientation.toRotationMatrix();  // Set rotation

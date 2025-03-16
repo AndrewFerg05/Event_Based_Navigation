@@ -41,6 +41,7 @@ struct CalibrationData {
     float timeshift_cam_imu; // Time shift between IMU and Camera
     Eigen::Matrix<float, 4, Eigen::Dynamic> dvs_bearing_lut_; // 3D bearing vectors
     Eigen::Matrix<float, 2, Eigen::Dynamic> dvs_keypoint_lut_; // 2D keypoints
+    float median_depth;
 };
 
 struct State

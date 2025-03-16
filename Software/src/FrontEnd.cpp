@@ -51,16 +51,49 @@ cv::Mat aps_frame;  // Will store the latest APS frame
 #include <opencv2/opencv.hpp>
 #include <vector>
 
-cv::Mat filterIsolatedEvents(cv::Mat frame, int max_distance, int min_neighbors)
+cv::Mat closeEvents(cv::Mat frame, int dilation_size, int event_type)
 {
-    cv::Mat binary_mask = (frame != 128);  // Convert to binary (1 = event, 0 = background)
+    cv::Mat binary_mask = cv::Mat::zeros(EVENT_FRAME_HEIGHT, EVENT_FRAME_WIDTH, CV_8UC1);
+    binary_mask.setTo(1, frame == event_type);
 
-    cv::Mat neighbor_count;
+    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE,  
+                        cv::Size(dilation_size, dilation_size));    
+
+    cv::Mat closed;
+    cv::morphologyEx(binary_mask, closed, cv::MORPH_CLOSE, kernel);
+
+    frame.setTo(event_type, closed);
+
+    return frame;
+}
+
+cv::Mat filterIsolatedEvents(cv::Mat frame, int max_distance, int min_neighbours)
+{
+    // All Event Mask
+    cv::Mat binary_mask = cv::Mat::zeros(EVENT_FRAME_HEIGHT, EVENT_FRAME_WIDTH, CV_8UC1);
+
+    // Up Event Mask
+    cv::Mat up_mask = cv::Mat::zeros(EVENT_FRAME_HEIGHT, EVENT_FRAME_WIDTH, CV_8UC1);
+    up_mask.setTo(1, frame == 255); // Convert to binary (1 = event, 0 = background)
+
+    cv::Mat neighbour_count;
     int kernel_size = 2 * max_distance + 1;
-    cv::boxFilter(binary_mask, neighbor_count, CV_32F, cv::Size(kernel_size, kernel_size));
+    cv::boxFilter(up_mask, neighbour_count, CV_32F, cv::Size(kernel_size, kernel_size), cv::Point(-1, -1), false);
+    neighbour_count.setTo(0, up_mask == 0);
 
-    // Remove pixels that don't meet the min_neighbors requirement
-    frame.setTo(128, (neighbor_count < min_neighbors) & binary_mask);
+    binary_mask += neighbour_count;
+
+    // Down Event Mask
+    cv::Mat down_mask = cv::Mat::zeros(EVENT_FRAME_HEIGHT, EVENT_FRAME_WIDTH, CV_8UC1);
+    down_mask.setTo(1, frame == 0); // Convert to binary (1 = event, 0 = background)
+
+    cv::boxFilter(down_mask, neighbour_count, CV_32F, cv::Size(kernel_size, kernel_size), cv::Point(-1, -1), false);
+    neighbour_count.setTo(0, down_mask == 0);
+
+    binary_mask += neighbour_count;
+
+    // Remove pixels that don't meet the min_neighbours requirement
+    frame.setTo(128, binary_mask < min_neighbours);
 
     return frame;
 }
@@ -307,22 +340,24 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
                     event_frame.at<uint8_t>(y, x) = polarity ? 255 : 0; // White for ON, black for OFF
                 }
             }
-            cv::Mat newFrame = filterIsolatedEvents(event_frame.clone(), 1, 100);
-            comms_interface_->queueFrameEvents(newFrame.clone());
+            cv::Mat newEventFrame = filterIsolatedEvents(event_frame.clone(), 3, 12);   // Remove Isolated events
+            newEventFrame = closeEvents(newEventFrame, 10, 255);    // Link Up events
+            newEventFrame = closeEvents(newEventFrame, 10, 0);      // Link Down events
+            comms_interface_->queueFrameEvents(newEventFrame.clone());
     
             if (frame_type == EVENT_FRAME)
             {
-                processed_frame = newFrame.clone();
+                processed_frame = newEventFrame.clone();
             }
             else if (frame_type == COMBINED_FRAME)
             {
                 // Blend APS frame and event frame (keeping grayscale)
-                newFrame.setTo(255, newFrame == 0);
+                newEventFrame.setTo(255, newEventFrame == 0);
                 
                 // newFrame.setTo(0, newFrame == 128);
                 // cv::addWeighted(frame, 0.75, newFrame, 0.25, 0, processed_frame);
 
-                processed_frame = motionComp_byAvg(frame, event_frame);
+                processed_frame = motionComp_byAvg(frame, newEventFrame);
 
                 comms_interface_->queueFrameAugmented(processed_frame);
             }

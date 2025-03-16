@@ -342,21 +342,66 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
         // Process event data if needed
         if (frame_type == EVENT_FRAME || frame_type == COMBINED_FRAME)
         {
-            cv::Mat event_frame = cv::Mat::zeros(height, width, CV_8UC1); // Blank event frame
-    
-            // ✅ Dereference shared pointer before iteration
-            for (const auto& event : *stamped_events.second)
+            //==========================================================================================
+            // New event processing
+            Eigen::Isometry3d T_Bkm1_Bk = Eigen::Isometry3d::Identity();
+
+            if(prevState_.stateInit)
             {
-                int x = event.x;
-                int y = event.y;
-                bool polarity = event.polarity;
-    
-                if (x >= 0 && x < width && y >= 0 && y < height)
+                if(imu_stamps.size() > 0)
                 {
-                    event_frame.at<uint8_t>(y, x) = polarity ? 255 : 128; // White for ON, Gray for OFF
+                    Eigen::Isometry3d T_W_B = prevState_.T_Bk_W.inverse(); // Invert previous pose
+                    Eigen::Quaterniond q(T_W_B.rotation()); // Extract rotation as a quaternion
+                    Eigen::Vector3d p = T_W_B.translation(); // Extract translation
+                    Eigen::Vector3d v = prevState_.velocity;
+                    Vector3 g_ = Vector3(0., 0., 9.81);
+                    Vector3 acc_bias_ = Vector3::Zero();
+                    Vector3 gyr_bias_ = Vector3::Zero();
+
+                    // Vector3 acc_bias_ = Vector3(0.181629, -9.94785, 9.25731);
+                    // Vector3 gyr_bias_ = Vector3( -0.0356587, -0.00267168, 0.0295803);
+
+                                    
+                    for(int i = 0; i < (imu_stamps.size() - 1); ++i)
+                    {
+                        real_t dt = static_cast<real_t>(imu_stamps(i+1) - imu_stamps(i)) / 1e9;
+
+                        // Convert angular velocity to quaternion update
+                        Eigen::Vector3d omega = imu_accgyr.block<3,1>(3,i) - gyr_bias_;  // Gyroscope measurement corrected for bias
+                        Eigen::AngleAxisd delta_rotation(omega.norm() * dt, omega.normalized()); // Convert to small rotation update
+                        q = q * Eigen::Quaterniond(delta_rotation);  // Apply rotation update
+
+                        // Position update using velocity
+                        p = p + v * dt;
+
+                        // Velocity update using acceleration
+                        Eigen::Vector3d acc_corrected = imu_accgyr.block<3,1>(0,i) - acc_bias_;  // Correct acceleration
+                        v = v + (q * acc_corrected - g_) * dt;  // Apply rotation and subtract gravity
+                    }
+                    
+                    T_W_B.linear() = q.toRotationMatrix();  // Assign updated rotation
+                    T_W_B.translation() = p;  // Assign updated position
+                    T_Bkm1_Bk = prevState_.T_Bk_W * T_W_B;
                 }
             }
+            //==========================================================================================
+            // Old event processing
+
+            // cv::Mat event_frame = cv::Mat::zeros(height, width, CV_8UC1); // Blank event frame
     
+            // // Dereference shared pointer before iteration
+            // for (const auto& event : *stamped_events.second)
+            // {
+            //     int x = event.x;
+            //     int y = event.y;
+            //     bool polarity = event.polarity;
+    
+            //     if (x >= 0 && x < width && y >= 0 && y < height)
+            //     {
+            //         event_frame.at<uint8_t>(y, x) = polarity ? 255 : 128; // White for ON, Gray for OFF
+            //     }
+            // }
+            //==========================================================================================
             if (frame_type == EVENT_FRAME)
             {
                 processed_frame = event_frame.clone();
@@ -387,6 +432,10 @@ void FrontEnd::addData(
     const bool& no_motion_prior)
 {
 
+    const int64_t& t0 = imu_stamps(0);  // First element
+    const int64_t& t1 = imu_stamps(imu_stamps.rows() - 1);  // Last element
+    
+    
     //Build Image frame to input to VIO frontend
     ov_core::CameraData camera_data;
     if(!buildImage(camera_data, stamped_image, stamped_events, imu_stamps, imu_accgyr, COMBINED_FRAME))
@@ -409,6 +458,9 @@ void FrontEnd::addData(
     if (state && state->_imu)
     {
         Eigen::Vector3d position = state->_imu->pos();  // Global position (x, y, z)
+        Eigen::Vector3d velocity = state->_imu->vel();
+
+
         Eigen::Quaterniond orientation(
             state->_imu->quat()(3),  // w
             state->_imu->quat()(0),  // x
@@ -427,6 +479,13 @@ void FrontEnd::addData(
                     << orientation.x() << ", "
                     << orientation.y() << ", "
                     << orientation.z() << "]";
+                            // Update previous state
+
+        prevState_.velocity = velocity;
+        prevState_.T_Bk_W.linear() = orientation.toRotationMatrix();  // Set rotation
+        prevState_.T_Bk_W.translation() = position;  // Set translation
+        prevState_.stateInit = true;
+
     }
     else
     {

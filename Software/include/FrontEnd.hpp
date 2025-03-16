@@ -41,6 +41,13 @@ struct CalibrationData {
     float timeshift_cam_imu; // Time shift between IMU and Camera
 };
 
+struct State
+{
+    bool stateInit;
+    Eigen::Matrix<double, 3, 1> velocity;
+    Eigen::Isometry3d T_Bk_W;
+};
+
 class FrontEnd
 {
     public:
@@ -74,7 +81,8 @@ class FrontEnd
 
     void loadCalibrationData();
 
-    CalibrationData calib_; 
+    CalibrationData calib_;
+    State prevState_;  
     private:
     std::atomic<bool> stateInitialised_{false};
     std::shared_ptr<CommunicationManager> comms_interface_;

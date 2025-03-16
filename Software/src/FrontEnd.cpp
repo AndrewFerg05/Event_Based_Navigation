@@ -48,6 +48,121 @@ cv::Mat aps_frame;  // Will store the latest APS frame
 // Functions
 //------------------------------------------------------------------------------
 
+#include <opencv2/opencv.hpp>
+#include <vector>
+
+cv::Mat filterIsolatedEvents(cv::Mat frame, int max_distance, int min_neighbors)
+{
+    cv::Mat binary_mask = (frame != 128);  // Convert to binary (1 = event, 0 = background)
+
+    cv::Mat neighbor_count;
+    int kernel_size = 2 * max_distance + 1;
+    cv::boxFilter(binary_mask, neighbor_count, CV_32F, cv::Size(kernel_size, kernel_size));
+
+    // Remove pixels that don't meet the min_neighbors requirement
+    frame.setTo(128, (neighbor_count < min_neighbors) & binary_mask);
+
+    return frame;
+}
+
+cv::Mat motionComp_byAvg(cv::Mat aps, cv::Mat events) {
+    int m = aps.rows;
+    int n = aps.cols;
+    
+    for (int i = 0; i < m; i++)
+    {
+        events.at<uchar>(i,0) = 255;
+        events.at<uchar>(i,n-1) = 255;
+    }
+
+    for (int i = 0; i < n; i++)
+    {
+        events.at<uchar>(0,i) = 255;
+        events.at<uchar>(m-1,i) = 255;
+    }
+
+    cv::Mat hoizontalComp = cv::Mat::zeros(m, n, CV_8UC1);
+    cv::Mat verticalComp = cv::Mat::zeros(m, n, CV_8UC1);
+    cv::Mat diagRLComp = cv::Mat::zeros(m, n, CV_8UC1);
+    cv::Mat diagLRComp = cv::Mat::zeros(m, n, CV_8UC1);
+
+    // Determine average horizontally
+    for (int x = 0; x < m; x++) {
+        int sum = 0;
+        int start = 0;
+        for (int y = 0; y < n; y++) {
+            sum += aps.at<uchar>(x, y);
+            if (events.at<uchar>(x, y) == 255) {
+                int avg = sum / (y - start + 1);
+                for (int k = start; k <= y; k++) {
+                    hoizontalComp.at<uchar>(x, k) = static_cast<uchar>(avg);
+                }
+                start = y + 1;
+                sum = 0;
+            }
+        }
+    }
+
+    // Determine average vertically
+    for (int y = 0; y < n; y++) {
+        int sum = 0;
+        int start = 0;
+        for (int x = 0; x < m; x++) {
+            sum += aps.at<uchar>(x, y);
+            if (events.at<uchar>(x, y) == 255) {
+                int avg = sum / (x - start + 1);
+                for (int k = start; k <= x; k++) {
+                    verticalComp.at<uchar>(k, y) = static_cast<uchar>(avg);
+                }
+                start = x + 1;
+                sum = 0;
+            }
+        }
+    }
+
+    // Diagonal average LR (\)
+    for (int d = 0; d < (m + n - 1); ++d) {
+        int sum = 0;
+        std::vector<cv::Point> indices;
+        for (int x = std::max(0, d - n + 1); x < std::min(m, d + 1); ++x) {
+            int y = d - x;
+            sum += aps.at<uchar>(x, y);
+            indices.emplace_back(x, y);
+            if (events.at<uchar>(x, y) == 255) {
+                int avg = sum / indices.size();
+                for (const auto& idx : indices) {
+                    diagLRComp.at<uchar>(idx.x, idx.y) = static_cast<uchar>(avg);
+                }
+                sum = 0;
+                indices.clear();
+            }
+        }
+    }
+
+    // Diagonal average RL (/)
+    for (int d = 0; d < (m + n - 1); ++d) {
+        int sum = 0;
+        std::vector<cv::Point> indices;
+        for (int x = std::max(0, d - n + 1); x < std::min(m, d + 1); ++x) {
+            int y = n - 1 - (d - x);
+            sum += aps.at<uchar>(x, y);
+            indices.emplace_back(x, y);
+            if (events.at<uchar>(x, y) == 255) {
+                int avg = sum / indices.size();
+                for (const auto& idx : indices) {
+                    diagRLComp.at<uchar>(idx.x, idx.y) = static_cast<uchar>(avg);
+                }
+                sum = 0;
+                indices.clear();
+            }
+        }
+    }
+
+    // Combine the four processed images
+    cv::Mat motionComp = (hoizontalComp + verticalComp + diagLRComp + diagRLComp) / 4;
+    return motionComp;
+}
+
 
 FrontEnd::FrontEnd(std::shared_ptr<CommunicationManager> comms, const std::string& config_path)
     : comms_interface_(comms), config_path_(config_path)
@@ -179,7 +294,7 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
         // Process event data if needed
         if (frame_type == EVENT_FRAME || frame_type == COMBINED_FRAME)
         {
-            cv::Mat event_frame = cv::Mat::zeros(height, width, CV_8UC1); // Blank event frame
+            cv::Mat event_frame = cv::Mat::ones(height, width, CV_8UC1) * 128; // gray event frame
     
             for (const auto& event : *stamped_events.second)
             {
@@ -189,19 +304,26 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
     
                 if (x >= 0 && x < width && y >= 0 && y < height)
                 {
-                    event_frame.at<uint8_t>(y, x) = polarity ? 255 : 128; // White for ON, Gray for OFF
+                    event_frame.at<uint8_t>(y, x) = polarity ? 255 : 0; // White for ON, black for OFF
                 }
             }
-            comms_interface_->queueFrameEvents(event_frame);
+            cv::Mat newFrame = filterIsolatedEvents(event_frame.clone(), 1, 80);
+            comms_interface_->queueFrameEvents(newFrame.clone());
     
             if (frame_type == EVENT_FRAME)
             {
-                processed_frame = event_frame.clone();
+                processed_frame = newFrame.clone();
             }
             else if (frame_type == COMBINED_FRAME)
             {
                 // Blend APS frame and event frame (keeping grayscale)
-                cv::addWeighted(frame, 0.5, event_frame, 0.5, 0, processed_frame);
+                newFrame.setTo(255, newFrame == 0);
+                
+                // newFrame.setTo(0, newFrame == 128);
+                // cv::addWeighted(frame, 0.75, newFrame, 0.25, 0, processed_frame);
+
+                processed_frame = motionComp_byAvg(frame, event_frame);
+
                 comms_interface_->queueFrameAugmented(processed_frame);
             }
         }

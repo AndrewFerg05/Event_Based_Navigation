@@ -307,7 +307,7 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
                     event_frame.at<uint8_t>(y, x) = polarity ? 255 : 0; // White for ON, black for OFF
                 }
             }
-            cv::Mat newFrame = filterIsolatedEvents(event_frame.clone(), 1, 80);
+            cv::Mat newFrame = filterIsolatedEvents(event_frame.clone(), 1, 100);
             comms_interface_->queueFrameEvents(newFrame.clone());
     
             if (frame_type == EVENT_FRAME)

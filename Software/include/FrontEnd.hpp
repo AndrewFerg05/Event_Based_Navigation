@@ -33,7 +33,7 @@ Change History
 //      Classes
 //------------------------------------------------------------------------------
 struct CalibrationData {
-    Eigen::Matrix4f T_cam_imu; // Camera-to-IMU transformation
+    Eigen::Matrix4d T_cam_imu; // Camera-to-IMU transformation
     Eigen::Matrix4f T_imu_body; // IMU-to-body transformation (Identity in this case)
     Eigen::Vector4f distortion_coeffs; // Radial-Tangential distortion coefficients
     Eigen::Matrix3f K; // Intrinsic matrix
@@ -78,6 +78,14 @@ class FrontEnd
         const ImuStamps& imu_stamps,
         const ImuAccGyrContainer& imu_accgyr,
         FrameType frame_type);
+
+    void drawEvents(
+        const EventArray::iterator& first,
+        const EventArray::iterator& last,
+        const int64_t& t0,
+        const int64_t& t1,
+        const Eigen::Isometry3d& T_1_0,
+        cv::Mat &out);
 
     void loadCalibrationData();
 

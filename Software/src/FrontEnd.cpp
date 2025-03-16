@@ -346,6 +346,7 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
             // New event processing
             Eigen::Isometry3d T_Bkm1_Bk = Eigen::Isometry3d::Identity();
 
+            // Get projected translation bewteen state n-1 and state n
             if(prevState_.stateInit)
             {
                 if(imu_stamps.size() > 0)
@@ -383,6 +384,60 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
                     T_W_B.translation() = p;  // Assign updated position
                     T_Bkm1_Bk = prevState_.T_Bk_W * T_W_B;
                 }
+            }
+
+            const int64_t& event_frame_timestamp = stamped_image.first;
+
+            const int64_t& t0 = imu_stamps(0);  // First element
+            const int64_t& t1 = imu_stamps(imu_stamps.rows() - 1);  // Last element
+
+            cv::Mat event_frame = cv::Mat::zeros(height, width, CV_32F); // Blank event frame
+
+            if (!stamped_events.second->empty()) 
+            {
+                const EventArrayPtr& events_ptr = stamped_events.second;
+                size_t n_events_for_noise_detection = std::min(events_ptr->size(), size_t(2000));
+
+                real_t event_rate = n_events_for_noise_detection /
+                ((events_ptr->back().timestamp_ns -
+                  events_ptr->at(events_ptr->size()-n_events_for_noise_detection).timestamp_ns) *1e-9); //Calculate Event/s
+
+                  if (event_rate >= FLAGS_noise_event_rate)
+                  {
+                          // Build event frame with fixed number of events
+                        const size_t winsize_events = FLAGS_vio_frame_size;
+                        int first_idx = std::max((int)events_ptr->size() - (int) winsize_events, 0);
+
+                        uint64_t frame_length =
+                        events_ptr->back().timestamp_ns - events_ptr->at(first_idx).timestamp_ns;
+
+                        if(events_ptr->size() < winsize_events)
+                        {
+                          LOG(WARNING) << "Requested frame size of length " << winsize_events
+                                        << " events, but I only have "
+                                        << events_ptr->size()
+                                        << " events in the last event array";
+                        }
+
+                        Eigen::Isometry3d T_C_B = Eigen::Isometry3d::Identity();
+                        T_C_B.matrix() = calib_.T_cam_imu;
+
+                        // Compute the transformation
+                        Eigen::Isometry3d T_1_0 = T_C_B * T_Bkm1_Bk.inverse() * T_C_B.inverse();
+
+                        drawEvents(
+                            events_ptr->begin()+first_idx,
+                            events_ptr->end(),
+                            t0, t1,
+                            T_1_0,
+                            event_frame);
+                  }
+
+
+            }
+            else
+            {
+                LOG(WARNING) << "FE: No events in packet";
             }
             //==========================================================================================
             // Old event processing
@@ -424,6 +479,18 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
         return true;
     }
 
+
+void FrontEnd::drawEvents(
+    const EventArray::iterator& first,
+    const EventArray::iterator& last,
+    const int64_t& t0,
+    const int64_t& t1,
+    const Eigen::Isometry3d& T_1_0,
+    cv::Mat &out)
+{
+
+}
+
 void FrontEnd::addData(
     const StampedImage& stamped_image,
     const StampedEventArray& stamped_events,
@@ -432,10 +499,6 @@ void FrontEnd::addData(
     const bool& no_motion_prior)
 {
 
-    const int64_t& t0 = imu_stamps(0);  // First element
-    const int64_t& t1 = imu_stamps(imu_stamps.rows() - 1);  // Last element
-    
-    
     //Build Image frame to input to VIO frontend
     ov_core::CameraData camera_data;
     if(!buildImage(camera_data, stamped_image, stamped_events, imu_stamps, imu_accgyr, COMBINED_FRAME))

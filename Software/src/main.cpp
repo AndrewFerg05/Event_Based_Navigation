@@ -105,6 +105,9 @@ int main(int argc, char* argv[])
     else{
         LOG(INFO) << "MAIN: ESP32 Serial Initialised";
     }
+
+    // Initialise GPIO
+    CM_setupGPIO();
  
     std::shared_ptr<DataAcquisition> DataAquistion_ = std::make_shared<DataAcquisition>(data_queues);
 

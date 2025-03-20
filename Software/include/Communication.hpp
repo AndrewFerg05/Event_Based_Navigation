@@ -42,6 +42,7 @@ Change History
 #include <unistd.h>
 
 #include <libserialport.h>
+#include <wiringPi.h>
 
 #include "DataAcquisition.hpp"
 #include "FrontEnd.hpp"
@@ -99,6 +100,7 @@ void CM_loop(
 
 void CM_transmitFrame(cv::Mat frame, int frame_id);
 
+void CM_setupGPIO();
 
 #endif  // COMMUNICATION_HPP
 //==============================================================================

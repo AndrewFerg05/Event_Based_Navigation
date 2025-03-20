@@ -31,8 +31,11 @@ Change History
 #define RUN     1
 #define STOP    2
 
+// Logging pins
+#define PIN_INP_BUTTON  4   // GPIO04 (pin 07)
+#define PIN_OUT_LED     27  // GPIO27 (pin 13)
 
-#define TEST_IMAGE  "../example.jpg"
+// #define TEST_IMAGE  "../example.jpg"     // No longer need to test
 #define TEST_RUN_TIME 600
 
 #define MAX_PACKET_SIZE 65507            // Max packet in bytes for UDP
@@ -63,16 +66,22 @@ void CM_loop(
     std::uint8_t command = IDLE; //Get this from external source
 
     bool state_change_called = false; //Used to only set the atomics once
+
+    auto sinceLastButtonCheck = std::chrono::high_resolution_clock::now();   
+    uint8_t button = 0;
+    uint16_t button_Poll = 50;
 	
     // Frames for transmitting
     cv::Mat frameCamera;
     cv::Mat frameEvents;
     cv::Mat frameAugmented;
+
+    /*
     cv::Mat frameTest = cv::imread(TEST_IMAGE);
     if (frameTest.empty()) {
         LOG(ERROR) << "CM: Failed to load test image. ";
         command = STOP;
-    }
+    }*/
 
     cv::Mat frame;
 
@@ -86,11 +95,28 @@ void CM_loop(
         auto now = std::chrono::high_resolution_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - start_time).count();
 
-        // Every 100 ms remind ESP what state Pi is in
+        // Every 500 ms remind ESP what state Pi is in
         auto elapsedHundredMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - sinceLastSerialSend);
         if (elapsedHundredMs.count() > 500) {
             CM_serialSendState(serial, command);
             sinceLastSerialSend = std::chrono::high_resolution_clock::now(); 
+        }
+
+        // Check if button has been pressed every 50 ms (covers debouncing and polling)
+        auto elapsedButtonTime = std::chrono::duration_cast<std::chrono::milliseconds>(now - sinceLastButtonCheck);
+        if (elapsedHundredMs.count() > button_Poll) {
+            button = digitalRead(PIN_INP_BUTTON);
+            digitalWrite(PIN_OUT_LED, button);
+
+            if (button == 1) {
+                // Wait two seconds to ensure not held or double pressed
+                button_Poll = 1000;
+            }
+            else {
+                button_Poll = 50;
+            }
+            
+            sinceLastButtonCheck = std::chrono::high_resolution_clock::now();
         }
 
         // Thread control
@@ -105,6 +131,7 @@ void CM_loop(
                 CM_serialSendState(serial, command);
             }
 
+            // State control
             if (serial->ESPCheckOpen())
             {
                 // ESP Receive state
@@ -180,6 +207,13 @@ void CM_loop(
 
                 //Send to ESP32 position estimate from BE
                 CM_serialSendStatus(serial, poseScaled[0], 1);
+            }
+
+            if (button == 1) {
+                button = 0; // Ensure this isn't entered twice on one press
+
+                LOG(INFO) << "CM: Button Pressed";
+
             }
             
         } else if (command == STOP) {
@@ -586,5 +620,14 @@ cv::Mat CM_formatEventFrame(TrackedFrames image) {
     return frame;
 }
 
+void CM_setupGPIO() {
+    if (wiringPiSetupGpio() == -1) {
+        std::cerr << "Failed to initialize wiringPi" << std::endl;
+        return;
+    }
+    
+    pinMode(INPUT_PIN, INPUT);
+    pinMode(OUTPUT_PIN, OUTPUT);
+}
 //==============================================================================
 // End of File : Software/src/Communication.cpp

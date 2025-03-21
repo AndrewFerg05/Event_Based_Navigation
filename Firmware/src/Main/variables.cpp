@@ -100,6 +100,8 @@ TaskHandle_t updateStateTaskHandle = NULL;
 TaskHandle_t displacementCalcTaskHandle = NULL;
 TaskHandle_t PIComsTaskHandle = NULL;
 TaskHandle_t filterHeadingTaskHandle = NULL;
+TaskHandle_t calcPathTaskHandle = NULL;
+TaskHandle_t navigateTaskHandle = NULL;
 
 //states
 int32_t controlState = -1;

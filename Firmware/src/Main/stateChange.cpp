@@ -34,7 +34,7 @@ void createComsTasks() {
   xTaskCreate(
       updateStateTask,          // Task function
       "update State Task",      // Task name
-      2048,                      // Stack size (adjust as needed)
+      4098,                      // Stack size (adjust as needed)
       NULL,                      // Task parameters
       1,                         // Task priority (1 is low)
       &updateStateTaskHandle   // Task handle
@@ -44,11 +44,13 @@ void createComsTasks() {
   xTaskCreate(
       PIComsTask,          // Task function
       "PI ComsTask",      // Task name
-      1024,                      // Stack size (adjust as needed)
+      2048,                      // Stack size (adjust as needed)
       NULL,                      // Task parameters
       1,                         // Task priority (1 is low)
       &PIComsTaskHandle    // Task handle
   );
+
+  vTaskSuspend(PIComsTaskHandle);
 
   /*
   // send updated states UDP
@@ -74,6 +76,8 @@ void createMotortask() {
       &motorControlTaskHandle    // Task handle
   );
 
+  vTaskSuspend(motorControlTaskHandle);
+
 }
 
 void createPipelinetasks() {
@@ -87,6 +91,8 @@ void createPipelinetasks() {
       &displacementCalcTaskHandle    // Task handle
   );
 
+  vTaskSuspend(displacementCalcTaskHandle);
+
   // Create the filter heading task
   xTaskCreate(
       filterHeadingTask,          // Task function
@@ -96,4 +102,32 @@ void createPipelinetasks() {
       1,                         // Task priority (1 is low)
       &filterHeadingTaskHandle    // Task handle
   ); 
+
+  vTaskSuspend(filterHeadingTaskHandle);
+}
+
+void createNavigationTasks() {
+  // Create the task to calculate the return path
+  xTaskCreate(
+      calcPathTask,          // Task function
+      "Find Path",      // Task name
+      4096,                      // Stack size (adjust as needed)
+      NULL,                      // Task parameters
+      1,                         // Task priority (1 is low)
+      &calcPathTaskHandle    // Task handle
+  );
+
+  vTaskSuspend(calcPathTaskHandle);
+
+  // Create the task to navigate along that return path
+  xTaskCreate(
+      navigateTask,          // Task function
+      "navigate",      // Task name
+      4096,                      // Stack size (adjust as needed)
+      NULL,                      // Task parameters
+      1,                         // Task priority (1 is low)
+      &navigateTaskHandle    // Task handle
+  );
+
+  vTaskSuspend(navigateTaskHandle); 
 }

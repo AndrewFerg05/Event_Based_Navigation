@@ -108,6 +108,8 @@ extern TaskHandle_t updateStateTaskHandle;
 extern TaskHandle_t displacementCalcTaskHandle;
 extern TaskHandle_t PIComsTaskHandle;
 extern TaskHandle_t filterHeadingTaskHandle;
+extern TaskHandle_t calcPathTaskHandle;
+extern TaskHandle_t navigateTaskHandle;
 
 // state variables
 

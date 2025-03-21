@@ -15,6 +15,7 @@ BluetoothSerial SerialBT;  // Bluetooth Serial object
 
 
 void PIComsTask(void *pvParameters) {
+  /*
   TickType_t xLastWakeTime_PI;
   // 100 ms 
   const TickType_t xFrequency_PI = 100/ portTICK_PERIOD_MS;
@@ -51,7 +52,9 @@ void PIComsTask(void *pvParameters) {
     if (piState == desiredState) {
       stateChanged = 0;
     }
+    
   }
+  */
 }
 
 /*
@@ -198,9 +201,6 @@ void filterHeadingTask(void *pvParameters) {
       if (suspend) {
         vTaskSuspend(NULL);
       }
-
-      
-
     }
 
 }
@@ -257,7 +257,7 @@ void displacementCalcTask(void *pvParameters) {
                
       // update position 
       currentPos.x += (displacement * (float)cos(filteredHeading1));
-      currentPos.y += (displacement * (float)sin(filteredHeading1));
+      currentPos.y -= (displacement * (float)sin(filteredHeading1));
 
       String data = String(currentPos.x) + "," + String(currentPos.y) + "," + String(filteredHeading1) +"\n";
       //SerialBT.print(data);
@@ -278,7 +278,7 @@ void displacementCalcTask(void *pvParameters) {
 
       // transmit using UDP, or flag for another task to transmit the data
       /*
-      int32_t numbers[6] = {3, 16, x, y, int32_t(filteredHeading1*10), int32_t(headingRawTemp)};
+      int32_t numbers[6] = {3, 20, x, y, int32_t(filteredHeading1), int32_t(velocity), int32_t(desiredState)};
 
       uint8_t buffer[24];  // 6 integers * 4 bytes each = 24 bytes
       memcpy(buffer, numbers, sizeof(numbers));  // Copy data into buffer
@@ -297,10 +297,13 @@ void displacementCalcTask(void *pvParameters) {
 // update the states 
 void updateStateTask(void *pvParameters) {
   static int32_t prevControlState = -1;
-  static int32_t prevRunning = -1;
-  static int32_t prevStart = -1;
   static int32_t prevConnectedRC = 0;
   static int32_t prevDesiredState = -1;
+  const int RUN = 1;
+  const int IDLE = 0;
+  const int STOP = 2;
+  const int AUTO = 1;
+  const int RC = 0;
 
   for (;;) {
       // code to read in and update the states 
@@ -310,24 +313,27 @@ void updateStateTask(void *pvParameters) {
 
       if (runningState != 2 && startState != 2 && runningState != -1 && runningState != -1) {
         int result = (startState << 1) | runningState;
+        /*
         if (result == 1 && FLAG_PI_STARTED == false) {
           result = 0;
         }
+        */
         if (result == 3) {
-          result = 2;
+          result = STOP;
         }
         // add mutex
         desiredState = result;
       }
 
-      if (desiredState == 2) {
+      if (desiredState == STOP) {
         // reset position variables so I dont have to restart it everytime
         currentPos.x = 0;
         currentPos.y = 0;
       }
 
+      // if RC signal not deetcted then set the system to idle
       if (controlState == 2 || runningState == 2 || startState == 2){
-        desiredState = -1;
+        desiredState = IDLE;
         connectedRC = 0;
       } else {
         connectedRC = 1;
@@ -338,19 +344,33 @@ void updateStateTask(void *pvParameters) {
         stateChanged = 1;
       }
 
-      // if the RC connected was lost or the control state was chnaged send to GUI
-      if (controlState != prevControlState || connectedRC != prevConnectedRC) {
-        //xTaskNotifyGive(wifiStatesTaskHandle);
+      // the state can only be in autonomous when in the run state
+      if (desiredState == IDLE) {
+        controlState == RC;
       }
 
-      if (desiredState == 0) {
+      // if switched back to RC control then reenable the RC contorl task
+      if (controlState == RC) {
+        if (eTaskGetState(motorControlTaskHandle) == eSuspended) {
+          enableAllMotors();
+          vTaskResume(motorControlTaskHandle);
+        }
+        // add code do disable the autonomous control tasks
+      } else if (controlState == AUTO) {
+        vTaskResume(calcPathTaskHandle);
+        // then task to navigate to path
+      }
+
+      // if in idle the start PI coms, stop motors and reset position
+      if (desiredState == IDLE) {
         if (eTaskGetState(PIComsTaskHandle) == eSuspended) {
           vTaskResume(PIComsTaskHandle);
         }
         suspend = 1;
         stopAllMotors();
         resetVariables();
-      } else if (desiredState == 1) {
+        // if in run enable all mootors resume tasks
+      } else if (desiredState == RUN) {
         suspend = 0;
         enableAllMotors();
         vTaskResume(filterHeadingTaskHandle);
@@ -362,8 +382,6 @@ void updateStateTask(void *pvParameters) {
       SerialBT.println(desiredState);
       
       prevControlState = controlState;
-      prevRunning = runningState;
-      prevStart = startState;
       prevConnectedRC = connectedRC;
 
       vTaskDelay(100 / portTICK_PERIOD_MS);  // Run every 10ms
@@ -397,10 +415,40 @@ void motorControlTask( void * pvParameters )
             digitalWrite(ledPin, LOW);   // Turn off LED otherwise
         }
 
-        if (suspend) {
+        if (suspend == 1 || controlState == 1) {
+          stopAllMotors();
+          SerialBT.print("Current Control State:  ");
+          SerialBT.println(controlState);
           vTaskSuspend(NULL);
-        }
-               
+        }          
+    }
+}
+
+void calcPathTask(void *pvParameters) {
+  vTaskDelay(200 / portTICK_PERIOD_MS);  // give enough time for the RC tasks to finish
+
+  // calculate path code
+  SerialBT.println("Path calculated");
+
+  vTaskResume(navigateTaskHandle);
+  vTaskSuspend(NULL);
+}
+
+void navigateTask(void *pvParameters) {
+  TickType_t xLastWakeTime;
+  // every 100 ms
+  const TickType_t xFrequency = 100/ portTICK_PERIOD_MS;
+    xLastWakeTime = xTaskGetTickCount ();
+    for( ;; ) { 
+      vTaskDelayUntil( &xLastWakeTime, xFrequency);
+      enableAllMotors();
+      SerialBT.println("Navigation action");
+
+      // if sate switched back to RC then suspend this task
+      if (controlState == 0) {
+        stopAllMotors();
+        vTaskSuspend(NULL);
+      }
     }
 }
 
@@ -425,7 +473,7 @@ void setup() {
     attachInterrupt(digitalPinToInterrupt(ENA_1), readEncoder1, RISING);
     attachInterrupt(digitalPinToInterrupt(ENA_6), readEncoder6, RISING);
 
-    Serial.begin(115200);
+    //Serial.begin(115200);
     WIRE_PORT.begin(21, 22);
     WIRE_PORT.setClock(400000);
     imu.begin(WIRE_PORT, AD0_VAL);
@@ -478,15 +526,11 @@ void setup() {
     delay(1000);
     digitalWrite(ledPin, LOW);
     delay(1000);
-
+    
+    createMotortask();
     createComsTasks();
     createPipelinetasks();
-    createMotortask();
-    
-    vTaskSuspend(PIComsTaskHandle);
-    vTaskSuspend(filterHeadingTaskHandle);
-    vTaskSuspend(displacementCalcTaskHandle);
-    vTaskSuspend(motorControlTaskHandle);
+    createNavigationTasks();
 }
 
 

@@ -153,6 +153,39 @@ void displayCombinedFrame() {
 //==============================================================================
 // Functions
 //------------------------------------------------------------------------------
+cv::Mat filterIsolatedEvents(cv::Mat frame, int max_distance, int min_neighbours)
+{
+    // All Event Mask
+    cv::Mat binary_mask = cv::Mat::zeros(EVENT_FRAME_HEIGHT, EVENT_FRAME_WIDTH, CV_32F);
+
+    // ON Event Mask (255)
+    cv::Mat on_mask = (frame == 255) / 255; // Convert to binary: 1 = ON, 0 otherwise
+
+    cv::Mat neighbour_count;
+    int kernel_size = 2 * max_distance + 1;
+    cv::boxFilter(on_mask, neighbour_count, CV_32F, cv::Size(kernel_size, kernel_size), cv::Point(-1, -1), false);
+    neighbour_count.setTo(0, on_mask == 0);
+
+    binary_mask += neighbour_count;
+
+    // OFF Event Mask (128)
+    cv::Mat off_mask = (frame == 128) / 128; // Convert to binary: 1 = OFF, 0 otherwise
+
+    cv::boxFilter(off_mask, neighbour_count, CV_32F, cv::Size(kernel_size, kernel_size), cv::Point(-1, -1), false);
+    neighbour_count.setTo(0, off_mask == 0);
+
+    binary_mask += neighbour_count;
+
+    // Set isolated ON events to background (0)
+    cv::Mat mask_on_isolated;
+    cv::compare(binary_mask, min_neighbours, mask_on_isolated, cv::CMP_LT);
+    frame.setTo(0, mask_on_isolated & (frame == 255));
+
+    // Set isolated OFF events to background (0)
+    frame.setTo(0, mask_on_isolated & (frame == 128));
+    // frame.setTo(255, frame == 128);
+    return frame;
+}
 
 
 FrontEnd::FrontEnd(std::shared_ptr<CommunicationManager> comms, const std::string& config_path)
@@ -314,37 +347,15 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
                     event_frame.at<uint8_t>(y, x) = polarity ? 255 : 128; // White for ON, Gray for OFF
                 }
             }
-                        
+            event_frame = filterIsolatedEvents(event_frame, 3, 12);
+
             if (frame_type == EVENT_FRAME)
             {
                 processed_frame = event_frame.clone();
             }
             else if (frame_type == COMBINED_FRAME)
             {
-                // cv::addWeighted(frame, 1-smoothed_blend_factor, event_frame, smoothed_blend_factor, 0, processed_frame);
-                processed_frame = frame.clone(); // Start with the original frame
-
-                for (const auto& event : *stamped_events.second)
-                {
-                    int x = event.x;
-                    int y = event.y;
-                    bool polarity = event.polarity;
-
-                    if (x >= 0 && x < width && y >= 0 && y < height)
-                    {
-                        uint8_t event_pixel = polarity ? 255 : 128;
-                        uint8_t original_pixel = frame.at<uint8_t>(y, x);
-                        
-                        // Linear blend
-                        uint8_t blended_pixel = static_cast<uint8_t>(
-                            (1.0 - smoothed_blend_factor) * original_pixel +
-                            smoothed_blend_factor * event_pixel
-                        );
-
-                        processed_frame.at<uint8_t>(y, x) = blended_pixel;
-                    }
-                }
-
+                cv::addWeighted(frame, 1-smoothed_blend_factor, event_frame, smoothed_blend_factor, 0, processed_frame);
             }
         }
     

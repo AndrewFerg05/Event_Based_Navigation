@@ -15,13 +15,15 @@ BluetoothSerial SerialBT;  // Bluetooth Serial object
 
 
 void PIComsTask(void *pvParameters) {
-  /*
+  
   TickType_t xLastWakeTime_PI;
   // 100 ms 
   const TickType_t xFrequency_PI = 100/ portTICK_PERIOD_MS;
   xLastWakeTime_PI = xTaskGetTickCount();
   for (;;) {
     vTaskDelayUntil( &xLastWakeTime_PI, xFrequency_PI);
+
+    /*
 
     if (stateChanged == 1) {
       Serial.print("State: ");
@@ -52,9 +54,11 @@ void PIComsTask(void *pvParameters) {
     if (piState == desiredState) {
       stateChanged = 0;
     }
+
+    */
     
   }
-  */
+  
 }
 
 /*
@@ -306,6 +310,8 @@ void updateStateTask(void *pvParameters) {
   const int RC = 0;
 
   for (;;) {
+
+      vTaskDelay(200 / portTICK_PERIOD_MS);
       // code to read in and update the states 
       controlState = readChannel(6, 0, 1, 2);
       runningState = readChannel(7, 0, 1, 2);
@@ -325,18 +331,9 @@ void updateStateTask(void *pvParameters) {
         desiredState = result;
       }
 
-      if (desiredState == STOP) {
-        // reset position variables so I dont have to restart it everytime
-        currentPos.x = 0;
-        currentPos.y = 0;
-      }
-
       // if RC signal not deetcted then set the system to idle
       if (controlState == 2 || runningState == 2 || startState == 2){
         desiredState = IDLE;
-        connectedRC = 0;
-      } else {
-        connectedRC = 1;
       }
 
       // if the desired state has changed send to the PI
@@ -346,36 +343,45 @@ void updateStateTask(void *pvParameters) {
 
       // the state can only be in autonomous when in the run state
       if (desiredState == IDLE) {
-        controlState == RC;
+        controlState = RC;
       }
-
+      
       // if switched back to RC control then reenable the RC contorl task
-      if (controlState == RC) {
-        if (eTaskGetState(motorControlTaskHandle) == eSuspended) {
-          enableAllMotors();
-          vTaskResume(motorControlTaskHandle);
+      if (controlState != prevControlState) {
+        if (controlState == RC && desiredState == RUN) {  
+          if (eTaskGetState(motorControlTaskHandle) == eSuspended) {
+            enableAllMotors();
+            vTaskResume(motorControlTaskHandle);
+          }
+          // add code do disable the autonomous control tasks
+        } else if (controlState == AUTO) {
+          vTaskResume(calcPathTaskHandle);
         }
-        // add code do disable the autonomous control tasks
-      } else if (controlState == AUTO) {
-        vTaskResume(calcPathTaskHandle);
-        // then task to navigate to path
       }
-
-      // if in idle the start PI coms, stop motors and reset position
-      if (desiredState == IDLE) {
-        if (eTaskGetState(PIComsTaskHandle) == eSuspended) {
-          vTaskResume(PIComsTaskHandle);
+    
+      // check if state has chnaged from previous
+      if (desiredState != prevDesiredState) {
+        // if in idle the start PI coms, stop motors and reset position
+        if (desiredState == IDLE) {
+          if (eTaskGetState(PIComsTaskHandle) == eSuspended) {
+            vTaskResume(PIComsTaskHandle);
+          }
+          suspend = 1;
+          stopAllMotors();
+          resetVariables();
+          // if in run enable all mootors resume tasks
+        } else if (desiredState == RUN) {
+          suspend = 0;
+          enableAllMotors();
+          vTaskResume(filterHeadingTaskHandle);
+          vTaskResume(displacementCalcTaskHandle);
+          vTaskResume(motorControlTaskHandle);
+        } else if (desiredState == STOP) {
+          suspend = 1;
+          vTaskDelay(20 / portTICK_PERIOD_MS);  // delay 20 ms
+          stopAllMotors();
+          resetVariables();
         }
-        suspend = 1;
-        stopAllMotors();
-        resetVariables();
-        // if in run enable all mootors resume tasks
-      } else if (desiredState == RUN) {
-        suspend = 0;
-        enableAllMotors();
-        vTaskResume(filterHeadingTaskHandle);
-        vTaskResume(displacementCalcTaskHandle);
-        vTaskResume(motorControlTaskHandle);
       }
 
       SerialBT.print("Current State ESP:  ");
@@ -383,6 +389,8 @@ void updateStateTask(void *pvParameters) {
       
       prevControlState = controlState;
       prevConnectedRC = connectedRC;
+      prevDesiredState = desiredState;
+      
 
       vTaskDelay(100 / portTICK_PERIOD_MS);  // Run every 10ms
   }
@@ -425,13 +433,15 @@ void motorControlTask( void * pvParameters )
 }
 
 void calcPathTask(void *pvParameters) {
-  vTaskDelay(200 / portTICK_PERIOD_MS);  // give enough time for the RC tasks to finish
+  for( ;; ) { 
+    vTaskDelay(200 / portTICK_PERIOD_MS);  // give enough time for the RC tasks to finish
 
-  // calculate path code
-  SerialBT.println("Path calculated");
+    // calculate path code
+    SerialBT.println("Path calculated");
 
-  vTaskResume(navigateTaskHandle);
-  vTaskSuspend(NULL);
+    vTaskResume(navigateTaskHandle);
+    vTaskSuspend(NULL);
+  }
 }
 
 void navigateTask(void *pvParameters) {
@@ -447,6 +457,14 @@ void navigateTask(void *pvParameters) {
       // if sate switched back to RC then suspend this task
       if (controlState == 0) {
         stopAllMotors();
+        if (desiredState == 1) {
+          enableAllMotors();
+          vTaskResume(motorControlTaskHandle);
+        }
+        vTaskSuspend(NULL);
+      }
+
+      if (desiredState == 2) {
         vTaskSuspend(NULL);
       }
     }
@@ -494,7 +512,7 @@ void setup() {
     }
     */
     delay(2000);
-    SerialBT.begin("ESP32_BT"); // Set Bluetooth device name
+    SerialBT.begin("ESP32_Project"); // Set Bluetooth device name
     
 
     digitalWrite(ledPin, HIGH);
@@ -528,9 +546,9 @@ void setup() {
     delay(1000);
     
     createMotortask();
-    createComsTasks();
     createPipelinetasks();
     createNavigationTasks();
+    createComsTasks();
 }
 
 

@@ -44,13 +44,14 @@ void createComsTasks() {
   xTaskCreate(
       PIComsTask,          // Task function
       "PI ComsTask",      // Task name
-      2048,                      // Stack size (adjust as needed)
+      4096,                      // Stack size (adjust as needed)
       NULL,                      // Task parameters
       1,                         // Task priority (1 is low)
       &PIComsTaskHandle    // Task handle
   );
 
   vTaskSuspend(PIComsTaskHandle);
+
 
   /*
   // send updated states UDP
@@ -97,13 +98,14 @@ void createPipelinetasks() {
   xTaskCreate(
       filterHeadingTask,          // Task function
       "filter Heading task",      // Task name
-      2048,                      // Stack size (adjust as needed)
+      4096,                      // Stack size (adjust as needed)
       NULL,                      // Task parameters
       1,                         // Task priority (1 is low)
       &filterHeadingTaskHandle    // Task handle
   ); 
 
   vTaskSuspend(filterHeadingTaskHandle);
+
 }
 
 void createNavigationTasks() {

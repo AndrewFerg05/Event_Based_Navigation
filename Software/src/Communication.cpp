@@ -73,6 +73,8 @@ void CM_loop(
     struct gpiod_line *input_line, *output_line;
     bool GPIO_good = 1;
 
+    int32_t poseScaled[6] = {0, 0, 0, 0, 0, 0};
+
     chip = gpiod_chip_open_by_name(CHIP_NAME);
     if (!chip) {
         LOG(ERROR) << "CM: Could not open GPIO chip";
@@ -238,7 +240,6 @@ void CM_loop(
             else {
 
                 // Scale pose to integer cm
-                int32_t poseScaled[6];
                 poseScaled[0] = (int32_t)(pose.x*100);
                 poseScaled[1] = (int32_t)(pose.y*100);
                 poseScaled[2] = (int32_t)(pose.z*100);
@@ -262,7 +263,9 @@ void CM_loop(
             if (button == 1) {
                 button = 0; // Ensure this isn't entered twice on one press
 
-                LOG(INFO) << "CM: Button Pressed";
+                LOG(INFO) << "CM: Button Pressed at pose: (" <<
+                    poseScaled[0] << "," << poseScaled[1]  << "," <<  poseScaled[2]  << ") and (" <<  
+                    poseScaled[3] << "," <<  poseScaled[4] << "," <<  poseScaled[5] << ")";;
 
             }
             

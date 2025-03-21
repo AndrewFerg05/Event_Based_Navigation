@@ -280,9 +280,26 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
         // Process event data if needed
         if (frame_type == EVENT_FRAME || frame_type == COMBINED_FRAME)
         {
-            cv::Mat event_frame = cv::Mat::zeros(height, width, CV_8UC1); // Blank event frame
-    
-            // ✅ Dereference shared pointer before iteration
+
+            cv::Mat event_frame = cv::Mat::zeros(height, width, CV_8UC1);
+
+
+            real_t blend_factor = 0.0;
+
+            if (!stamped_events.second->empty()) 
+            {
+                const EventArrayPtr& events_ptr = stamped_events.second;
+                size_t n_events_for_noise_detection = std::min(events_ptr->size(), size_t(2000));
+
+                real_t event_rate = n_events_for_noise_detection /
+                ((events_ptr->back().timestamp_ns -
+                  events_ptr->at(events_ptr->size()-n_events_for_noise_detection).timestamp_ns) *1e-9); //Calculate Event/s
+                
+                 float blend_scale_factor = 1 / FLAGS_max_event_blend;
+                  blend_factor = std::max(0.0, std::min(1.0, (event_rate - FLAGS_noise_event_rate) / FLAGS_max_event_rate)) / blend_scale_factor;
+
+            }
+
             for (const auto& event : *stamped_events.second)
             {
                 int x = event.x;
@@ -294,15 +311,15 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
                     event_frame.at<uint8_t>(y, x) = polarity ? 255 : 128; // White for ON, Gray for OFF
                 }
             }
-    
+                        
             if (frame_type == EVENT_FRAME)
             {
                 processed_frame = event_frame.clone();
             }
             else if (frame_type == COMBINED_FRAME)
             {
-                // Blend APS frame and event frame (keeping grayscale)
-                cv::addWeighted(frame, 0.5, event_frame, 0.5, 0, processed_frame);
+                cv::addWeighted(frame, 1-blend_factor, event_frame, blend_factor, 0, processed_frame);
+                         
             }
         }
     
@@ -312,8 +329,8 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
         camera_data.images.push_back(processed_frame);
         camera_data.masks.push_back(cv::Mat::zeros(height, width, CV_8UC1)); // Adding blank mask
 
-        // cv::imshow("Processed Frame", processed_frame);
-        // cv::waitKey(1);
+        cv::imshow("Processed Frame", processed_frame);
+        cv::waitKey(1);
         return true;
     }
 

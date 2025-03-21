@@ -24,10 +24,13 @@ Change History
 //------------------------------------------------------------------------------
 
 // Synchronisation Flags
-inline size_t FLAGS_data_size_augmented_event_packet = 15000;   // Number of events in event frame
-inline float FLAGS_timeshift_cam_imu = 0.0;   // IMU and Frame timestamp offset (s) - SET FROM CALIB
-inline int32_t FLAGS_data_sync_init_skip_n_frames = 0;          // How many frames should be skipped at the beginning
+inline size_t FLAGS_data_size_augmented_event_packet = 15000;
+inline float FLAGS_timeshift_cam_imu = 0.0;
+inline int32_t FLAGS_data_sync_init_skip_n_frames = 0;
 
+inline int32_t FLAGS_noise_event_rate = 20000;
+inline int32_t FLAGS_max_event_rate = 100000;
+inline float FLAGS_max_event_blend = 0.5;
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------

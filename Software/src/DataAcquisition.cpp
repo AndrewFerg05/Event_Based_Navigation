@@ -55,14 +55,14 @@ void DataAcquisition::start() {
     state_ = ThreadState::Run;
 
     // Start thread
-    if (acquisition_thread_.joinable())
-    {
-        LOG(INFO) << "DA: Thread already running!";
-        return;
-    }
-    acquisition_thread_ = std::thread(&DataAcquisition::run, this);
-    LOG(INFO) << "DA: Thread Started!";
-    // run();
+    // if (acquisition_thread_.joinable())
+    // {
+    //     LOG(INFO) << "DA: Thread already running!";
+    //     return;
+    // }
+    // acquisition_thread_ = std::thread(&DataAcquisition::run, this);
+    // LOG(INFO) << "DA: Thread Started!";
+    run();
 }
 
 void DataAcquisition::idle() {
@@ -417,7 +417,7 @@ void DataAcquisition::checkSynch()
     // If not return, and wait until the event buffer is filled until this
     // timestamp.
     StampedEventArray event_array;
-    static constexpr uint64_t kCollectEventsTimeoutNs = 100000u;
+    static constexpr uint64_t kCollectEventsTimeoutNs = 1000u;
     static EggTimer timer (kCollectEventsTimeoutNs);
     static bool start_timer = true;
     const int64_t& last_event_timestamp = static_cast<int64_t>(event_buffer_.back().timestamp_ns);

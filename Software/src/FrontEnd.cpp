@@ -341,8 +341,8 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
                 }
             }
             cv::Mat newEventFrame = filterIsolatedEvents(event_frame.clone(), 3, 12);   // Remove Isolated events
-            newEventFrame = closeEvents(newEventFrame, 10, 255);    // Link Up events
-            newEventFrame = closeEvents(newEventFrame, 10, 0);      // Link Down events
+            // newEventFrame = closeEvents(newEventFrame, 10, 255);    // Link Up events
+            // newEventFrame = closeEvents(newEventFrame, 10, 0);      // Link Down events
             comms_interface_->queueFrameEvents(newEventFrame.clone());
     
             if (frame_type == EVENT_FRAME)
@@ -352,12 +352,12 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
             else if (frame_type == COMBINED_FRAME)
             {
                 // Blend APS frame and event frame (keeping grayscale)
-                newEventFrame.setTo(255, newEventFrame == 0);
+                // newEventFrame.setTo(255, newEventFrame == 0);
                 
-                // newFrame.setTo(0, newFrame == 128);
-                // cv::addWeighted(frame, 0.75, newFrame, 0.25, 0, processed_frame);
+                newEventFrame.setTo(0, newEventFrame == 128);
+                cv::addWeighted(frame, 0.75, newEventFrame, 0.25, 0, processed_frame);
 
-                processed_frame = motionComp_byAvg(frame, newEventFrame);
+                // processed_frame = motionComp_byAvg(frame, newEventFrame);
 
                 comms_interface_->queueFrameAugmented(processed_frame);
             }

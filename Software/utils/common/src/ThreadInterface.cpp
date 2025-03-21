@@ -107,7 +107,7 @@ void CommunicationManager::queueFrameAugmented(cv::Mat data)
 
 void CommunicationManager::queuePose(Pose data){
     pose.push(data);
-    LOG(INFO) << "TI: Pose pushed to CM";
+    // LOG(INFO) << "TI: Pose pushed to CM";
 }
 
 //==============================================================================

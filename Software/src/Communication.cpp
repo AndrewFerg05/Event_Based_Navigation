@@ -37,7 +37,7 @@ Change History
 #define CHIP_NAME "gpiochip0"
 
 // #define TEST_IMAGE  "../example.jpg"     // No longer need to test
-#define TEST_RUN_TIME 30
+#define TEST_RUN_TIME 300
 
 #define MAX_PACKET_SIZE 65507            // Max packet in bytes for UDP
 #define PC_IP           "192.168.43.245" // Change to base station IP (SARK's laptop)
@@ -247,9 +247,9 @@ void CM_loop(
                 poseScaled[4] = (int32_t)(pose.pitch*100);
                 poseScaled[5] = (int32_t)(pose.roll*100);
 
-                LOG(INFO) << "CM: Pose made it with values (" <<
-                 poseScaled[0] << "," << poseScaled[1]  << "," <<  poseScaled[2]  << ") and (" <<  
-                 poseScaled[3] << "," <<  poseScaled[4] << "," <<  poseScaled[5] << ")";
+                // LOG(INFO) << "CM: Pose made it with values (" <<
+                //  poseScaled[0] << "," << poseScaled[1]  << "," <<  poseScaled[2]  << ") and (" <<  
+                //  poseScaled[3] << "," <<  poseScaled[4] << "," <<  poseScaled[5] << ")";
 
                 //Transmit position estimate from BE
                 CM_transmitStatus(poseScaled[0], poseScaled[1], poseScaled[2], poseScaled[3], poseScaled[4], poseScaled[5], 0,

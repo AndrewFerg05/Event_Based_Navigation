@@ -321,8 +321,30 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
             }
             else if (frame_type == COMBINED_FRAME)
             {
-                cv::addWeighted(frame, 1-smoothed_blend_factor, event_frame, smoothed_blend_factor, 0, processed_frame);
-                         
+                // cv::addWeighted(frame, 1-smoothed_blend_factor, event_frame, smoothed_blend_factor, 0, processed_frame);
+                processed_frame = frame.clone(); // Start with the original frame
+
+                for (const auto& event : *stamped_events.second)
+                {
+                    int x = event.x;
+                    int y = event.y;
+                    bool polarity = event.polarity;
+
+                    if (x >= 0 && x < width && y >= 0 && y < height)
+                    {
+                        uint8_t event_pixel = polarity ? 255 : 128;
+                        uint8_t original_pixel = frame.at<uint8_t>(y, x);
+                        
+                        // Linear blend
+                        uint8_t blended_pixel = static_cast<uint8_t>(
+                            (1.0 - smoothed_blend_factor) * original_pixel +
+                            smoothed_blend_factor * event_pixel
+                        );
+
+                        processed_frame.at<uint8_t>(y, x) = blended_pixel;
+                    }
+                }
+
             }
         }
     

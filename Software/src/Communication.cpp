@@ -32,11 +32,12 @@ Change History
 #define STOP    2
 
 // Logging pins
-#define PIN_INP_BUTTON  4   // GPIO04 (pin 07)
-#define PIN_OUT_LED     27  // GPIO27 (pin 13)
+#define PIN_INP_BUTTON  17   // GPIO04 (pin 07)
+#define PIN_OUT_LED     22  // GPIO27 (pin 13)
+#define CHIP_NAME "gpiochip0"
 
 // #define TEST_IMAGE  "../example.jpg"     // No longer need to test
-#define TEST_RUN_TIME 600
+#define TEST_RUN_TIME 30
 
 #define MAX_PACKET_SIZE 65507            // Max packet in bytes for UDP
 #define PC_IP           "192.168.43.245" // Change to base station IP (SARK's laptop)
@@ -67,6 +68,47 @@ void CM_loop(
 
     bool state_change_called = false; //Used to only set the atomics once
 
+    // GPIO stuff
+    struct gpiod_chip *chip;
+    struct gpiod_line *input_line, *output_line;
+    bool GPIO_good = 1;
+
+    chip = gpiod_chip_open_by_name(CHIP_NAME);
+    if (!chip) {
+        LOG(ERROR) << "CM: Could not open GPIO chip";
+        GPIO_good = 0;
+    }
+    else {
+        input_line = gpiod_chip_get_line(chip, PIN_INP_BUTTON);
+        output_line = gpiod_chip_get_line(chip, PIN_OUT_LED);
+        if (!input_line || !output_line) {
+            LOG(ERROR) << "Failed to get GPIO lines";
+            gpiod_chip_close(chip);
+            GPIO_good = 0;
+        }
+
+        if (GPIO_good == 1) {
+            // Configure input and output
+            if (gpiod_line_request_input(input_line, "gpio_reader") < 0) {
+                LOG(ERROR) << "Failed to set input mode";
+                GPIO_good = 0;
+            }
+
+            if (gpiod_line_request_output(output_line, "gpio_writer", 0) < 0) {
+                LOG(ERROR) << "Failed to set output mode";
+                GPIO_good = 0;
+            }
+            if (GPIO_good == 0) {
+                gpiod_chip_close(chip);
+            }
+        }
+    }
+
+    if (GPIO_good == 1) {
+        LOG(INFO) << "GPIO Setup Correctly";
+        gpiod_line_set_value(output_line, 0);
+    }
+
     auto sinceLastButtonCheck = std::chrono::high_resolution_clock::now();   
     uint8_t button = 0;
     uint16_t button_Poll = 50;
@@ -95,25 +137,31 @@ void CM_loop(
         auto now = std::chrono::high_resolution_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - start_time).count();
 
-        // Every 500 ms remind ESP what state Pi is in
+        // Every 500 ms remind ESP & UI what state Pi is in
         auto elapsedHundredMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - sinceLastSerialSend);
         if (elapsedHundredMs.count() > 500) {
             CM_serialSendState(serial, command);
+            CM_transmitStatus(-1, -1, -1, -1, -1, -1, -1,
+                                  command,
+                                  -1, -1, -1);
             sinceLastSerialSend = std::chrono::high_resolution_clock::now(); 
         }
 
         // Check if button has been pressed every 50 ms (covers debouncing and polling)
         auto elapsedButtonTime = std::chrono::duration_cast<std::chrono::milliseconds>(now - sinceLastButtonCheck);
-        if (elapsedHundredMs.count() > button_Poll) {
-            button = digitalRead(PIN_INP_BUTTON);
-            digitalWrite(PIN_OUT_LED, button);
+        if (elapsedButtonTime.count() > button_Poll) {
 
-            if (button == 1) {
+            if (GPIO_good == 1) {
+                button = gpiod_line_get_value(input_line);
+                gpiod_line_set_value(output_line, button);
+
+                if (button == 1) {
                 // Wait two seconds to ensure not held or double pressed
-                button_Poll = 1000;
-            }
-            else {
-                button_Poll = 50;
+                button_Poll = 2000;
+                }
+                else {
+                    button_Poll = 50;
+                }
             }
             
             sinceLastButtonCheck = std::chrono::high_resolution_clock::now();
@@ -203,7 +251,9 @@ void CM_loop(
                  poseScaled[3] << "," <<  poseScaled[4] << "," <<  poseScaled[5] << ")";
 
                 //Transmit position estimate from BE
-                CM_transmitStatus(poseScaled[0], poseScaled[1], poseScaled[2], poseScaled[3], poseScaled[4], poseScaled[5]);
+                CM_transmitStatus(poseScaled[0], poseScaled[1], poseScaled[2], poseScaled[3], poseScaled[4], poseScaled[5], 0,
+                                  -1,
+                                  -1, -1, -1);
 
                 //Send to ESP32 position estimate from BE
                 CM_serialSendStatus(serial, poseScaled[0], 1);
@@ -219,12 +269,19 @@ void CM_loop(
         } else if (command == STOP) {
             LOG(INFO) << "CM: STOP Looping";
 
+            if (GPIO_good == 1) {
+                gpiod_line_release(input_line);
+                gpiod_line_release(output_line);
+                gpiod_chip_close(chip);
+                GPIO_good = 0;
+            }
+
             // Stop Condition
             if(state_change_called){
                 LOG(INFO) << "CM: Changed to stop state ";
-                driver_->stop();
-                dataAcquistion_->stop();
-                frontEnd_->stop();
+                // driver_->stop();
+                // dataAcquistion_->stop();
+                // frontEnd_->stop();
                 state_change_called = false;
             }
 
@@ -319,9 +376,11 @@ void CM_serialSendStatus(CM_serialInterface* serial, int32_t x, int32_t y){
     return;
 }
 
-void CM_transmitStatus(int32_t x, int32_t y, int32_t z, int32_t yaw, int32_t pitch, int32_t roll) {
+void CM_transmitStatus(int32_t x, int32_t y, int32_t z, int32_t yaw, int32_t pitch, int32_t roll, int32_t vel,
+                       int32_t state,
+                       int32_t feat_x, int32_t feat_y, int32_t feat_z) {
     int32_t id = little_endian(ID_STATUS);
-    uint32_t dataSize = 24;
+    uint32_t dataSize = 44;
 
     // Allocate buffer space (8 bytes for header + dataSize for actual data)
     uchar* sendBuffer = static_cast<uchar*>(malloc(8 + dataSize));  // 8 bytes for header and dataSize bytes for data
@@ -337,6 +396,11 @@ void CM_transmitStatus(int32_t x, int32_t y, int32_t z, int32_t yaw, int32_t pit
     yaw = little_endian(yaw);
     pitch = little_endian(pitch);
     roll = little_endian(roll);
+    vel = little_endian(vel);
+    state = little_endian(state);
+    feat_x = little_endian(feat_x);
+    feat_y = little_endian(feat_y);
+    feat_z = little_endian(feat_z);
 
     // Copy ID and dataSize into the sendBuffer (Little-endian order)
     memcpy(sendBuffer, &id, 4);
@@ -347,6 +411,11 @@ void CM_transmitStatus(int32_t x, int32_t y, int32_t z, int32_t yaw, int32_t pit
     memcpy(sendBuffer + 20, &yaw, 4);
     memcpy(sendBuffer + 24, &pitch, 4);
     memcpy(sendBuffer + 28, &roll, 4);
+    memcpy(sendBuffer + 32, &vel, 4);
+    memcpy(sendBuffer + 36, &state, 4);
+    memcpy(sendBuffer + 40, &feat_x, 4);
+    memcpy(sendBuffer + 44, &feat_y, 4);
+    memcpy(sendBuffer + 48, &feat_z, 4);
 
     // Create a UDP socket
     int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -620,6 +689,7 @@ cv::Mat CM_formatEventFrame(TrackedFrames image) {
     return frame;
 }
 
+/*
 void CM_setupGPIO() {
     if (wiringPiSetupGpio() == -1) {
         std::cerr << "Failed to initialize wiringPi" << std::endl;
@@ -627,7 +697,7 @@ void CM_setupGPIO() {
     }
     
     pinMode(INPUT_PIN, INPUT);
-    pinMode(OUTPUT_PIN, OUTPUT);
-}
+    pinMode(PIN_OUT_LED, OUTPUT);
+}*/
 //==============================================================================
 // End of File : Software/src/Communication.cpp

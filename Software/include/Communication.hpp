@@ -42,7 +42,7 @@ Change History
 #include <unistd.h>
 
 #include <libserialport.h>
-#include <wiringPi.h>
+#include <gpiod.h>
 
 #include "DataAcquisition.hpp"
 #include "FrontEnd.hpp"
@@ -89,7 +89,9 @@ void CM_serialSendState(CM_serialInterface* serial, int32_t state);
 
 void CM_serialSendStatus(CM_serialInterface* serial, int32_t x, int32_t y);
 
-void CM_transmitStatus(int32_t x, int32_t y, int32_t z, int32_t yaw, int32_t pitch, int32_t roll);
+void CM_transmitStatus(int32_t x, int32_t y, int32_t z, int32_t yaw, int32_t pitch, int32_t roll, int32_t vel,
+                       int32_t state,
+                       int32_t feat_x, int32_t feat_y, int32_t feat_z);
 
 void CM_loop(
     std::shared_ptr<DavisDriver> driver_,

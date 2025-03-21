@@ -107,7 +107,7 @@ int main(int argc, char* argv[])
     }
 
     // Initialise GPIO
-    CM_setupGPIO();
+    //CM_setupGPIO();
  
     std::shared_ptr<DataAcquisition> DataAquistion_ = std::make_shared<DataAcquisition>(data_queues);
 
@@ -145,6 +145,15 @@ int main(int argc, char* argv[])
 
 
     LOG(INFO) << "MAIN: CM Thread Ended";
+
+    driver->stop();
+    LOG(INFO) << "MAIN: Driver Ended";
+
+    DataAquistion_->stop();
+    LOG(INFO) << "MAIN: DA Ended";
+
+    FrontEnd_->stop();
+    LOG(INFO) << "MAIN: FE Ended";
 
     // // Close WiFi
     CM_cleanupNet();

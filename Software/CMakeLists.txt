@@ -21,6 +21,7 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBCAER REQUIRED libcaer)
 pkg_check_modules(LIBUSB REQUIRED libusb-1.0)
 pkg_check_modules(LIBSERIAL REQUIRED libserialport)
+pkg_check_modules(GPIOD REQUIRED libgpiod)
 find_package(OpenCV REQUIRED)
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(glog REQUIRED)
@@ -45,6 +46,7 @@ include_directories(
     ${CERES_INCLUDE_DIRS}
     ${YAML_CPP_INCLUDE_DIRS}
     ${OPENVINS_INCLUDE_DIR}  # OpenVINS headers
+    ${GPIOD_INCLUDE_DIRS}
 )
 
 # Link directories
@@ -72,4 +74,5 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     Boost::filesystem 
     Boost::system
     ${OPENVINS_LIBRARIES}  # Link OpenVINS
+    ${GPIOD_LIBRARIES} 
 )

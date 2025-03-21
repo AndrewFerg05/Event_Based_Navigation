@@ -285,6 +285,9 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
 
 
             real_t blend_factor = 0.0;
+            static real_t smoothed_blend_factor = 0.5;
+            const real_t smoothing_alpha = 0.5;  // adjust for responsiveness vs smoothness (1 = no smoothing)
+
 
             if (!stamped_events.second->empty()) 
             {
@@ -297,7 +300,7 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
                 
                  float blend_scale_factor = 1 / FLAGS_max_event_blend;
                   blend_factor = std::max(0.0, std::min(1.0, (event_rate - FLAGS_noise_event_rate) / FLAGS_max_event_rate)) / blend_scale_factor;
-
+                  smoothed_blend_factor = smoothing_alpha * blend_factor + (1.0 - smoothing_alpha) * smoothed_blend_factor;
             }
 
             for (const auto& event : *stamped_events.second)
@@ -318,7 +321,7 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
             }
             else if (frame_type == COMBINED_FRAME)
             {
-                cv::addWeighted(frame, 1-blend_factor, event_frame, blend_factor, 0, processed_frame);
+                cv::addWeighted(frame, 1-smoothed_blend_factor, event_frame, smoothed_blend_factor, 0, processed_frame);
                          
             }
         }

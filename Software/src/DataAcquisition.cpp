@@ -417,7 +417,7 @@ void DataAcquisition::checkSynch()
     // If not return, and wait until the event buffer is filled until this
     // timestamp.
     StampedEventArray event_array;
-    static constexpr uint64_t kCollectEventsTimeoutNs = 1000u;
+    static constexpr uint64_t kCollectEventsTimeoutNs = 10000u;
     static EggTimer timer (kCollectEventsTimeoutNs);
     static bool start_timer = true;
     const int64_t& last_event_timestamp = static_cast<int64_t>(event_buffer_.back().timestamp_ns);

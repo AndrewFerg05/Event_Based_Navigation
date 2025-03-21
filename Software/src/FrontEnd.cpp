@@ -286,7 +286,7 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
 
             real_t blend_factor = 0.0;
             static real_t smoothed_blend_factor = 0.5;
-            const real_t smoothing_alpha = 0.5;  // adjust for responsiveness vs smoothness (1 = no smoothing)
+            const real_t smoothing_alpha = 0.2;  // adjust for responsiveness vs smoothness (1 = no smoothing)
 
 
             if (!stamped_events.second->empty()) 

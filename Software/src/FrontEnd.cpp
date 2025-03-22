@@ -70,31 +70,34 @@ cv::Mat closeEvents(cv::Mat frame, int dilation_size, int event_type)
 cv::Mat filterIsolatedEvents(cv::Mat frame, int max_distance, int min_neighbours)
 {
     // All Event Mask
-    cv::Mat binary_mask = cv::Mat::zeros(EVENT_FRAME_HEIGHT, EVENT_FRAME_WIDTH, CV_8UC1);
+    cv::Mat binary_mask = cv::Mat::zeros(EVENT_FRAME_HEIGHT, EVENT_FRAME_WIDTH, CV_32F);
 
-    // Up Event Mask
-    cv::Mat up_mask = cv::Mat::zeros(EVENT_FRAME_HEIGHT, EVENT_FRAME_WIDTH, CV_8UC1);
-    up_mask.setTo(1, frame == 255); // Convert to binary (1 = event, 0 = background)
+    // ON Event Mask (255)
+    cv::Mat on_mask = (frame == 255) / 255; // Convert to binary: 1 = ON, 0 otherwise
 
     cv::Mat neighbour_count;
     int kernel_size = 2 * max_distance + 1;
-    cv::boxFilter(up_mask, neighbour_count, CV_32F, cv::Size(kernel_size, kernel_size), cv::Point(-1, -1), false);
-    neighbour_count.setTo(0, up_mask == 0);
+    cv::boxFilter(on_mask, neighbour_count, CV_32F, cv::Size(kernel_size, kernel_size), cv::Point(-1, -1), false);
+    neighbour_count.setTo(0, on_mask == 0);
 
     binary_mask += neighbour_count;
 
-    // Down Event Mask
-    cv::Mat down_mask = cv::Mat::zeros(EVENT_FRAME_HEIGHT, EVENT_FRAME_WIDTH, CV_8UC1);
-    down_mask.setTo(1, frame == 0); // Convert to binary (1 = event, 0 = background)
+    // OFF Event Mask (128)
+    cv::Mat off_mask = (frame == 128) / 128; // Convert to binary: 1 = OFF, 0 otherwise
 
-    cv::boxFilter(down_mask, neighbour_count, CV_32F, cv::Size(kernel_size, kernel_size), cv::Point(-1, -1), false);
-    neighbour_count.setTo(0, down_mask == 0);
+    cv::boxFilter(off_mask, neighbour_count, CV_32F, cv::Size(kernel_size, kernel_size), cv::Point(-1, -1), false);
+    neighbour_count.setTo(0, off_mask == 0);
 
     binary_mask += neighbour_count;
 
-    // Remove pixels that don't meet the min_neighbours requirement
-    frame.setTo(128, binary_mask < min_neighbours);
+    // Set isolated ON events to background (0)
+    cv::Mat mask_on_isolated;
+    cv::compare(binary_mask, min_neighbours, mask_on_isolated, cv::CMP_LT);
+    frame.setTo(0, mask_on_isolated & (frame == 255));
 
+    // Set isolated OFF events to background (0)
+    frame.setTo(0, mask_on_isolated & (frame == 128));
+    // frame.setTo(255, frame == 128);
     return frame;
 }
 
@@ -327,8 +330,30 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
         // Process event data if needed
         if (frame_type == EVENT_FRAME || frame_type == COMBINED_FRAME)
         {
-            cv::Mat event_frame = cv::Mat::ones(height, width, CV_8UC1) * 128; // gray event frame
+            cv::Mat event_frame = cv::Mat::zeros(height, width, CV_8UC1);
+
+            real_t blend_factor = 0.0;
+            static real_t smoothed_blend_factor = 0.2;
+            const real_t smoothing_alpha = 0.2;  // adjust for responsiveness vs smoothness (1 = no smoothing)
     
+            if (!stamped_events.second->empty()) 
+            {
+                const EventArrayPtr& events_ptr = stamped_events.second;
+                size_t n_events_for_noise_detection = std::min(events_ptr->size(), size_t(2000));
+
+                real_t event_rate = n_events_for_noise_detection /
+                ((events_ptr->back().timestamp_ns -
+                  events_ptr->at(events_ptr->size()-n_events_for_noise_detection).timestamp_ns) *1e-9); //Calculate Event/s
+                
+                 float blend_scale_factor = 1 / FLAGS_max_event_blend;
+                  blend_factor = std::max(0.0, std::min(1.0, (event_rate - FLAGS_noise_event_rate) / FLAGS_max_event_rate)) / blend_scale_factor;
+                  smoothed_blend_factor = smoothing_alpha * blend_factor + (1.0 - smoothing_alpha) * smoothed_blend_factor;
+            }
+            else
+            {
+                smoothed_blend_factor = 0;
+            }
+
             for (const auto& event : *stamped_events.second)
             {
                 int x = event.x;
@@ -337,38 +362,34 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
     
                 if (x >= 0 && x < width && y >= 0 && y < height)
                 {
-                    event_frame.at<uint8_t>(y, x) = polarity ? 255 : 0; // White for ON, black for OFF
+                    event_frame.at<uint8_t>(y, x) = polarity ? 255 : 128; // White for ON, Gray for OFF
                 }
             }
-            cv::Mat newEventFrame = filterIsolatedEvents(event_frame.clone(), 3, 12);   // Remove Isolated events
-            // newEventFrame = closeEvents(newEventFrame, 10, 255);    // Link Up events
-            // newEventFrame = closeEvents(newEventFrame, 10, 0);      // Link Down events
-            comms_interface_->queueFrameEvents(newEventFrame.clone());
+
+            event_frame = filterIsolatedEvents(event_frame, 3, 12);
+
+            comms_interface_->queueFrameEvents(event_frame.clone());
     
+
+
             if (frame_type == EVENT_FRAME)
             {
-                processed_frame = newEventFrame.clone();
+                processed_frame = event_frame.clone();
             }
             else if (frame_type == COMBINED_FRAME)
             {
-                // Blend APS frame and event frame (keeping grayscale)
-                // newEventFrame.setTo(255, newEventFrame == 0);
-                
-                newEventFrame.setTo(0, newEventFrame == 128);
-                cv::addWeighted(frame, 0.75, newEventFrame, 0.25, 0, processed_frame);
-
-                // processed_frame = motionComp_byAvg(frame, newEventFrame);
-
+                cv::addWeighted(frame, 1-smoothed_blend_factor, event_frame, smoothed_blend_factor, 0, processed_frame);
                 comms_interface_->queueFrameAugmented(processed_frame);
             }
         }
-    
+
         // Store results in camera data
         camera_data.timestamp = timestamp;
         camera_data.sensor_ids.push_back(0);  // Assuming single-camera setup (ID=0)
         camera_data.images.push_back(processed_frame);
         camera_data.masks.push_back(cv::Mat::zeros(height, width, CV_8UC1)); // Adding blank mask
 
+        //Tests to display processed frame - Have to run DA in main thread to do this
         // cv::imshow("Processed Frame", processed_frame);
         // cv::waitKey(1);
         return true;
@@ -406,6 +427,9 @@ void FrontEnd::addData(
     if (state && state->_imu)
     {
         Eigen::Vector3d position = state->_imu->pos();  // Global position (x, y, z)
+        Eigen::Vector3d velocity = state->_imu->vel();  // Global velocity
+        std::vector<Eigen::Vector3d> slam_landmarks = vio_manager_->get_features_SLAM(); //Current SLAM features
+
         Eigen::Quaterniond orientation(
             state->_imu->quat()(3),  // w
             state->_imu->quat()(0),  // x

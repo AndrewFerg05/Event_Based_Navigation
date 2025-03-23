@@ -4,14 +4,14 @@
 #include "displacement.h"
 #include "PCF8575.h"
 #include <IBusBM.h>
-//#include <WiFi.h>
-//#include <WiFiUdp.h>
+#include <WiFi.h>
+#include <WiFiUdp.h>
 #include "stateChange.h"
 #include <math.h>
-#include "BluetoothSerial.h"
+//#include "BluetoothSerial.h"
 
 
-BluetoothSerial SerialBT;  // Bluetooth Serial object
+//BluetoothSerial SerialBT;  // Bluetooth Serial object
 
 
 void PIComsTask(void *pvParameters) {
@@ -22,8 +22,6 @@ void PIComsTask(void *pvParameters) {
   xLastWakeTime_PI = xTaskGetTickCount();
   for (;;) {
     vTaskDelayUntil( &xLastWakeTime_PI, xFrequency_PI);
-
-    /*
 
     if (stateChanged == 1) {
       Serial.print("State: ");
@@ -48,17 +46,13 @@ void PIComsTask(void *pvParameters) {
         receivedMessage += incomingChar;
       }      
     }
-    SerialBT.print("Current State PI:  ");
-    SerialBT.println(piState);
+    //SerialBT.print("Current State PI:  ");
+    //SerialBT.println(piState);
 
     if (piState == desiredState) {
       stateChanged = 0;
     }
-
-    */
-    
   }
-  
 }
 
 /*
@@ -264,7 +258,7 @@ void displacementCalcTask(void *pvParameters) {
       currentPos.x += (displacement * (float)cos(filteredHeading1));
       currentPos.y -= (displacement * (float)sin(filteredHeading1));
 
-      String data = String(currentPos.x) + "," + String(currentPos.y) + "," + String(filteredHeading1) +"\n";
+      //String data = String(currentPos.x) + "," + String(currentPos.y) + "," + String(filteredHeading1) +"\n";
       //SerialBT.print(data);
 
       /*
@@ -282,17 +276,17 @@ void displacementCalcTask(void *pvParameters) {
       int32_t y = (int32_t)(currentPos.y);
 
       // transmit using UDP, or flag for another task to transmit the data
-      /*
-      int32_t numbers[6] = {3, 20, x, y, int32_t(filteredHeading1), int32_t(velocity), int32_t(desiredState)};
+      
+      int32_t numbers[7] = {3, 20, x, y, int32_t(filteredHeading1), int32_t(velocity), int32_t(desiredState)};
 
-      uint8_t buffer[24];  // 6 integers * 4 bytes each = 24 bytes
+      uint8_t buffer[28];  // 7 integers * 4 bytes each = 24 bytes
       memcpy(buffer, numbers, sizeof(numbers));  // Copy data into buffer
 
       // Send UDP message
       udp.beginPacket(udpAddress, udpPort);
       udp.write(buffer, sizeof(buffer));  // Send 24-byte buffer
       udp.endPacket();    
-      */ 
+      
       
       if (suspend) {
         vTaskSuspend(NULL);
@@ -385,8 +379,8 @@ void updateStateTask(void *pvParameters) {
         }
       }
 
-      SerialBT.print("Current State ESP:  ");
-      SerialBT.println(desiredState);
+      //SerialBT.print("Current State ESP:  ");
+      //SerialBT.println(desiredState);
       
       prevControlState = controlState;
       prevConnectedRC = connectedRC;
@@ -426,8 +420,8 @@ void motorControlTask( void * pvParameters )
 
         if (suspend == 1 || controlState == 1) {
           stopAllMotors();
-          SerialBT.print("Current Control State:  ");
-          SerialBT.println(controlState);
+          //SerialBT.print("Current Control State:  ");
+          //SerialBT.println(controlState);
           vTaskSuspend(NULL);
         }          
     }
@@ -438,7 +432,7 @@ void calcPathTask(void *pvParameters) {
     vTaskDelay(200 / portTICK_PERIOD_MS);  // give enough time for the RC tasks to finish
 
     // calculate path code
-    SerialBT.println("Path calculated");
+    //SerialBT.println("Path calculated");
 
     vTaskResume(navigateTaskHandle);
     vTaskSuspend(NULL);
@@ -453,7 +447,7 @@ void navigateTask(void *pvParameters) {
     for( ;; ) { 
       vTaskDelayUntil( &xLastWakeTime, xFrequency);
       enableAllMotors();
-      SerialBT.println("Navigation action");
+      //SerialBT.println("Navigation action");
 
       // if sate switched back to RC then suspend this task
       if (controlState == 0) {
@@ -492,7 +486,7 @@ void setup() {
     attachInterrupt(digitalPinToInterrupt(ENA_1), readEncoder1, RISING);
     attachInterrupt(digitalPinToInterrupt(ENA_6), readEncoder6, RISING);
 
-    //Serial.begin(115200);
+    Serial.begin(115200);
     WIRE_PORT.begin(21, 22);
     WIRE_PORT.setClock(400000);
     imu.begin(WIRE_PORT, AD0_VAL);
@@ -500,29 +494,26 @@ void setup() {
       //Serial.println(F("ICM_90248 not detected"));
     }
 
-    /*
+    
     // Connect to WiFi
     WiFi.begin(ssid);
 
     //int startTimeWC = millis();
 
-    //attempt to connevt to wifi for 10 seconds
+    //attempt to connevt to wifi if it fails this will block
     while (WiFi.status() != WL_CONNECTED) {
         //Serial.print(".");
         delay(500);
     }
-    */
+    
     delay(2000);
-    SerialBT.begin("ESP32_Project"); // Set Bluetooth device name
+    //SerialBT.begin("ESP32_Project"); // Set Bluetooth device name
     
 
     digitalWrite(ledPin, HIGH);
     delay(1000);
     digitalWrite(ledPin, LOW);
     delay(1000);
-    
-    
-    //Serial.println("\nConnected to WiFi!");
 
     float sum = 0;
     for (int i = 0; i < 200; i++) {
@@ -539,7 +530,7 @@ void setup() {
 
     headingOffset = sum / 200.0;
 
-    SerialBT.println(headingOffset);
+    //SerialBT.println(headingOffset);
 
     digitalWrite(ledPin, HIGH);
     delay(1000);

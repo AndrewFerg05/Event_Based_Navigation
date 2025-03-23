@@ -405,7 +405,7 @@ void FrontEnd::addData(
 
     //Build Image frame to input to VIO frontend
     ov_core::CameraData camera_data;
-    if(!buildImage(camera_data, stamped_image, stamped_events, imu_stamps, imu_accgyr, COMBINED_FRAME))
+    if(!buildImage(camera_data, stamped_image, stamped_events, imu_stamps, imu_accgyr, EVENT_FRAME))
     {
         LOG(ERROR) << "FE: Error building frame";
         return;
@@ -438,10 +438,16 @@ void FrontEnd::addData(
         );
         
         // Log global pose
+        // LOG(INFO) << "Global Position: ["
+        //             << state->_imu->pos()(0) << ", " 
+        //             << state->_imu->pos()(1) << ", " 
+        //             << state->_imu->pos()(2) << "]";
+
         LOG(INFO) << "Global Position: ["
-                    << state->_imu->pos()(0) << ", " 
-                    << state->_imu->pos()(1) << ", " 
-                    << state->_imu->pos()(2) << "]";
+                    << -state->_imu->pos()(1) << ", "   // Correct X to Y
+                    << state->_imu->pos()(0) << ", "    // Correct Y to X
+                    << state->_imu->pos()(2) << "]";    // Z-axis remains the same
+
 
         LOG(INFO) << "Global Orientation (Quaternion): ["
                     << orientation.w() << ", "
@@ -449,14 +455,26 @@ void FrontEnd::addData(
                     << orientation.y() << ", "
                     << orientation.z() << "]";
 
+        // Pose pose;
+        // pose.x = state->_imu->pos()(0);
+        // pose.y = state->_imu->pos()(1);
+        // pose.z = state->_imu->pos()(2);
+        // pose.yaw = orientation.x();
+        // pose.pitch = orientation.y();
+        // pose.roll = orientation.z();
+        // comms_interface_->queuePose(pose);
+
         Pose pose;
-        pose.x = state->_imu->pos()(0);
-        pose.y = state->_imu->pos()(1);
-        pose.z = state->_imu->pos()(2);
+        pose.x = -state->_imu->pos()(1);  // Correct X to Y
+        pose.y = state->_imu->pos()(0);   // Correct Y to X
+        pose.z = state->_imu->pos()(2);   // Z remains the same
         pose.yaw = orientation.x();
         pose.pitch = orientation.y();
         pose.roll = orientation.z();
         comms_interface_->queuePose(pose);
+
+
+
     }
     else
     {

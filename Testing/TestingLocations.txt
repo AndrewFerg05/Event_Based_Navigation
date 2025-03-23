@@ -2,10 +2,14 @@ Location values in cm's from start point
 
 Test A
 Location 1: (0, 0)
-Location 2: (20, 40)
-Location 3: (30, 60)
-Location 4: (40, 80)
-Location 5: (50, 100)
+Location 2: (0, 50)
+Location 3: (0, 100)
+Location 4: (50, 100)
+Location 5: (100, 100)
+Location 6: (100, 50)
+Location 7: (100, 0)
+Location 8: (50, 0)
+Location 9: (50, 50)
 
 Test B
 Location 1: (0, 0)

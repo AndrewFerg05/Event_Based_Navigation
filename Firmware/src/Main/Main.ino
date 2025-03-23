@@ -239,6 +239,7 @@ void displacementCalcTask(void *pvParameters) {
 
       // Release the mutex after reading the data
       //xSemaphoreGive(xPositionMutex);
+      // need to include all teh other motor encoders
 
       // when all the encoders are added in will need to average the values
       // 1,2,3 are the right side motors

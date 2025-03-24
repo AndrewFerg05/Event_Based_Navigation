@@ -83,12 +83,12 @@ int prevLeftDirection = 1;
 int pointTurn = 0;
 
 // WiFi credentials
-const char* ssid = "PI-SARK";
+const char* ssid = "SARK";
 const char* password = "samsamsam802";
 
 // UDP configuration
 WiFiUDP udp;
-const char* udpAddress = "10.42.0.79";  // Sam's laptop
+const char* udpAddress = "192.168.43.245";  
 const int udpPort = 5005;  // Receiver port
 
 // Task handles

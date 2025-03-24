@@ -405,7 +405,7 @@ void FrontEnd::addData(
 
     //Build Image frame to input to VIO frontend
     ov_core::CameraData camera_data;
-    if(!buildImage(camera_data, stamped_image, stamped_events, imu_stamps, imu_accgyr, EVENT_FRAME))
+    if(!buildImage(camera_data, stamped_image, stamped_events, imu_stamps, imu_accgyr, COMBINED_FRAME))
     {
         LOG(ERROR) << "FE: Error building frame";
         return;

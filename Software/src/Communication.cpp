@@ -301,6 +301,7 @@ void CM_loop(
                 driver_->idle();
                 dataAcquistion_->idle();
                 frontEnd_->idle();
+
                 state_change_called = false;
             }
             
@@ -359,6 +360,20 @@ void CM_serialSendState(CM_serialInterface* serial, int32_t state){
         char message[50];
         
         snprintf(message, sizeof(message), "State: %d\n", state);
+
+        serial->ESPWrite(message);
+    }
+
+    return;
+}
+
+void CM_serialSendCalib(CM_serialInterface* serial, int32_t power){
+
+    if (serial->ESPCheckOpen() == 1)
+    {
+        char message[50];
+        
+        snprintf(message, sizeof(message), "Calib: %d\n", state);
 
         serial->ESPWrite(message);
     }

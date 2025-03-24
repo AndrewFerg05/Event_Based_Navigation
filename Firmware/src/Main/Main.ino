@@ -39,6 +39,9 @@ void PIComsTask(void *pvParameters) {
             if (FLAG_PI_STARTED == false && piState == 0) {       // If Pi just booted and ready in Idle allow other code to start
               FLAG_PI_STARTED = true;
             }
+        } else if (receivedMessage.startsWith("Calib: ")) {
+          int calib = receivedMessage.substring(7).toInt();
+          digitalWrite(ledPin, calib);
         }
         receivedMessage = ""; // Clear the message buffer
       } else {
@@ -412,9 +415,9 @@ void motorControlTask( void * pvParameters )
         // LED control based on throttle value
         
         if (throttleVal == 0) {
-            digitalWrite(ledPin, HIGH);  // Turn on LED if throttle is zero
+            //digitalWrite(ledPin, HIGH);  // Turn on LED if throttle is zero
         } else {
-            digitalWrite(ledPin, LOW);   // Turn off LED otherwise
+            //digitalWrite(ledPin, LOW);   // Turn off LED otherwise
         }
 
         if (suspend == 1 || controlState == 1) {

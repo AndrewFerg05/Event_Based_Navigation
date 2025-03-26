@@ -258,8 +258,8 @@ void displacementCalcTask(void *pvParameters) {
 
                
       // update position 
-      currentPos.x += (displacement * (float)cos(filteredHeading1));
-      currentPos.y -= (displacement * (float)sin(filteredHeading1));
+      currentPos.x += (displacement * (float)sin(filteredHeading1));
+      currentPos.y += (displacement * (float)cos(filteredHeading1));
 
       //String data = String(currentPos.x) + "," + String(currentPos.y) + "," + String(filteredHeading1) +"\n";
       //SerialBT.print(data);

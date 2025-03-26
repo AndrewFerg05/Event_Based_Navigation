@@ -14,7 +14,7 @@
 #define PPR 1133
 #define WIRE_PORT Wire1 // desired Wire port.
 #define AD0_VAL 1      // value of the last bit of the I2C address.
-#define WINDOW_SIZE 10
+#define WINDOW_SIZE 50  // gives a delay of 500 ms which lines up with the required delay for the heading calc
 
 
 struct MotorDriver {

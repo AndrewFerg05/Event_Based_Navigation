@@ -124,7 +124,7 @@ void ibusTask(void *pvParameters) {
 //get heading values at maximum sample rate and filter using a moving average filter
 void filterHeadingTask(void *pvParameters) {
   TickType_t xLastWakeTime_h;
-  // 100 Hz (the max frequency of the mag)
+  // 50 Hz (half the max frequency of the mag)
   const TickType_t xFrequency_h = 20/ portTICK_PERIOD_MS;
     xLastWakeTime_h = xTaskGetTickCount();
     for( ;; ) {

@@ -242,7 +242,7 @@ void displacementCalcTask(void *pvParameters) {
       // 1,2,3 are the right side motors
       // 4,5,6 are the left side motors
       // convert to linear displacement
-      displacement = ((((posCopy1 + posCopy6)/2.0) / PPR) * 2.0 * PI * WHEEL_RADIUS) * 1000 * slip; // to mm
+      displacement = ((((posCopy1 + posCopy6)/2.0) / PPR) * 2.0 * PI * WHEEL_RADIUS) * 100 * slip; // to cm
 
       if (pointTurn == 0) {
         displacement = displacement * 0.05;

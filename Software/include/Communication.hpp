@@ -87,6 +87,8 @@ std::uint8_t CM_serialReceive(CM_serialInterface* serial);
 
 void CM_serialSendState(CM_serialInterface* serial, int32_t state);
 
+void CM_serialSendCalib(CM_serialInterface* serial, int32_t power);
+
 void CM_serialSendStatus(CM_serialInterface* serial, int32_t x, int32_t y);
 
 void CM_transmitStatus(int32_t x, int32_t y, int32_t z, int32_t yaw, int32_t pitch, int32_t roll, int32_t vel,

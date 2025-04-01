@@ -121,6 +121,8 @@ struct Pose {
     double pitch = 0;
     double roll = 0;
 
+    
+
     // Constructor
     Pose() = default;
 };

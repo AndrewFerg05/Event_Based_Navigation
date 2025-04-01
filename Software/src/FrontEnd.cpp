@@ -419,7 +419,7 @@ void FrontEnd::addData(
     {
         return;
     }
-    
+
     // Log global position - Check
     auto state = vio_manager_->get_state();
 

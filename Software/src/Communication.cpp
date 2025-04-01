@@ -68,6 +68,8 @@ void CM_loop(
 
     bool state_change_called = false; //Used to only set the atomics once
 
+    bool calib = 0;
+
     // GPIO stuff
     struct gpiod_chip *chip;
     struct gpiod_line *input_line, *output_line;
@@ -258,6 +260,9 @@ void CM_loop(
 
                 //Send to ESP32 position estimate from BE
                 CM_serialSendStatus(serial, poseScaled[0], 1);
+
+                // Ask LED to turn on if desired
+                CM_serialSendCalib(serial, 1);
             }
 
             if (button == 1) {
@@ -313,6 +318,8 @@ void CM_loop(
                     state_change_called = true;
                     command = commandReceived;
                 }
+
+                CM_serialSendCalib(serial, 0);
             }
             else
             {
@@ -373,7 +380,7 @@ void CM_serialSendCalib(CM_serialInterface* serial, int32_t power){
     {
         char message[50];
         
-        snprintf(message, sizeof(message), "Calib: %d\n", state);
+        snprintf(message, sizeof(message), "Calib: %d\n", power);
 
         serial->ESPWrite(message);
     }

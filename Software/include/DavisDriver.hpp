@@ -148,7 +148,7 @@ private:
   struct caer_davis_info davis_info_;
 
   std::atomic<bool> running_{false};  
-  std::atomic<bool> idle_{false};   
+  std::atomic<bool> idle_{true};   
 
   bool parameter_update_required_;
   bool parameter_bias_update_required_;

@@ -1,0 +1,6 @@
+# Frame Type 
+# 0 = Regular Frame
+# 1 = Event frame
+# 2 = Combined Frame
+
+frame_type: 2

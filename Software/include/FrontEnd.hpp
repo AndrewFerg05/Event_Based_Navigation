@@ -25,6 +25,7 @@ Change History
 #include <open_vins/core/VioManagerOptions.h>
 #include <open_vins/core/VioManager.h>
 #include <open_vins/state/State.h>
+#include <yaml-cpp/yaml.h>
 
 
 
@@ -62,7 +63,10 @@ class FrontEnd
         const ImuAccGyrContainer& imu_accgyr,
         FrameType frame_type);
 
+    void loadFrameType();
+
     private:
+    FrameType frame_config_ = COMBINED_FRAME;
     std::atomic<bool> stateInitialised_{false};
     std::atomic<bool> vioReady_{false};
     std::shared_ptr<CommunicationManager> comms_interface_;

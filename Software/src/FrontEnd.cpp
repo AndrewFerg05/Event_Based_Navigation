@@ -192,6 +192,7 @@ FrontEnd::FrontEnd(std::shared_ptr<CommunicationManager> comms, const std::strin
     : comms_interface_(comms), config_path_(config_path)
     {
         setupVIO();
+        loadFrameType();
     }
 
 void FrontEnd::start()
@@ -370,6 +371,45 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
         return true;
     }
 
+
+void FrontEnd::loadFrameType()
+    {
+        std::string frame_config_file = "../config/frame_type_configuration.yaml";
+        int frame_type = 3;
+        try {
+            YAML::Node frame_config = YAML::LoadFile(frame_config_file);
+
+            // Extract frame Type
+            if (frame_config["frame_type"]) {
+                frame_type = frame_config["frame_type"].as<int>();
+            }
+    
+            LOG(INFO) << "FE: frane data loaded successfully";
+    
+        } catch (const std::exception &e) {
+            LOG(ERROR) << "FE: Error loading frame file: " << e.what() ;
+        }
+
+        std::cout << "TYYYYYYYYYYYYYYPPPPPPPPPPPEEEEEEEEEEEE: " << frame_type << std::endl;
+        switch (frame_type) {
+            case 0:  
+                frame_config_ = REGULAR_FRAME;
+                break;
+            case 1:  
+                frame_config_ = EVENT_FRAME;
+                break;
+            case 2:  
+                frame_config_ = COMBINED_FRAME;
+                break;
+            default: 
+                frame_config_ = COMBINED_FRAME;
+                break;
+        }
+        std::cout << "SWWWWWWWWWWWIIIIITTTTTTTTTCCCCCCCCHHHHHH: " << frame_config_ << std::endl;
+
+        
+    }
+
 void FrontEnd::addData(
     const StampedImage& stamped_image,
     const StampedEventArray& stamped_events,
@@ -385,7 +425,7 @@ void FrontEnd::addData(
 
     //Build Image frame to input to VIO frontend
     ov_core::CameraData camera_data;
-    if(!buildImage(camera_data, stamped_image, stamped_events, imu_stamps, imu_accgyr, COMBINED_FRAME))
+    if(!buildImage(camera_data, stamped_image, stamped_events, imu_stamps, imu_accgyr, frame_config_))
     {
         LOG(ERROR) << "FE: Error building frame";
         return;

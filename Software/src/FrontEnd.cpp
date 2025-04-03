@@ -464,8 +464,8 @@ void FrontEnd::addData(
 
         // Log global pose
         LOG(INFO) << "Global Position: ["
-                    << state->_imu->pos()(0) << ", " 
                     << state->_imu->pos()(1) << ", " 
+                    << state->_imu->pos()(0) << ", " 
                     << state->_imu->pos()(2) << "]";
 
         LOG(INFO) << "Global Orientation (Quaternion): ["

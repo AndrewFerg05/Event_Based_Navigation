@@ -162,8 +162,19 @@ void filterHeadingTask(void *pvParameters) {
         heading = headingTemp - headingOffset;
       }
 
+      
+
       // convert to rads
       heading = heading * (PI / 180.0);
+
+      if (heading < 0) {
+        heading += (2*PI);
+      }
+
+      if (heading > (2*PI)) {
+        heading -= (2*PI);
+      }
+
 
       // convert pol to cart
       headingBufferCos[headingBufferIdx] = cos(heading);
@@ -182,11 +193,6 @@ void filterHeadingTask(void *pvParameters) {
 
       // cart to pol
       float copyFilteredHeading = atan2f(averagedSin, averagedCos);
-      
-
-      if (copyFilteredHeading < 0) {
-        copyFilteredHeading += (2*PI);
-      }
 
 
       // put mutex around this (window size is 20)
@@ -317,11 +323,12 @@ void updateStateTask(void *pvParameters) {
 
       if (runningState != 2 && startState != 2 && runningState != -1 && runningState != -1) {
         int result = (startState << 1) | runningState;
-        
+        /*
         if (result == 1 && FLAG_PI_STARTED == false) {
           result = 0;
         }
         
+        */
         
         if (result == 3) {
           result = STOP;

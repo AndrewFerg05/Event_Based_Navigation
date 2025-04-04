@@ -317,9 +317,11 @@ void updateStateTask(void *pvParameters) {
 
       if (runningState != 2 && startState != 2 && runningState != -1 && runningState != -1) {
         int result = (startState << 1) | runningState;
+        
         if (result == 1 && FLAG_PI_STARTED == false) {
           result = 0;
         }
+        
         
         if (result == 3) {
           result = STOP;

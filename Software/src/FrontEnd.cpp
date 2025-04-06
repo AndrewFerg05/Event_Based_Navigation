@@ -315,20 +315,20 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
         if (frame_type == EVENT_FRAME || frame_type == COMBINED_FRAME)
         {
 
-            cv::Mat event_frame = cv::Mat::zeros(height, width, CV_8UC1);
+            // cv::Mat event_frame = cv::Mat::zeros(height, width, CV_8UC1);
 
 
             real_t blend_factor = 0.0;
-            static real_t smoothed_blend_factor = 0.5;
+            static real_t smoothed_blend_factor = 0.1;
             const real_t smoothing_alpha = 0.3;  // adjust for responsiveness vs smoothness (1 = no smoothing)
-
+            real_t event_rate; 
 
             if (!stamped_events.second->empty()) 
             {
                 const EventArrayPtr& events_ptr = stamped_events.second;
                 size_t n_events_for_noise_detection = std::min(events_ptr->size(), size_t(2000));
 
-                real_t event_rate = n_events_for_noise_detection /
+                event_rate = n_events_for_noise_detection /
                 ((events_ptr->back().timestamp_ns -
                   events_ptr->at(events_ptr->size()-n_events_for_noise_detection).timestamp_ns) *1e-9); //Calculate Event/s
                 
@@ -337,26 +337,65 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
                   smoothed_blend_factor = smoothing_alpha * blend_factor + (1.0 - smoothing_alpha) * smoothed_blend_factor;
             }
 
-            for (const auto& event : *stamped_events.second)
-            {
+
+            cv::Mat decay_sum = cv::Mat::zeros(height, width, CV_32FC1);
+            cv::Mat decay_count = cv::Mat::zeros(height, width, CV_32FC1);
+            
+            // Parameters
+            const double tau = 5e7; // Decay constant in nanoseconds
+            int64_t now_ts = stamped_image.first; // Current image timestamp
+            
+            for (const auto& event : *stamped_events.second) {
                 int x = event.x;
                 int y = event.y;
-                bool polarity = event.polarity;
-    
-                if (x >= 0 && x < width && y >= 0 && y < height)
-                {
-                    event_frame.at<uint8_t>(y, x) = polarity ? 255 : 128; // White for ON, Gray for OFF
+                if (x >= 0 && x < width && y >= 0 && y < height) {
+                    double delta_t = static_cast<double>(now_ts - event.timestamp_ns);
+                    float decay_value = std::exp(-delta_t / tau);
+            
+                    decay_sum.at<float>(y, x) += decay_value;
+                    decay_count.at<float>(y, x) += 1.0f;
                 }
             }
-            event_frame = filterIsolatedEvents(event_frame, 3, 12);
+            
+            // Avoid division by zero
+            cv::Mat safe_count;
+            cv::max(decay_count, 1.0f, safe_count);
+            
+            // Average decay values per pixel
+            cv::Mat time_surface;
+            cv::divide(decay_sum, safe_count, time_surface);
+            
+            // Normalize and convert to 8-bit image
+            cv::Mat event_frame;
+            cv::normalize(time_surface, event_frame, 0.0, 255.0, cv::NORM_MINMAX);
+            event_frame.convertTo(event_frame, CV_8UC1);
+            
+            // Post Frame Build Processing
+            event_frame = filterIsolatedEvents(event_frame, 3, 10);
+            // cv::GaussianBlur(event_frame, event_frame, cv::Size(3, 3), 0.2);
+
 
             if (frame_type == EVENT_FRAME)
             {
-                processed_frame = event_frame.clone();
+                if (!vio_manager_->initialized())
+                {
+                    processed_frame = frame.clone();
+                }
+                else
+                {
+                    processed_frame = event_frame.clone();
+                }
             }
             else if (frame_type == COMBINED_FRAME)
             {
-                cv::addWeighted(frame, 1-smoothed_blend_factor, event_frame, smoothed_blend_factor, 0, processed_frame);
+                if(event_rate > FLAGS_noise_event_rate)
+                {
+                    cv::addWeighted(frame, 1-smoothed_blend_factor, event_frame, smoothed_blend_factor, 0, processed_frame);
+                }
+                else
+                {
+                    processed_frame = frame.clone();
+                }
             }
         }
     
@@ -390,7 +429,6 @@ void FrontEnd::loadFrameType()
             LOG(ERROR) << "FE: Error loading frame file: " << e.what() ;
         }
 
-        std::cout << "TYYYYYYYYYYYYYYPPPPPPPPPPPEEEEEEEEEEEE: " << frame_type << std::endl;
         switch (frame_type) {
             case 0:  
                 frame_config_ = REGULAR_FRAME;
@@ -405,7 +443,6 @@ void FrontEnd::loadFrameType()
                 frame_config_ = COMBINED_FRAME;
                 break;
         }
-        std::cout << "SWWWWWWWWWWWIIIIITTTTTTTTTCCCCCCCCHHHHHH: " << frame_config_ << std::endl;
 
         
     }
@@ -417,11 +454,6 @@ void FrontEnd::addData(
     const ImuAccGyrContainer& imu_accgyr,
     const bool& no_motion_prior)
 {
-    // initState does not work - not sure if needed
-    // if (!stateInitialised_)
-    // {
-    //     return;
-    // }
 
     //Build Image frame to input to VIO frontend
     ov_core::CameraData camera_data;

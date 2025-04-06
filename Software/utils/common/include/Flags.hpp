@@ -28,9 +28,9 @@ inline size_t FLAGS_data_size_augmented_event_packet = 15000;
 inline float FLAGS_timeshift_cam_imu = 0.0;
 inline int32_t FLAGS_data_sync_init_skip_n_frames = 0;
 
-inline int32_t FLAGS_noise_event_rate = 30000;
-inline int32_t FLAGS_max_event_rate = 100000;
-inline float FLAGS_max_event_blend = 0.35;
+inline int32_t FLAGS_noise_event_rate = 200000;
+inline int32_t FLAGS_max_event_rate = 1000000;
+inline float FLAGS_max_event_blend = 0.15;
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------

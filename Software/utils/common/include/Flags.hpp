@@ -29,9 +29,9 @@ inline float FLAGS_timeshift_cam_imu = 0.0;   // IMU and Frame timestamp offset 
 inline int32_t FLAGS_data_sync_init_skip_n_frames = 0;          // How many frames should be skipped at the beginning
 
 //Frame Blending Flags
-inline int32_t FLAGS_noise_event_rate = 20000;
-inline int32_t FLAGS_max_event_rate = 100000;
-inline float FLAGS_max_event_blend = 0.4;
+inline int32_t FLAGS_noise_event_rate = 125000;
+inline int32_t FLAGS_max_event_rate = 250000;
+inline float FLAGS_max_event_blend = 0.15;
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------

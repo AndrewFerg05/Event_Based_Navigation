@@ -320,7 +320,7 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
 
             real_t blend_factor = 0.0;
             static real_t smoothed_blend_factor = 0.1;
-            const real_t smoothing_alpha = 0.3;  // adjust for responsiveness vs smoothness (1 = no smoothing)
+            const real_t smoothing_alpha = 0.2;  // adjust for responsiveness vs smoothness (1 = no smoothing)
             real_t event_rate; 
 
             if (!stamped_events.second->empty()) 
@@ -333,8 +333,9 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
                   events_ptr->at(events_ptr->size()-n_events_for_noise_detection).timestamp_ns) *1e-9); //Calculate Event/s
                 
                  float blend_scale_factor = 1 / FLAGS_max_event_blend;
-                  blend_factor = std::max(0.0, std::min(1.0, (event_rate - FLAGS_noise_event_rate) / FLAGS_max_event_rate)) / blend_scale_factor;
+                  blend_factor = (((event_rate - FLAGS_noise_event_rate) / FLAGS_max_event_rate)) / blend_scale_factor;
                   smoothed_blend_factor = smoothing_alpha * blend_factor + (1.0 - smoothing_alpha) * smoothed_blend_factor;
+                  smoothed_blend_factor = std::max(0.025, std::min(FLAGS_max_event_blend, smoothed_blend_factor));
             }
 
 
@@ -356,7 +357,7 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
                     decay_count.at<float>(y, x) += 1.0f;
                 }
             }
-            
+
             // Avoid division by zero
             cv::Mat safe_count;
             cv::max(decay_count, 1.0f, safe_count);
@@ -372,8 +373,6 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
             
             // Post Frame Build Processing
             event_frame = filterIsolatedEvents(event_frame, 3, 10);
-            // cv::GaussianBlur(event_frame, event_frame, cv::Size(3, 3), 0.2);
-
 
             if (frame_type == EVENT_FRAME)
             {

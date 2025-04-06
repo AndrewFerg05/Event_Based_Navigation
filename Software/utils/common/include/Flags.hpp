@@ -24,13 +24,13 @@ Change History
 //------------------------------------------------------------------------------
 
 // Synchronisation Flags
-inline size_t FLAGS_data_size_augmented_event_packet = 15000;
+inline int32_t FLAGS_data_size_augmented_event_packet = 15000;
 inline float FLAGS_timeshift_cam_imu = 0.0;
 inline int32_t FLAGS_data_sync_init_skip_n_frames = 0;
 
-inline int32_t FLAGS_noise_event_rate = 200000;
-inline int32_t FLAGS_max_event_rate = 1000000;
-inline float FLAGS_max_event_blend = 0.15;
+inline int32_t FLAGS_noise_event_rate = 125000;
+inline int32_t FLAGS_max_event_rate = 250000;
+inline double FLAGS_max_event_blend = 0.15;
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------

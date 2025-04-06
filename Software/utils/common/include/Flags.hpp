@@ -31,7 +31,7 @@ inline int32_t FLAGS_data_sync_init_skip_n_frames = 0;          // How many fram
 //Frame Blending Flags
 inline int32_t FLAGS_noise_event_rate = 125000;
 inline int32_t FLAGS_max_event_rate = 250000;
-inline float FLAGS_max_event_blend = 0.15;
+inline double FLAGS_max_event_blend = 0.15;
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------

@@ -136,7 +136,7 @@ void DataAcquisition::addImageData(const ImageData& image_data)
     int64_t stamp = image_data.header.stamp;
 
     // Correct for timestamp delay between IMU and Frames.
-    stamp += timeshift_cam_imu_;
+    // stamp += timeshift_cam_imu_;
 
     //Skip the first N frames
     if (sync_frame_count_ < FLAGS_data_sync_init_skip_n_frames)

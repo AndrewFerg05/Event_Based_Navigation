@@ -10,7 +10,6 @@ extern void ibusTask(void *pvParameters);
 extern void updateStateTask(void *pvParameters);
 extern void calcPathTask(void *pvParameters);
 extern void navigateTask(void *pvParameters);
-//extern void wifiStatesTask(void *pvParameters);
 
 void resetVariables();
 

@@ -32,10 +32,13 @@ volatile int pos_5 = 0;
 volatile int pos_6 = 0;
 
 float displacement = 0;
-float slip = 0.54338;
+float slip = 0.63;
 float heading = 0;
+float displacementSum = 0.0;
 
 float headingOffsets[200] = {0};
+volatile int dataReady = 1;
+
 
 //IMU stuff 
 ICM_20948_I2C imu; // create an ICM_20948_I2C object imu;
@@ -96,7 +99,7 @@ float headingBufferSin[WINDOW_SIZE] = {0};
 int headingBufferIdx = 0;
 float headingSumSin = 0;
 float headingSumCos = 0;
-float filteredHeading = 0;
+float volatile filteredHeading = 0;
 float filteredHeading1 = 0;
 
 SemaphoreHandle_t xHeadingMutex;

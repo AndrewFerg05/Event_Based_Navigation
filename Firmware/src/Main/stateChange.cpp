@@ -5,6 +5,7 @@
 void resetVariables() {
   currentPos.x = 0;
   currentPos.y = 0;
+  displacementSum = 0;
 
 }
 
@@ -52,17 +53,6 @@ void createComsTasks() {
 
   vTaskSuspend(PIComsTaskHandle);
 
-
-  /*
-  // send updated states UDP
-  xTaskCreate(
-      wifiStatesTask,          // Task function
-      "send updated states UDP",      // Task name
-      8192,                      // Stack size (adjust as needed)
-      NULL,                      // Task parameters
-      1,                         // Task priority (1 is low)
-      &wifiStatesTaskHandle    // Task handle
-  ); */
 }
 
 void createMotortask() {
@@ -98,7 +88,7 @@ void createPipelinetasks() {
   xTaskCreate(
       filterHeadingTask,          // Task function
       "filter Heading task",      // Task name
-      4096,                      // Stack size (adjust as needed)
+      8192,                      // Stack size (adjust as needed)
       NULL,                      // Task parameters
       1,                         // Task priority (1 is low)
       &filterHeadingTaskHandle    // Task handle

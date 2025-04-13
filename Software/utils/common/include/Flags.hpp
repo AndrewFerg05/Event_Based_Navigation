@@ -28,8 +28,8 @@ inline size_t FLAGS_data_size_augmented_event_packet = 15000;   // Number of eve
 inline float FLAGS_timeshift_cam_imu = 0.0;   // IMU and Frame timestamp offset (s) - SET FROM CALIB
 inline int32_t FLAGS_data_sync_init_skip_n_frames = 0;          // How many frames should be skipped at the beginning
 
-//Frame Buolding flags to ignore stationary or extreme event rates
-inline int32_t FLAGS_noise_event_rate = 125000;             //Minimum event rate below which ignored
+//Frame Building flags to ignore stationary or extreme event rates
+inline int32_t FLAGS_noise_event_rate = 125000;             //Minimum event rate below which ignored - was tested
 inline int32_t FLAGS_event_ignore_threshold = 1500000;      //Maximum event rate above which ignored
 
 // Frame Blending flags

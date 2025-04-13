@@ -369,7 +369,6 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
         if (frame_type == EVENT_FRAME || frame_type == COMBINED_FRAME)
         {
             // cv::Mat event_frame = cv::Mat::zeros(height, width, CV_8UC1);
-
             real_t blend_factor = 0.0;
             static real_t smoothed_blend_factor = 0.1;
             const real_t smoothing_alpha = 0.2;  // adjust for responsiveness vs smoothness (1 = no smoothing)
@@ -387,7 +386,7 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
                  float blend_scale_factor = 1 / FLAGS_max_event_blend;
                   blend_factor = (((event_rate - FLAGS_noise_event_rate) / FLAGS_max_event_rate)) / blend_scale_factor;
                   smoothed_blend_factor = smoothing_alpha * blend_factor + (1.0 - smoothing_alpha) * smoothed_blend_factor;
-                  smoothed_blend_factor = std::max(0.025, std::min(FLAGS_max_event_blend, smoothed_blend_factor));
+                  smoothed_blend_factor = std::max(FLAGS_min_event_blend, std::min(FLAGS_max_event_blend, smoothed_blend_factor));
             }
 
             cv::Mat decay_sum = cv::Mat::zeros(height, width, CV_32FC1);
@@ -423,32 +422,48 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
             event_frame.convertTo(event_frame, CV_8UC1);
             
             // Post Frame Build Processing
-            // event_frame = filterIsolatedEvents(event_frame, 3, 10);
+            // event_frame = filterIsolatedEvents(event_frame, 3, 10);  //Not applicable with events in TS
 
             comms_interface_->queueFrameEvents(event_frame.clone());
-    
 
+            // Use previous frame if static or too many events
+            static cv::Mat previous_event_frame = cv::Mat::zeros(height, width, CV_8UC1);
+            if((event_rate > FLAGS_noise_event_rate) && (event_rate < FLAGS_event_ignore_threshold))
+            {
+                // Valid event rate
+                previous_event_frame = event_frame.clone();
+            }
+            else
+            {
+                // Use previous valid event frame
+                event_frame = previous_event_frame.clone();
+            }
 
+            // Decide processed frame to pass in
             if (frame_type == EVENT_FRAME)
             {
                 if (!vio_manager_->initialized())
                 {
-                    processed_frame = frame.clone();
+                    //If uninitialised used a combined frame
+                    cv::addWeighted(frame, 0.80, event_frame, 0.20, 0, processed_frame);
                 }
                 else
                 {
+                    // Use the previous or current event frame
                     processed_frame = event_frame.clone();
                 }
             }
             else if (frame_type == COMBINED_FRAME)
             {
-                if(event_rate > FLAGS_noise_event_rate)
+                if(!vio_manager_->initialized())
                 {
-                    cv::addWeighted(frame, 1-smoothed_blend_factor, event_frame, smoothed_blend_factor, 0, processed_frame);
+                    // If uninitialised use fixed blended frame
+                    cv::addWeighted(frame, 1 - FLAGS_min_event_blend, event_frame, FLAGS_min_event_blend, 0, processed_frame);
                 }
                 else
                 {
-                    processed_frame = frame.clone();
+                    //Use dynamically blended frame
+                    cv::addWeighted(frame, 1-smoothed_blend_factor, event_frame, smoothed_blend_factor, 0, processed_frame);
                 }
                 comms_interface_->queueFrameAugmented(processed_frame);
             }

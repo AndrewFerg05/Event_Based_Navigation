@@ -4,3 +4,10 @@
 # 2 = Combined Frame
 
 frame_type: 1
+
+params:
+  noise_event_rate: 110000
+  event_ignore_threshold: 6000000
+  max_event_rate: 180000
+  max_event_blend: 0.4
+  min_event_blend: 0.2

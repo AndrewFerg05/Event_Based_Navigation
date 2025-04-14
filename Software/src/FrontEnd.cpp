@@ -428,15 +428,20 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
 
             // Use previous frame if static or too many events
             static cv::Mat previous_event_frame = cv::Mat::zeros(height, width, CV_8UC1);
-            if((event_rate > FLAGS_noise_event_rate) && (event_rate < FLAGS_event_ignore_threshold))
+            if (!event_frame.empty() &&
+            (event_rate > FLAGS_noise_event_rate) &&
+            (event_rate < FLAGS_event_ignore_threshold))
             {
-                // Valid event rate
                 previous_event_frame = event_frame.clone();
+            }
+            else if (!previous_event_frame.empty())
+            {
+                event_frame = previous_event_frame.clone();
             }
             else
             {
-                // Use previous valid event frame
-                event_frame = previous_event_frame.clone();
+                // As a fallback, initialize with black image
+                event_frame = cv::Mat::zeros(height, width, CV_8UC1);
             }
 
             // Decide processed frame to pass in

@@ -29,13 +29,13 @@ inline float FLAGS_timeshift_cam_imu = 0.0;   // IMU and Frame timestamp offset 
 inline int32_t FLAGS_data_sync_init_skip_n_frames = 0;          // How many frames should be skipped at the beginning
 
 //Frame Building flags to ignore stationary or extreme event rates
-inline int32_t FLAGS_noise_event_rate = 125000;             //Minimum event rate below which ignored - was tested
-inline int32_t FLAGS_event_ignore_threshold = 1500000;      //Maximum event rate above which ignored
+inline int32_t FLAGS_noise_event_rate = 0.11e+06;             //Minimum event rate below which ignored - was tested
+inline int32_t FLAGS_event_ignore_threshold = 6e+06;      //Maximum event rate above which ignored
 
 // Frame Blending flags
-inline int32_t FLAGS_max_event_rate = 250000;               //Level at which Maximum blend is used
-inline double FLAGS_max_event_blend = 0.25;                 //Maximum blend amount
-inline double FLAGS_min_event_blend = 0.05;                 //Maximum blend amount
+inline int32_t FLAGS_max_event_rate = 0.18e+06;               //Level at which Maximum blend is used
+inline double FLAGS_max_event_blend = 0.4;                 //Maximum blend amount
+inline double FLAGS_min_event_blend = 0.2;                 //Minimum blend amount
 //==============================================================================
 //      Function Prototypes
 //------------------------------------------------------------------------------

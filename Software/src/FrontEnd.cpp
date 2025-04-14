@@ -43,7 +43,7 @@ const int EVENT_FRAME_HEIGHT = 260;
 // Frames for event data and APS data
 cv::Mat event_frame = cv::Mat::zeros(EVENT_FRAME_HEIGHT, EVENT_FRAME_WIDTH, CV_32FC3);
 cv::Mat aps_frame;  // Will store the latest APS frame
-
+cv::Mat previous_event_frame = cv::Mat::zeros(EVENT_FRAME_HEIGHT, EVENT_FRAME_WIDTH, CV_8UC1);
 //==============================================================================
 // Functions
 //------------------------------------------------------------------------------
@@ -424,10 +424,11 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
             // Post Frame Build Processing
             // event_frame = filterIsolatedEvents(event_frame, 3, 10);  //Not applicable with events in TS
 
-            comms_interface_->queueFrameEvents(event_frame.clone());
+            // comms_interface_->queueFrameEvents(event_frame.clone());
 
+
+            LOG(INFO) << "Rate: " << event_rate;
             // Use previous frame if static or too many events
-            static cv::Mat previous_event_frame = cv::Mat::zeros(height, width, CV_8UC1);
             if (!event_frame.empty() &&
             (event_rate > FLAGS_noise_event_rate) &&
             (event_rate < FLAGS_event_ignore_threshold))
@@ -443,7 +444,7 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
                 // As a fallback, initialize with black image
                 event_frame = cv::Mat::zeros(height, width, CV_8UC1);
             }
-
+            comms_interface_->queueFrameEvents(event_frame.clone());
             // Decide processed frame to pass in
             if (frame_type == EVENT_FRAME)
             {
@@ -495,6 +496,8 @@ void FrontEnd::addData(
     const bool& no_motion_prior)
 {
 
+    if(!vioReady_) return;
+
     //Build Image frame to input to VIO frontend
     ov_core::CameraData camera_data;
     if(!buildImage(camera_data, stamped_image, stamped_events, imu_stamps, imu_accgyr, frame_config_))
@@ -502,8 +505,6 @@ void FrontEnd::addData(
         LOG(ERROR) << "FE: Error building frame";
         return;
     }
-
-    if(!vioReady_) return;
 
     vio_manager_->feed_measurement_camera(camera_data);
 

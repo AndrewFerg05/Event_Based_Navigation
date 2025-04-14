@@ -75,7 +75,7 @@ void CM_loop(
     struct gpiod_line *input_line, *output_line;
     bool GPIO_good = 1;
 
-    int32_t poseScaled[6] = {0, 0, 0, 0, 0, 0};
+    int32_t poseScaled[7] = {0, 0, 0, 0, 0, 0, 0};
 
     chip = gpiod_chip_open_by_name(CHIP_NAME);
     if (!chip) {
@@ -248,13 +248,14 @@ void CM_loop(
                 poseScaled[3] = (int32_t)(pose.yaw*100);
                 poseScaled[4] = (int32_t)(pose.pitch*100);
                 poseScaled[5] = (int32_t)(pose.roll*100);
+                poseScaled[6] = (int32_t)(pose.vel*100);
 
                 // LOG(INFO) << "CM: Pose made it with values (" <<
                 //  poseScaled[0] << "," << poseScaled[1]  << "," <<  poseScaled[2]  << ") and (" <<  
                 //  poseScaled[3] << "," <<  poseScaled[4] << "," <<  poseScaled[5] << ")";
 
                 //Transmit position estimate from BE
-                CM_transmitStatus(poseScaled[0], poseScaled[1], poseScaled[2], poseScaled[3], poseScaled[4], poseScaled[5], 0,
+                CM_transmitStatus(poseScaled[0], poseScaled[1], poseScaled[2], poseScaled[3], poseScaled[4], poseScaled[5], poseScaled[6],
                                   -1,
                                   -1, -1, -1);
 

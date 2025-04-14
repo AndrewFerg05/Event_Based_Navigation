@@ -508,12 +508,6 @@ void FrontEnd::addData(
             state->_imu->quat()(1),  // y
             state->_imu->quat()(2)   // z
         );
-        
-        // Log global pose
-        // LOG(INFO) << "Global Position: ["
-        //             << state->_imu->pos()(0) << ", " 
-        //             << state->_imu->pos()(1) << ", " 
-        //             << state->_imu->pos()(2) << "]";
 
         LOG(INFO) << "Global Position: ["
                     << -state->_imu->pos()(1) << ", "   // Correct X to Y
@@ -527,15 +521,6 @@ void FrontEnd::addData(
                     << orientation.y() << ", "
                     << orientation.z() << "]";
 
-        // Pose pose;
-        // pose.x = state->_imu->pos()(0);
-        // pose.y = state->_imu->pos()(1);
-        // pose.z = state->_imu->pos()(2);
-        // pose.yaw = orientation.x();
-        // pose.pitch = orientation.y();
-        // pose.roll = orientation.z();
-        // comms_interface_->queuePose(pose);
-
         Pose pose;
         pose.x = -state->_imu->pos()(1);  // Correct X to Y
         pose.y = state->_imu->pos()(0);   // Correct Y to X
@@ -543,6 +528,7 @@ void FrontEnd::addData(
         pose.yaw = orientation.x();
         pose.pitch = orientation.y();
         pose.roll = orientation.z();
+        pose.vel = std::pow((std::pow(state->_imu->vel()(1),2) + std::pow(state->_imu->vel()(1), 2)), 0.5);
         comms_interface_->queuePose(pose);
 
 

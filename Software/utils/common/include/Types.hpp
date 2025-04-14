@@ -120,6 +120,7 @@ struct Pose {
     double yaw = 0;
     double pitch = 0;
     double roll = 0;
+    double vel = 0;
 
     
 

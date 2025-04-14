@@ -475,6 +475,8 @@ void FrontEnd::addData(
     const bool& no_motion_prior)
 {
 
+    if(!vioReady_) return;
+    
     //Build Image frame to input to VIO frontend
     ov_core::CameraData camera_data;
     if(!buildImage(camera_data, stamped_image, stamped_events, imu_stamps, imu_accgyr, frame_config_))
@@ -482,8 +484,6 @@ void FrontEnd::addData(
         LOG(ERROR) << "FE: Error building frame";
         return;
     }
-
-    if(!vioReady_) return;
 
     vio_manager_->feed_measurement_camera(camera_data);
 

@@ -256,6 +256,25 @@ void FrontEnd::loadFrameType()
             if (frame_config["frame_type"]) {
                 frame_type = frame_config["frame_type"].as<int>();
             }
+                    // Load FrameProcessingParams from YAML
+            if (frame_config["params"]) {
+                YAML::Node param_node = frame_config["params"];
+
+                if (param_node["noise_event_rate"])
+                    params.noise_event_rate = param_node["noise_event_rate"].as<int32_t>();
+
+                if (param_node["event_ignore_threshold"])
+                    params.event_ignore_threshold = param_node["event_ignore_threshold"].as<int32_t>();
+
+                if (param_node["max_event_rate"])
+                    params.max_event_rate = param_node["max_event_rate"].as<int32_t>();
+
+                if (param_node["max_event_blend"])
+                    params.max_event_blend = param_node["max_event_blend"].as<double>();
+
+                if (param_node["min_event_blend"])
+                    params.min_event_blend = param_node["min_event_blend"].as<double>();
+            }
     
             LOG(INFO) << "FE: frane data loaded successfully";
     
@@ -383,10 +402,10 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
                 ((events_ptr->back().timestamp_ns -
                   events_ptr->at(events_ptr->size()-n_events_for_noise_detection).timestamp_ns) *1e-9); //Calculate Event/s
                 
-                 float blend_scale_factor = 1 / FLAGS_max_event_blend;
-                  blend_factor = (((event_rate - FLAGS_noise_event_rate) / FLAGS_max_event_rate)) / blend_scale_factor;
+                 float blend_scale_factor = 1 / params.max_event_blend;
+                  blend_factor = (((event_rate - params.noise_event_rate) / params.max_event_rate)) / blend_scale_factor;
                   smoothed_blend_factor = smoothing_alpha * blend_factor + (1.0 - smoothing_alpha) * smoothed_blend_factor;
-                  smoothed_blend_factor = std::max(FLAGS_min_event_blend, std::min(FLAGS_max_event_blend, smoothed_blend_factor));
+                  smoothed_blend_factor = std::max(params.min_event_blend, std::min(params.max_event_blend, smoothed_blend_factor));
             }
 
             cv::Mat decay_sum = cv::Mat::zeros(height, width, CV_32FC1);
@@ -430,8 +449,8 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
             LOG(INFO) << "Rate: " << event_rate;
             // Use previous frame if static or too many events
             if (!event_frame.empty() &&
-            (event_rate > FLAGS_noise_event_rate) &&
-            (event_rate < FLAGS_event_ignore_threshold))
+            (event_rate > params.noise_event_rate) &&
+            (event_rate < params.event_ignore_threshold))
             {
                 previous_event_frame = event_frame.clone();
             }
@@ -464,7 +483,7 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
                 if(!vio_manager_->initialized())
                 {
                     // If uninitialised use fixed blended frame
-                    cv::addWeighted(frame, 1 - FLAGS_min_event_blend, event_frame, FLAGS_min_event_blend, 0, processed_frame);
+                    cv::addWeighted(frame, 1 - params.min_event_blend, event_frame, params.min_event_blend, 0, processed_frame);
                 }
                 else
                 {

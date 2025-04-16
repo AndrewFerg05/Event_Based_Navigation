@@ -38,57 +38,76 @@ Change History
 //------------------------------------------------------------------------------
 
 
-ImageData CommunicationManager::getFrameData()
+cv::Mat CommunicationManager::getFrameCamera()
 {
     // Return latest from FIFO
-    if (auto data = from_camera.pop()) {
+    if (auto data = framesCamera.pop()) {
         return data.value();
     }
     else {
-        ImageData nothing;
+        cv::Mat nothing;
         return nothing;
     }
 }
 
-TrackedFrames CommunicationManager::getTrackedFrameData()
+cv::Mat CommunicationManager::getFrameEvents()
 {
     // Return latest from FIFO
-    if (auto data = from_frontend.pop()) {
+    if (auto data = framesEvents.pop()) {
         return data.value();
     }
     else {
-        TrackedFrames nothing;
+        cv::Mat nothing;
         return nothing;
     }
 }
 
-OtherData CommunicationManager::getOtherData()
+cv::Mat CommunicationManager::getFrameAugmented()
 {
     // Return latest from FIFO
-    if (auto data = from_backend.pop()) {
+    if (auto data = framesAugmented.pop()) {
         return data.value();
     }
     else {
-        OtherData nothing;
-        return 0;
+        cv::Mat nothing;
+        return nothing;
+    }
+}
+
+Pose CommunicationManager::getPose()
+{
+    // Return latest from FIFO
+    if (auto data = pose.pop()) {
+        return data.value();
+    }
+    else {
+        Pose nothing;
+        return nothing;
     }
 }
 
 
-void CommunicationManager::queueFrameData(ImageData data)
+void CommunicationManager::queueFrameCamera(cv::Mat data)
 {
-    from_camera.push(data);
-    LOG(INFO) << "DA: Frame pushed to CM";
+    framesCamera.push(data);
+    // LOG(INFO) << "TI: Camera Frame pushed to CM";
 }
 
 
-void CommunicationManager::queueTrackedFrameData(TrackedFrames data){
-    from_frontend.push(data);
+void CommunicationManager::queueFrameEvents(cv::Mat data){
+    framesEvents.push(data);
+    // LOG(INFO) << "TI: Event Frame pushed to CM";
 }
 
+void CommunicationManager::queueFrameAugmented(cv::Mat data)
+{
+    framesAugmented.push(data);
+    // LOG(INFO) << "TI: Augmented Frame pushed to CM";
+}
 
-void CommunicationManager::queueOther(OtherData data){
-    from_backend.push(data);
+void CommunicationManager::queuePose(Pose data){
+    pose.push(data);
+    // LOG(INFO) << "TI: Pose pushed to CM";
 }
 
 //==============================================================================

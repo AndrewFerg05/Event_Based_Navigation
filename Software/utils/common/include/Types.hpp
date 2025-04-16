@@ -112,6 +112,31 @@ struct TrackedFrames {
     TrackedFrames() = default;
 };
 
+//------------------------------------------------------------------------------
+struct Pose {
+    double x = 0;
+    double y = 0;
+    double z = 0;
+    double yaw = 0;
+    double pitch = 0;
+    double roll = 0;
+    double vel = 0;
+
+    
+
+    // Constructor
+    Pose() = default;
+};
+
+
+//------------------------------------------------------------------------------
+enum FrameType {
+    REGULAR_FRAME,
+    EVENT_FRAME,
+    COMBINED_FRAME
+};
+
+
 #endif  // TYPE_ALIASES_HPP
 //==============================================================================
 // End of File :  Software/include/TYPE_ALIASES_HPP.hpp

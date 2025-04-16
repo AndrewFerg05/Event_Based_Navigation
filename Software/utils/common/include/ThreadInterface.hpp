@@ -41,11 +41,14 @@ Change History
 #include <atomic>
 #include <condition_variable>
 #include <optional>
+#include <opencv2/opencv.hpp>
 
 #include "TypeAliases.hpp"
 #include "Types.hpp"
 #include "Flags.hpp"
 #include "Logging.hpp"
+
+
 //==============================================================================
 //      Classes
 //------------------------------------------------------------------------------
@@ -156,27 +159,32 @@ class CommunicationManager
 {
     private:
         // Queues for different data types
-        ThreadSafeFIFO<ImageData> from_camera;
-        ThreadSafeFIFO<TrackedFrames> from_frontend;
-        ThreadSafeFIFO<OtherData> from_backend;
+        ThreadSafeFIFO<cv::Mat> framesCamera;
+        ThreadSafeFIFO<cv::Mat> framesEvents;
+        ThreadSafeFIFO<cv::Mat> framesAugmented;
+        ThreadSafeFIFO<Pose> pose;
+
     public:
         //Constructor sets size of each input queue
-        CommunicationManager(size_t queue_size_1, size_t queue_size_2, size_t queue_size_3)
-            : from_camera(queue_size_1, "Comms_1", false),
-            from_frontend(queue_size_2, "Comms_2", false),
-            from_backend(queue_size_3, "Comms_3", false)
+        CommunicationManager(size_t queue_size_1, size_t queue_size_2, size_t queue_size_3, size_t queue_size_4)
+            : framesCamera(queue_size_1, "Comms_1", false),
+            framesEvents(queue_size_2, "Comms_2", false),
+            framesAugmented(queue_size_3, "Comms_3", false),
+            pose(queue_size_4, "Comms_4", false)
         {}
         ~CommunicationManager() = default;
 
         //Check queues and send data
-        ImageData getFrameData();
-        TrackedFrames getTrackedFrameData();
-        OtherData getOtherData();
+        cv::Mat getFrameCamera();
+        cv::Mat getFrameEvents();
+        cv::Mat getFrameAugmented();
+        Pose getPose();
 
         // Add data to send queue
-        void queueFrameData(ImageData data);
-        void queueTrackedFrameData(TrackedFrames data);
-        void queueOther(OtherData data);
+        void queueFrameCamera(cv::Mat data);
+        void queueFrameEvents(cv::Mat data);
+        void queueFrameAugmented(cv::Mat data);
+        void queuePose(Pose data);
     };
 //==============================================================================
 //      Function Prototypes

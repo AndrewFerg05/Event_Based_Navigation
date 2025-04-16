@@ -44,136 +44,184 @@ const int EVENT_FRAME_HEIGHT = 260;
 cv::Mat event_frame = cv::Mat::zeros(EVENT_FRAME_HEIGHT, EVENT_FRAME_WIDTH, CV_32FC3);
 cv::Mat aps_frame;  // Will store the latest APS frame
 
-// Function to display events from each incoming packet separately
-void displayStampedEvents(const StampedEventArray& stamped_events) {
-    // Clear the event frame at the start of each function call
-    event_frame = cv::Mat::zeros(EVENT_FRAME_HEIGHT, EVENT_FRAME_WIDTH, CV_32FC3);
-
-    // Extract timestamp and event array pointer
-    int64_t timestamp = stamped_events.first;
-    EventArrayPtr eventArrayPtr = stamped_events.second;
-
-    if (!eventArrayPtr || eventArrayPtr->empty()) {
-        std::cerr << "Warning: No events received at timestamp " << timestamp << std::endl;
-        return;
-    }
-
-    // Iterate through all events and plot them on the event_frame
-    for (const Event& e : *eventArrayPtr) {
-        if (e.x >= EVENT_FRAME_WIDTH || e.y >= EVENT_FRAME_HEIGHT) {
-            continue;  // Ignore out-of-bounds events
-        }
-
-        // Set pixel intensity based on event polarity
-        if (e.polarity) {
-            event_frame.at<cv::Vec3f>(e.y, e.x) = cv::Vec3f(1.0f, 1.0f, 1.0f); // ON events → White
-        } else {
-            event_frame.at<cv::Vec3f>(e.y, e.x) = cv::Vec3f(0.0f, 0.0f, 1.0f); // OFF events → Blue
-        }
-    }
-
-    // Convert event frame to 8-bit (CV_8UC3)
-    cv::Mat event_frame_8bit;
-    event_frame.convertTo(event_frame_8bit, CV_8UC3, 255.0); // Scale float to 8-bit
-
-    // Display the cleaned event frame
-    cv::imshow("Processed Event Frame", event_frame_8bit);
-
-    // Short delay for smooth video playback
-    cv::waitKey(1);
-}
-
-// Function to display images in a continuous video stream
-void displayStampedImage(const StampedImage& stamped_image) {
-    // Extract timestamp and image pointer
-    int64_t timestamp = stamped_image.first;
-    ImagePtr imagePtr = stamped_image.second;
-
-    if (!imagePtr) {
-        std::cerr << "Error: Image pointer is null!" << std::endl;
-        return;
-    }
-
-    // Extract image properties
-    int width = imagePtr->width;
-    int height = imagePtr->height;
-    std::string encoding = imagePtr->encoding;
-    std::vector<uint8_t> data = imagePtr->data;
-
-    if (data.empty()) {
-        std::cerr << "Error: Image data is empty!" << std::endl;
-        return;
-    }
-
-    // Convert the data vector to cv::Mat
-    if (encoding == "mono8") {
-        aps_frame = cv::Mat(height, width, CV_8UC1, data.data());
-        cv::cvtColor(aps_frame, aps_frame, cv::COLOR_GRAY2BGR);  // Convert grayscale to 3-channel BGR
-    } else if (encoding == "rgb8") {
-        cv::Mat temp = cv::Mat(height, width, CV_8UC3, data.data());
-        cv::cvtColor(temp, aps_frame, cv::COLOR_RGB2BGR); // Convert RGB to OpenCV's BGR
-    } else {
-        std::cerr << "Error: Unsupported encoding format: " << encoding << std::endl;
-        return;
-    }
-
-    // Display the APS image
-    cv::imshow("Stamped Image Stream", aps_frame);
-    
-    // Short delay to allow OpenCV to refresh the display
-    cv::waitKey(1);  // 1ms delay, ensures smooth video playback
-}
-
-void displayCombinedFrame() {
-    if (aps_frame.empty() || event_frame.empty()) {
-        std::cerr << "Warning: One or both frames are empty!" << std::endl;
-        return;
-    }
-
-    // Ensure both images are the same size
-    if (aps_frame.size() != event_frame.size()) {
-        cv::resize(aps_frame, aps_frame, event_frame.size());
-    }
-
-    // Convert event_frame to 8-bit (CV_8UC3) for blending
-    cv::Mat event_frame_8bit;
-    event_frame.convertTo(event_frame_8bit, CV_8UC3, 255.0); // Scale float to 8-bit
-
-    // Blend APS frame with event frame
-    cv::Mat combined_frame;
-    cv::addWeighted(aps_frame, 0.7, event_frame_8bit, 0.5, 0, combined_frame);
-    return;
-    // Display the combined frame
-    cv::imshow("Combined Event + APS Frame", combined_frame);
-
-    // Short delay for smooth video playback
-    cv::waitKey(1);
-}
-
 //==============================================================================
 // Functions
 //------------------------------------------------------------------------------
+
+#include <opencv2/opencv.hpp>
+#include <vector>
+
+cv::Mat closeEvents(cv::Mat frame, int dilation_size, int event_type)
+{
+    cv::Mat binary_mask = cv::Mat::zeros(EVENT_FRAME_HEIGHT, EVENT_FRAME_WIDTH, CV_8UC1);
+    binary_mask.setTo(1, frame == event_type);
+
+    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE,  
+                        cv::Size(dilation_size, dilation_size));    
+
+    cv::Mat closed;
+    cv::morphologyEx(binary_mask, closed, cv::MORPH_CLOSE, kernel);
+
+    frame.setTo(event_type, closed);
+
+    return frame;
+}
+
+cv::Mat filterIsolatedEvents(cv::Mat frame, int max_distance, int min_neighbours)
+{
+    // All Event Mask
+    cv::Mat binary_mask = cv::Mat::zeros(EVENT_FRAME_HEIGHT, EVENT_FRAME_WIDTH, CV_32F);
+
+    // ON Event Mask (255)
+    cv::Mat on_mask = (frame == 255) / 255; // Convert to binary: 1 = ON, 0 otherwise
+
+    cv::Mat neighbour_count;
+    int kernel_size = 2 * max_distance + 1;
+    cv::boxFilter(on_mask, neighbour_count, CV_32F, cv::Size(kernel_size, kernel_size), cv::Point(-1, -1), false);
+    neighbour_count.setTo(0, on_mask == 0);
+
+    binary_mask += neighbour_count;
+
+    // OFF Event Mask (128)
+    cv::Mat off_mask = (frame == 128) / 128; // Convert to binary: 1 = OFF, 0 otherwise
+
+    cv::boxFilter(off_mask, neighbour_count, CV_32F, cv::Size(kernel_size, kernel_size), cv::Point(-1, -1), false);
+    neighbour_count.setTo(0, off_mask == 0);
+
+    binary_mask += neighbour_count;
+
+    // Set isolated ON events to background (0)
+    cv::Mat mask_on_isolated;
+    cv::compare(binary_mask, min_neighbours, mask_on_isolated, cv::CMP_LT);
+    frame.setTo(0, mask_on_isolated & (frame == 255));
+
+    // Set isolated OFF events to background (0)
+    frame.setTo(0, mask_on_isolated & (frame == 128));
+    // frame.setTo(255, frame == 128);
+    return frame;
+}
+
+cv::Mat motionComp_byAvg(cv::Mat aps, cv::Mat events) {
+    int m = aps.rows;
+    int n = aps.cols;
+    
+    for (int i = 0; i < m; i++)
+    {
+        events.at<uchar>(i,0) = 255;
+        events.at<uchar>(i,n-1) = 255;
+    }
+
+    for (int i = 0; i < n; i++)
+    {
+        events.at<uchar>(0,i) = 255;
+        events.at<uchar>(m-1,i) = 255;
+    }
+
+    cv::Mat hoizontalComp = cv::Mat::zeros(m, n, CV_8UC1);
+    cv::Mat verticalComp = cv::Mat::zeros(m, n, CV_8UC1);
+    cv::Mat diagRLComp = cv::Mat::zeros(m, n, CV_8UC1);
+    cv::Mat diagLRComp = cv::Mat::zeros(m, n, CV_8UC1);
+
+    // Determine average horizontally
+    for (int x = 0; x < m; x++) {
+        int sum = 0;
+        int start = 0;
+        for (int y = 0; y < n; y++) {
+            sum += aps.at<uchar>(x, y);
+            if (events.at<uchar>(x, y) == 255) {
+                int avg = sum / (y - start + 1);
+                for (int k = start; k <= y; k++) {
+                    hoizontalComp.at<uchar>(x, k) = static_cast<uchar>(avg);
+                }
+                start = y + 1;
+                sum = 0;
+            }
+        }
+    }
+
+    // Determine average vertically
+    for (int y = 0; y < n; y++) {
+        int sum = 0;
+        int start = 0;
+        for (int x = 0; x < m; x++) {
+            sum += aps.at<uchar>(x, y);
+            if (events.at<uchar>(x, y) == 255) {
+                int avg = sum / (x - start + 1);
+                for (int k = start; k <= x; k++) {
+                    verticalComp.at<uchar>(k, y) = static_cast<uchar>(avg);
+                }
+                start = x + 1;
+                sum = 0;
+            }
+        }
+    }
+
+    // Diagonal average LR (\)
+    for (int d = 0; d < (m + n - 1); ++d) {
+        int sum = 0;
+        std::vector<cv::Point> indices;
+        for (int x = std::max(0, d - n + 1); x < std::min(m, d + 1); ++x) {
+            int y = d - x;
+            sum += aps.at<uchar>(x, y);
+            indices.emplace_back(x, y);
+            if (events.at<uchar>(x, y) == 255) {
+                int avg = sum / indices.size();
+                for (const auto& idx : indices) {
+                    diagLRComp.at<uchar>(idx.x, idx.y) = static_cast<uchar>(avg);
+                }
+                sum = 0;
+                indices.clear();
+            }
+        }
+    }
+
+    // Diagonal average RL (/)
+    for (int d = 0; d < (m + n - 1); ++d) {
+        int sum = 0;
+        std::vector<cv::Point> indices;
+        for (int x = std::max(0, d - n + 1); x < std::min(m, d + 1); ++x) {
+            int y = n - 1 - (d - x);
+            sum += aps.at<uchar>(x, y);
+            indices.emplace_back(x, y);
+            if (events.at<uchar>(x, y) == 255) {
+                int avg = sum / indices.size();
+                for (const auto& idx : indices) {
+                    diagRLComp.at<uchar>(idx.x, idx.y) = static_cast<uchar>(avg);
+                }
+                sum = 0;
+                indices.clear();
+            }
+        }
+    }
+
+    // Combine the four processed images
+    cv::Mat motionComp = (hoizontalComp + verticalComp + diagLRComp + diagRLComp) / 4;
+    return motionComp;
+}
 
 
 FrontEnd::FrontEnd(std::shared_ptr<CommunicationManager> comms, const std::string& config_path)
     : comms_interface_(comms), config_path_(config_path)
     {
-        setupVIO();
+        // setupVIO();
+        loadFrameType();
     }
 
 void FrontEnd::start()
 {
-
+    setupVIO();
 }
 
 void FrontEnd::idle()
 {
-    
+    vioReady_ = false;
+    vio_manager_.reset(); 
 }
 
 void FrontEnd::stop()
 {
-    
+    vioReady_ = false;
+    vio_manager_.reset(); 
 }
 
 void FrontEnd::setupVIO()
@@ -193,7 +241,46 @@ void FrontEnd::setupVIO()
     if (!parser->successful()) {
       LOG(FATAL) << "FE: Unable to parse all parameters";
     }
+
+    vioReady_ = true;
 }
+
+void FrontEnd::loadFrameType()
+    {
+        std::string frame_config_file = "../config/frame_type_configuration.yaml";
+        int frame_type = 3;
+        try {
+            YAML::Node frame_config = YAML::LoadFile(frame_config_file);
+
+            // Extract frame Type
+            if (frame_config["frame_type"]) {
+                frame_type = frame_config["frame_type"].as<int>();
+            }
+    
+            LOG(INFO) << "FE: frane data loaded successfully";
+    
+        } catch (const std::exception &e) {
+            LOG(ERROR) << "FE: Error loading frame file: " << e.what() ;
+        }
+
+        switch (frame_type) 
+        {
+            case 0:  
+                frame_config_ = REGULAR_FRAME;
+                break;
+            case 1:  
+                frame_config_ = EVENT_FRAME;
+                break;
+            case 2:  
+                frame_config_ = COMBINED_FRAME;
+                break;
+            default: 
+                frame_config_ = COMBINED_FRAME;
+                break;
+        }
+        
+        LOG(INFO) << "FE: Loaded frame Format: " << frame_config_;
+    }
 
 void FrontEnd::initState(int64_t stamp, const Vector3& acc, const Vector3& gyr)
 {
@@ -242,44 +329,143 @@ bool FrontEnd::buildImage(ov_core::CameraData& camera_data,
     const StampedImage& stamped_image,
     const StampedEventArray& stamped_events,
     const ImuStamps& imu_stamps,
-    const ImuAccGyrContainer& imu_accgyr)
-{
-    double timestamp = stamped_image.first / 1e9;  // Convert nanoseconds to seconds
-    ImagePtr imagePtr = stamped_image.second;
-
-    if (!imagePtr)
+    const ImuAccGyrContainer& imu_accgyr,
+    FrameType frame_type)
     {
-        LOG(ERROR) << "FE: Error: Null ImagePtr!";
-        return false;
+        double timestamp = stamped_image.first / 1e9;  // Convert nanoseconds to seconds
+        ImagePtr imagePtr = stamped_image.second;
+    
+        if (!imagePtr)
+        {
+            LOG(ERROR) << "FE: Error: Null ImagePtr!";
+            return false;
+        }
+    
+        int width = imagePtr->width;
+        int height = imagePtr->height;
+        std::string encoding = imagePtr->encoding;
+    
+        if (imagePtr->data.empty())
+        {
+            LOG(ERROR) << "FE: Error: Image data is empty!";
+            return false;
+        }
+    
+        // Convert APS image (ensure grayscale)
+        cv::Mat frame;
+        if (encoding == "mono8") {
+            frame = cv::Mat(height, width, CV_8UC1, imagePtr->data.data()).clone();
+            comms_interface_->queueFrameCamera(frame);
+        }
+        else 
+        {
+            LOG(ERROR) << "FE: Unsupported encoding format: " << encoding;
+            return false;
+        }
+    
+        cv::Mat processed_frame = frame.clone();
+    
+        // Process event data if needed
+        if (frame_type == EVENT_FRAME || frame_type == COMBINED_FRAME)
+        {
+            // cv::Mat event_frame = cv::Mat::zeros(height, width, CV_8UC1);
+
+            real_t blend_factor = 0.0;
+            static real_t smoothed_blend_factor = 0.1;
+            const real_t smoothing_alpha = 0.2;  // adjust for responsiveness vs smoothness (1 = no smoothing)
+            real_t event_rate; 
+    
+            if (!stamped_events.second->empty()) 
+            {
+                const EventArrayPtr& events_ptr = stamped_events.second;
+                size_t n_events_for_noise_detection = std::min(events_ptr->size(), size_t(2000));
+
+                event_rate = n_events_for_noise_detection /
+                ((events_ptr->back().timestamp_ns -
+                  events_ptr->at(events_ptr->size()-n_events_for_noise_detection).timestamp_ns) *1e-9); //Calculate Event/s
+                
+                 float blend_scale_factor = 1 / FLAGS_max_event_blend;
+                  blend_factor = (((event_rate - FLAGS_noise_event_rate) / FLAGS_max_event_rate)) / blend_scale_factor;
+                  smoothed_blend_factor = smoothing_alpha * blend_factor + (1.0 - smoothing_alpha) * smoothed_blend_factor;
+                  smoothed_blend_factor = std::max(0.025, std::min(FLAGS_max_event_blend, smoothed_blend_factor));
+            }
+
+            cv::Mat decay_sum = cv::Mat::zeros(height, width, CV_32FC1);
+            cv::Mat decay_count = cv::Mat::zeros(height, width, CV_32FC1);
+            
+            // Parameters
+            const double tau = 5e7; // Decay constant in nanoseconds
+            int64_t now_ts = stamped_image.first; // Current image timestamp
+            
+            for (const auto& event : *stamped_events.second) {
+                int x = event.x;
+                int y = event.y;
+                if (x >= 0 && x < width && y >= 0 && y < height) {
+                    double delta_t = static_cast<double>(now_ts - event.timestamp_ns);
+                    float decay_value = std::exp(-delta_t / tau);
+            
+                    decay_sum.at<float>(y, x) += decay_value;
+                    decay_count.at<float>(y, x) += 1.0f;
+                }
+            }
+
+            // Avoid division by zero
+            cv::Mat safe_count;
+            cv::max(decay_count, 1.0f, safe_count);
+            
+            // Average decay values per pixel
+            cv::Mat time_surface;
+            cv::divide(decay_sum, safe_count, time_surface);
+            
+            // Normalize and convert to 8-bit image
+            cv::Mat event_frame;
+            cv::normalize(time_surface, event_frame, 0.0, 255.0, cv::NORM_MINMAX);
+            event_frame.convertTo(event_frame, CV_8UC1);
+            
+            // Post Frame Build Processing
+            // event_frame = filterIsolatedEvents(event_frame, 3, 10);
+
+            comms_interface_->queueFrameEvents(event_frame.clone());
+    
+
+
+            if (frame_type == EVENT_FRAME)
+            {
+                if (!vio_manager_->initialized())
+                {
+                    processed_frame = frame.clone();
+                }
+                else
+                {
+                    processed_frame = event_frame.clone();
+                }
+            }
+            else if (frame_type == COMBINED_FRAME)
+            {
+                if(event_rate > FLAGS_noise_event_rate)
+                {
+                    cv::addWeighted(frame, 1-smoothed_blend_factor, event_frame, smoothed_blend_factor, 0, processed_frame);
+                }
+                else
+                {
+                    processed_frame = frame.clone();
+                }
+                comms_interface_->queueFrameAugmented(processed_frame);
+            }
+        }
+
+        
+        // Store results in camera data
+        camera_data.timestamp = timestamp;
+        camera_data.sensor_ids.push_back(0);  // Assuming single-camera setup (ID=0)
+        camera_data.images.push_back(processed_frame);
+        camera_data.masks.push_back(cv::Mat::zeros(height, width, CV_8UC1)); // Adding blank mask
+
+        //Tests to display processed frame - Have to run DA in main thread to do this
+        // cv::imshow("Processed Frame", processed_frame);
+        // cv::waitKey(1);
+        return true;
     }
-
-    cv::Mat frame;
-    int width = imagePtr->width;
-    int height = imagePtr->height;
-    std::string encoding = imagePtr->encoding;
-
-    if (imagePtr->data.empty())
-    {
-        LOG(ERROR) << "FE: Error: Image data is empty!";
-        return false;
-    }
-
-    if (encoding == "mono8") {
-        frame = cv::Mat(height, width, CV_8UC1, imagePtr->data.data());
-    }
-    else 
-    {
-        LOG(ERROR) << "FE: Unsupported encoding format: " << encoding;
-        return false;
-    }
-
-    camera_data.timestamp = timestamp;    // Set timestamp
-    camera_data.sensor_ids.push_back(0);  // Assuming single-camera setup (ID=0)
-    camera_data.images.push_back(frame);  // Add converted image
-    camera_data.masks.push_back(cv::Mat::zeros(height, width, CV_8UC1)); //Adding blank mask as errors otherwise
-
-    return true;
-}
 
 void FrontEnd::addData(
     const StampedImage& stamped_image,
@@ -288,15 +474,12 @@ void FrontEnd::addData(
     const ImuAccGyrContainer& imu_accgyr,
     const bool& no_motion_prior)
 {
-    // initState does not work - not sure if needed
-    // if (!stateInitialised_)
-    // {
-    //     return;
-    // }
 
+    if(!vioReady_) return;
+    
     //Build Image frame to input to VIO frontend
     ov_core::CameraData camera_data;
-    if(!buildImage(camera_data, stamped_image, stamped_events, imu_stamps, imu_accgyr))
+    if(!buildImage(camera_data, stamped_image, stamped_events, imu_stamps, imu_accgyr, frame_config_))
     {
         LOG(ERROR) << "FE: Error building frame";
         return;
@@ -304,29 +487,64 @@ void FrontEnd::addData(
 
     vio_manager_->feed_measurement_camera(camera_data);
 
+    if (!vio_manager_->initialized())
+    {
+        return;
+    }
+
     // Log global position - Check
     auto state = vio_manager_->get_state();
 
-    if (state) 
+    // Check if state is valid before accessing
+    if (state && state->_imu)
     {
-        std::lock_guard<std::mutex> lock(state->_mutex_state);
-    
-        // Retrieve global position
-        Eigen::Vector3d global_position = state->_imu->pos(); 
-    
-        LOG(INFO) << "Global Position: " << global_position.transpose();
+        Eigen::Vector3d position = state->_imu->pos();  // Global position (x, y, z)
+        Eigen::Vector3d velocity = state->_imu->vel();  // Global velocity
+        std::vector<Eigen::Vector3d> slam_landmarks = vio_manager_->get_features_SLAM(); //Current SLAM features
+
+        Eigen::Quaterniond orientation(
+            state->_imu->quat()(3),  // w
+            state->_imu->quat()(0),  // x
+            state->_imu->quat()(1),  // y
+            state->_imu->quat()(2)   // z
+        );
+
+        LOG(INFO) << "Global Position: ["
+                    << -state->_imu->pos()(1) << ", "   // Correct X to Y
+                    << state->_imu->pos()(0) << ", "    // Correct Y to X
+                    << state->_imu->pos()(2) << "]";    // Z-axis remains the same
+
+
+        LOG(INFO) << "Global Orientation (Quaternion): ["
+                    << orientation.w() << ", "
+                    << orientation.x() << ", "
+                    << orientation.y() << ", "
+                    << orientation.z() << "]";
+
+        Pose pose;
+        pose.x = -state->_imu->pos()(1);  // Correct X to Y
+        pose.y = state->_imu->pos()(0);   // Correct Y to X
+        pose.z = state->_imu->pos()(2);   // Z remains the same
+        pose.yaw = orientation.x();
+        pose.pitch = orientation.y();
+        pose.roll = orientation.z();
+        pose.vel = std::pow((std::pow(state->_imu->vel()(1),2) + std::pow(state->_imu->vel()(1), 2)), 0.5);
+        comms_interface_->queuePose(pose);
+
+
+
     }
+    else
+    {
+        LOG(WARNING) << "VIO state is not initialized yet.";
+    }
+
+
 }
 
 void FrontEnd::addImuData(
     int64_t stamp, const Vector3& acc, const Vector3& gyr)
 {
-    // initState does not work  - not sure if needed
-    // if (!stateInitialised_)
-    // {
-    //     initState(stamp, acc, gyr);
-    //     return;
-    // }
 
     ov_core::ImuData imu_data;
     imu_data.timestamp = static_cast<double>(stamp) / 1e9;  // Convert nanoseconds to seconds
@@ -334,6 +552,8 @@ void FrontEnd::addImuData(
     imu_data.wm << gyr.x(), gyr.y(), gyr.z();  // Angular velocity (rad/s)
     imu_data.am << acc.x(), acc.y(), acc.z();  // Linear acceleration (m/s²)
 
+    if(!vioReady_) return;
+    
     vio_manager_->feed_measurement_imu(imu_data);
 }
 //==============================================================================

@@ -38,15 +38,20 @@ Change History
 
 #include <cstring>
 #include <cstdlib>
+#include <cstdio>
 #include <unistd.h>
 
 #include <libserialport.h>
+#include <gpiod.h>
 
 #include "DataAcquisition.hpp"
+#include "FrontEnd.hpp"
+#include "DavisDriver.hpp"
 #include "ThreadInterface.hpp"
 #include "TypeAliases.hpp"
 #include "Types.hpp"
 #include "Logging.hpp"
+
 //==============================================================================
 //      Classes
 //------------------------------------------------------------------------------
@@ -80,21 +85,26 @@ void CM_cleanupNet();
 
 std::uint8_t CM_serialReceive(CM_serialInterface* serial);
 
+void CM_serialSendState(CM_serialInterface* serial, int32_t state);
+
+void CM_serialSendCalib(CM_serialInterface* serial, int32_t power);
+
 void CM_serialSendStatus(CM_serialInterface* serial, int32_t x, int32_t y);
 
-void CM_transmitStatus(int32_t x, int32_t y, int32_t z, int32_t yaw, int32_t pitch, int32_t roll);
+void CM_transmitStatus(int32_t x, int32_t y, int32_t z, int32_t yaw, int32_t pitch, int32_t roll, int32_t vel,
+                       int32_t state,
+                       int32_t feat_x, int32_t feat_y, int32_t feat_z);
 
 void CM_loop(
-    std::atomic<ThreadState>& data_sync_state,
-    std::atomic<ThreadState>& frontend_state,
-    std::atomic<ThreadState>& backend_state,
-    ThreadSafeFIFO<InputDataSync>* data_DA,
-    DataAcquisition* dataAcquistion_,
+    std::shared_ptr<DavisDriver> driver_,
+    std::shared_ptr<DataAcquisition> dataAcquistion_,
+    std::shared_ptr<FrontEnd> frontEnd_,
     std::shared_ptr<CommunicationManager> comms,
     CM_serialInterface* serial);
 
 void CM_transmitFrame(cv::Mat frame, int frame_id);
 
+void CM_setupGPIO();
 
 #endif  // COMMUNICATION_HPP
 //==============================================================================

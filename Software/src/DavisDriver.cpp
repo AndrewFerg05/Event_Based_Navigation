@@ -626,7 +626,7 @@ void DavisDriver::changeDvsParameters()
             caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_OFFBN,
                                 caerBiasCoarseFineGenerate(CF_N_TYPE(config_manager_.OFFBn_coarse, config_manager_.OFFBn_fine)));
             caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_PIXINVBN,
-                                caerBiasCoarseFineGenerate(CF_N_TYPE(5, 129)));
+                                caerBiasCoarseFineGenerate(CF_N_TYPE(6, 144)));
             caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_PRBP,
                                 caerBiasCoarseFineGenerate(CF_P_TYPE(config_manager_.PrBp_coarse, config_manager_.PrBp_fine)));
             caerDeviceConfigSet(davis_handle_, DAVIS_CONFIG_BIAS, DAVIS346_CONFIG_BIAS_PRSFBP,

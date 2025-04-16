@@ -136,7 +136,7 @@ void DataAcquisition::addImageData(const ImageData& image_data)
     int64_t stamp = image_data.header.stamp;
 
     // Correct for timestamp delay between IMU and Frames.
-    stamp += timeshift_cam_imu_;
+    // stamp += timeshift_cam_imu_;
 
     //Skip the first N frames
     if (sync_frame_count_ < FLAGS_data_sync_init_skip_n_frames)
@@ -417,7 +417,7 @@ void DataAcquisition::checkSynch()
     // If not return, and wait until the event buffer is filled until this
     // timestamp.
     StampedEventArray event_array;
-    static constexpr uint64_t kCollectEventsTimeoutNs = 100000u;
+    static constexpr uint64_t kCollectEventsTimeoutNs = 10000u;
     static EggTimer timer (kCollectEventsTimeoutNs);
     static bool start_timer = true;
     const int64_t& last_event_timestamp = static_cast<int64_t>(event_buffer_.back().timestamp_ns);

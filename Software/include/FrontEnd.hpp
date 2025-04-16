@@ -25,6 +25,7 @@ Change History
 #include <open_vins/core/VioManagerOptions.h>
 #include <open_vins/core/VioManager.h>
 #include <open_vins/state/State.h>
+#include <yaml-cpp/yaml.h>
 
 
 
@@ -59,10 +60,15 @@ class FrontEnd
         const StampedImage& stamped_image,
         const StampedEventArray& stamped_events,
         const ImuStamps& imu_stamps,
-        const ImuAccGyrContainer& imu_accgyr);
+        const ImuAccGyrContainer& imu_accgyr,
+        FrameType frame_type);
+
+    void loadFrameType();
 
     private:
+    FrameType frame_config_ = COMBINED_FRAME;
     std::atomic<bool> stateInitialised_{false};
+    std::atomic<bool> vioReady_{false};
     std::shared_ptr<CommunicationManager> comms_interface_;
     std::shared_ptr<ov_msckf::VioManager> vio_manager_; // OpenVINS VIO manager
     std::string config_path_; // Configuration file path

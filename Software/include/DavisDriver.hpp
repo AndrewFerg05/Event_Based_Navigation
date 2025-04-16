@@ -148,7 +148,7 @@ private:
   struct caer_davis_info davis_info_;
 
   std::atomic<bool> running_{false};  
-  std::atomic<bool> idle_{false};   
+  std::atomic<bool> idle_{true};   
 
   bool parameter_update_required_;
   bool parameter_bias_update_required_;
@@ -156,8 +156,7 @@ private:
   bool imu_calibration_running_;
   std::vector<IMUData> imu_calibration_samples_;
 
-  static constexpr double STANDARD_GRAVITY = 9.81;
-  
+  static constexpr double STANDARD_GRAVITY = 9.81;  
 };
 
 //==============================================================================

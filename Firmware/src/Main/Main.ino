@@ -6,46 +6,63 @@
 #include <IBusBM.h>
 #include <WiFi.h>
 #include <WiFiUdp.h>
+#include "stateChange.h"
 #include <math.h>
-/*
-void PIComsTask(void *pvParameters) {
-  for (;;) {
-      ulTaskNotifyTake(pdTRUE, portMAX_DELAY);  // Wait for a notification
+//#include "BluetoothSerial.h"
 
-      // Run UART communication code here
-      // the states are stored in global varaibles 
-      // controlState, (RC vs Control System)
-      // runningState, (idle, running )
-      // startState, (complete stop, complete start)
+
+//BluetoothSerial SerialBT;  // Bluetooth Serial object
+
+
+void PIComsTask(void *pvParameters) {
+  
+  TickType_t xLastWakeTime_PI;
+  // 100 ms 
+  const TickType_t xFrequency_PI = 100/ portTICK_PERIOD_MS;
+  xLastWakeTime_PI = xTaskGetTickCount();
+  for (;;) {
+    vTaskDelayUntil( &xLastWakeTime_PI, xFrequency_PI);
+
+    if (stateChanged == 1) {
+      Serial.print("State: ");
+      Serial.println(desiredState);
+    }
+
+    while (Serial.available()) {
+      char incomingChar = Serial.read();  // Read each character from the buffer
       
+      if (incomingChar == '\n') {  // Check if end of message
+
+        if (receivedMessage.startsWith("State: ")) {        // If message is about pi state
+            piState = receivedMessage.substring(7).toInt();   // Extract integer state
+
+            if (FLAG_PI_STARTED == false && piState == 0) {       // If Pi just booted and ready in Idle allow other code to start
+              FLAG_PI_STARTED = true;
+            }
+        } else if (receivedMessage.startsWith("Calib: ")) {
+          int calib = receivedMessage.substring(7).toInt();
+          digitalWrite(ledPin, calib);
+        }
+        receivedMessage = ""; // Clear the message buffer
+      } else {
+        // Append the character to the message string
+        receivedMessage += incomingChar;
+      }      
+    }
+    //SerialBT.print("Current State PI:  ");
+    //SerialBT.println(piState);
+
+    if (piState == desiredState) {
+      stateChanged = 0;
+    }
   }
 }
 
-// make this a debugging task, ie (show coms status, current sate etc)
-void wifiStatesTask(void *pvParameters) {
-  for( ;; ) {
-    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);  // Wait for a notification
-    
-    // Data ID set to 4 for status bits / Number of bytes to send (4*4) / 32-bit ints to send
-    int32_t numbers[6] = {4, 16, connectedRC, controlState, -1, -1};
-
-    uint8_t buffer[24];  // 6 integers * 4 bytes each = 24 bytes
-    memcpy(buffer, numbers, sizeof(numbers));  // Copy data into buffer
-
-    // Send UDP message
-    udp.beginPacket(udpAddress, udpPort);
-    udp.write(buffer, sizeof(buffer));  // Send 24-byte buffer
-    udp.endPacket();
-    //Serial.println("UDP packet sent!");   
-    
-  }
-} 
-
-*/
 
 // Task to check Wifi connection and reconnect if connection was lost
 void wifiCheckConnectionTask(void *pvParameters) {
   for (;;) {
+    /*
     
     if(WiFi.status() == WL_CONNECTED) {
       //Serial.println("Connected");
@@ -66,6 +83,8 @@ void wifiCheckConnectionTask(void *pvParameters) {
       
       vTaskDelay(100 / portTICK_PERIOD_MS);  // Retry every 100 ms
     }
+    */
+    vTaskDelay(100 / portTICK_PERIOD_MS);  // Retry every 100 ms
     
   }
 }
@@ -83,8 +102,8 @@ void ibusTask(void *pvParameters) {
 //get heading values at maximum sample rate and filter using a moving average filter
 void filterHeadingTask(void *pvParameters) {
   TickType_t xLastWakeTime_h;
-  // 100 Hz (the max frequency of the mag)
-  const TickType_t xFrequency_h = 10/ portTICK_PERIOD_MS;
+  // 50 Hz (half the max frequency of the mag)
+  const TickType_t xFrequency_h = 20/ portTICK_PERIOD_MS;
     xLastWakeTime_h = xTaskGetTickCount();
     for( ;; ) {
 
@@ -99,6 +118,11 @@ void filterHeadingTask(void *pvParameters) {
 
       if (imu.dataReady()) {
         imu.getAGMT();
+        dataReady = 1;
+      } else {
+        // skip this iteration if data is not ready
+        dataReady = 0;
+        continue;
       }
 
       get_scaled_IMU(Axyz, Mxyz);  //apply relative scale and offset to RAW data. UNITS are not important
@@ -107,6 +131,7 @@ void filterHeadingTask(void *pvParameters) {
       Mxyz[2] = -Mxyz[2];
 
       float headingTemp = get_heading(Axyz, Mxyz, p, declination);
+      
       if (headingTemp < headingOffset) {
         heading = 360 - (headingOffset - headingTemp);
       } else {
@@ -115,6 +140,14 @@ void filterHeadingTask(void *pvParameters) {
 
       // convert to rads
       heading = heading * (PI / 180.0);
+
+      if (heading < 0) {
+        heading += (2*PI);
+      }
+
+      if (heading > (2*PI)) {
+        heading -= (2*PI);
+      }
 
       // convert pol to cart
       headingBufferCos[headingBufferIdx] = cos(heading);
@@ -134,10 +167,6 @@ void filterHeadingTask(void *pvParameters) {
       // cart to pol
       float copyFilteredHeading = atan2f(averagedSin, averagedCos);
 
-      if (copyFilteredHeading < 0) {
-        copyFilteredHeading += (2*PI);
-      }
-
       // put mutex around this (window size is 20)
       // this gives a delay of 10 samples which means the displacement calculation
       // gets the heading from 1 time step before since it runs 10 times slower
@@ -148,6 +177,9 @@ void filterHeadingTask(void *pvParameters) {
         xSemaphoreGive(xHeadingMutex);  // Unlock mutex
       }
 
+      if (suspend) {
+        vTaskSuspend(NULL);
+      }
     }
 
 }
@@ -155,8 +187,8 @@ void filterHeadingTask(void *pvParameters) {
 // calculate the displacement of the Rover and transmit it though UDP 
 void displacementCalcTask(void *pvParameters) {
   TickType_t xLastWakeTime_disp;
-  // every 100 ms
-  const TickType_t xFrequency_disp = 100/ portTICK_PERIOD_MS;
+  // every 500 ms
+  const TickType_t xFrequency_disp = 250/ portTICK_PERIOD_MS;
     xLastWakeTime_disp = xTaskGetTickCount ();
     for( ;; ) {
       
@@ -166,94 +198,160 @@ void displacementCalcTask(void *pvParameters) {
 
       // Safely read the shared position variables
       int posCopy1 = pos_1;
-      int posCopy2 = pos_2;
-      int posCopy3 = pos_3;
-      int posCopy4 = pos_4;
-      int posCopy5 = pos_5;
       int posCopy6 = -pos_6;
 
       // reset position counters
       pos_1 = 0;
-      pos_2 = 0;
-      pos_3 = 0;
-      pos_4 = 0;
-      pos_5 = 0;
       pos_6 = 0;
 
       // Release the mutex after reading the data
       //xSemaphoreGive(xPositionMutex);
+      // need to include all teh other motor encoders
 
       // when all the encoders are added in will need to average the values
       // 1,2,3 are the right side motors
       // 4,5,6 are the left side motors
       // convert to linear displacement
-      displacement = ((((posCopy1 + posCopy6)/2.0) / PPR) * 2.0 * PI * WHEEL_RADIUS) * 1000; // to mm
+      displacement = ((((posCopy1 + posCopy6)/2.0) / PPR) * 2.0 * PI * WHEEL_RADIUS) * 100 * slip; // to cm
+
+      if (pointTurn == 0) {
+        displacement = displacement * 0.1;
+      }
+
+      displacementSum += displacement;
+
+      float velocity = displacement/0.5;
 
       if (xSemaphoreTake(xHeadingMutex, portMAX_DELAY)) {  // Lock mutex
     
         filteredHeading1 = filteredHeading;
         xSemaphoreGive(xHeadingMutex);  // Unlock mutex
       }
-            
+
+               
       // update position 
-      currentPos.x += (displacement * (float)cos(filteredHeading1));
-      currentPos.y += (displacement * (float)sin(filteredHeading1));
+      currentPos.x += (displacement * (float)sin(filteredHeading1));
+      currentPos.y += (displacement * (float)cos(filteredHeading1));
+
+      //String data = String(currentPos.x) + "," + String(currentPos.y) + "," + String(filteredHeading1) +"\n";
+      //SerialBT.print(data);
 
       int32_t x = (int32_t)(currentPos.x);
       int32_t y = (int32_t)(currentPos.y);
 
       // transmit using UDP, or flag for another task to transmit the data
       
-      int32_t numbers[6] = {3, 16, x, y, int32_t(posCopy1), int32_t(posCopy6)};
+      int32_t numbers[7] = {3, 20, x, y, int32_t(filteredHeading1), int32_t(dataReady), int32_t(desiredState)};
 
-      uint8_t buffer[24];  // 6 integers * 4 bytes each = 24 bytes
+      uint8_t buffer[28];  // 7 integers * 4 bytes each = 24 bytes
       memcpy(buffer, numbers, sizeof(numbers));  // Copy data into buffer
 
       // Send UDP message
       udp.beginPacket(udpAddress, udpPort);
       udp.write(buffer, sizeof(buffer));  // Send 24-byte buffer
-      udp.endPacket();
+      udp.endPacket();    
       
-      
+      if (suspend) {
+        vTaskSuspend(NULL);
+      }
     }
 }
-
-
 // update the states 
 void updateStateTask(void *pvParameters) {
   static int32_t prevControlState = -1;
-  static int32_t prevRunning = -1;
-  static int32_t prevStart = -1;
   static int32_t prevConnectedRC = 0;
+  static int32_t prevDesiredState = -1;
+  const int RUN = 1;
+  const int IDLE = 0;
+  const int STOP = 2;
+  const int AUTO = 1;
+  const int RC = 0;
 
   for (;;) {
+
+      vTaskDelay(200 / portTICK_PERIOD_MS);
       // code to read in and update the states 
       controlState = readChannel(6, 0, 1, 2);
       runningState = readChannel(7, 0, 1, 2);
       startState = readChannel(8, 0, 1, 2);
 
+      if (runningState != 2 && startState != 2 && runningState != -1 && runningState != -1) {
+        int result = (startState << 1) | runningState;
+        
+        if (result == 1 && FLAG_PI_STARTED == false) {
+          result = 0;
+        }
+        
+        
+        if (result == 3) {
+          result = STOP;
+        }
+        // add mutex
+        desiredState = result;
+      }
+
+      // if RC signal not deetcted then set the system to idle
       if (controlState == 2 || runningState == 2 || startState == 2){
-        connectedRC = 0;
-      } else {
-        connectedRC = 1;
+        desiredState = IDLE;
       }
 
-      // if one of the state varibales have changed send to the PI
-      if (controlState != prevControlState || runningState != prevRunning || startState != prevStart) {
-        //xTaskNotifyGive(PIComsTaskHandle);
+      // if the desired state has changed send to the PI
+      if (desiredState != prevDesiredState) {
+        stateChanged = 1;
       }
 
-      // if the RC connected was lost or the control state was chnaged send to GUI
-      if (controlState != prevControlState || connectedRC != prevConnectedRC) {
-        //xTaskNotifyGive(wifiStatesTaskHandle);
+      // the state can only be in autonomous when in the run state
+      if (desiredState == IDLE) {
+        controlState = RC;
+      }
+      
+      // if switched back to RC control then reenable the RC contorl task
+      if (controlState != prevControlState) {
+        if (controlState == RC && desiredState == RUN) {  
+          if (eTaskGetState(motorControlTaskHandle) == eSuspended) {
+            enableAllMotors();
+            vTaskResume(motorControlTaskHandle);
+          }
+          // add code do disable the autonomous control tasks
+        } else if (controlState == AUTO) {
+          vTaskResume(calcPathTaskHandle);
+        }
+      }
+    
+      // check if state has chnaged from previous
+      if (desiredState != prevDesiredState) {
+        // if in idle the start PI coms, stop motors and reset position
+        if (desiredState == IDLE) {
+          if (eTaskGetState(PIComsTaskHandle) == eSuspended) {
+            vTaskResume(PIComsTaskHandle);
+          }
+          suspend = 1;
+          stopAllMotors();
+          resetVariables();
+          // if in run enable all mootors resume tasks
+        } else if (desiredState == RUN) {
+          suspend = 0;
+          enableAllMotors();
+          vTaskResume(filterHeadingTaskHandle);
+          vTaskResume(displacementCalcTaskHandle);
+          vTaskResume(motorControlTaskHandle);
+        } else if (desiredState == STOP) {
+          suspend = 1;
+          vTaskDelay(20 / portTICK_PERIOD_MS);  // delay 20 ms
+          stopAllMotors();
+          resetVariables();
+        }
       }
 
+      //SerialBT.print("Current State ESP:  ");
+      //SerialBT.println(desiredState);
+      
       prevControlState = controlState;
-      prevRunning = runningState;
-      prevStart = startState;
       prevConnectedRC = connectedRC;
+      prevDesiredState = desiredState;
+      
 
-      vTaskDelay(1000 / portTICK_PERIOD_MS);  // Run every 10ms
+      vTaskDelay(100 / portTICK_PERIOD_MS);  // Run every 10ms
   }
 }
 
@@ -279,11 +377,55 @@ void motorControlTask( void * pvParameters )
         // LED control based on throttle value
         
         if (throttleVal == 0) {
-            digitalWrite(ledPin, HIGH);  // Turn on LED if throttle is zero
+            //digitalWrite(ledPin, HIGH);  // Turn on LED if throttle is zero
         } else {
-            digitalWrite(ledPin, LOW);   // Turn off LED otherwise
+            //digitalWrite(ledPin, LOW);   // Turn off LED otherwise
         }
-               
+
+        if (suspend == 1 || controlState == 1) {
+          stopAllMotors();
+          //SerialBT.print("Current Control State:  ");
+          //SerialBT.println(controlState);
+          vTaskSuspend(NULL);
+        }          
+    }
+}
+
+void calcPathTask(void *pvParameters) {
+  for( ;; ) { 
+    vTaskDelay(200 / portTICK_PERIOD_MS);  // give enough time for the RC tasks to finish
+
+    // calculate path code
+    //SerialBT.println("Path calculated");
+
+    vTaskResume(navigateTaskHandle);
+    vTaskSuspend(NULL);
+  }
+}
+
+void navigateTask(void *pvParameters) {
+  TickType_t xLastWakeTime;
+  // every 100 ms
+  const TickType_t xFrequency = 100/ portTICK_PERIOD_MS;
+    xLastWakeTime = xTaskGetTickCount ();
+    for( ;; ) { 
+      vTaskDelayUntil( &xLastWakeTime, xFrequency);
+      enableAllMotors();
+      //SerialBT.println("Navigation action");
+
+      // if sate switched back to RC then suspend this task
+      if (controlState == 0) {
+        stopAllMotors();
+        if (desiredState == 1) {
+          enableAllMotors();
+          vTaskResume(motorControlTaskHandle);
+        }
+        vTaskSuspend(NULL);
+      }
+
+      if (desiredState == 2) {
+        vTaskSuspend(NULL);
+      }
     }
 }
 
@@ -308,7 +450,7 @@ void setup() {
     attachInterrupt(digitalPinToInterrupt(ENA_1), readEncoder1, RISING);
     attachInterrupt(digitalPinToInterrupt(ENA_6), readEncoder6, RISING);
 
-    //Serial.begin(115200);
+    Serial.begin(115200);
     WIRE_PORT.begin(21, 22);
     WIRE_PORT.setClock(400000);
     imu.begin(WIRE_PORT, AD0_VAL);
@@ -318,21 +460,24 @@ void setup() {
 
     
     // Connect to WiFi
-    WiFi.begin(ssid);
-    //Serial.print("Connecting to WiFi");
+    WiFi.begin(ssid, password);
+
+    //int startTimeWC = millis();
+
+    //attempt to connevt to wifi if it fails this will block
     while (WiFi.status() != WL_CONNECTED) {
         //Serial.print(".");
         delay(500);
     }
+    
+    delay(2000);
+    //SerialBT.begin("ESP32_Project"); // Set Bluetooth device name
     
 
     digitalWrite(ledPin, HIGH);
     delay(1000);
     digitalWrite(ledPin, LOW);
     delay(1000);
-    
-    
-    //Serial.println("\nConnected to WiFi!");
 
     float sum = 0;
     for (int i = 0; i < 200; i++) {
@@ -349,93 +494,17 @@ void setup() {
 
     headingOffset = sum / 200.0;
 
+    //SerialBT.println(headingOffset);
+
     digitalWrite(ledPin, HIGH);
     delay(1000);
     digitalWrite(ledPin, LOW);
     delay(1000);
-
-    // Create the motor control task
-    xTaskCreate(
-        motorControlTask,          // Task function
-        "Motor Control Task",      // Task name
-        5000,                      // Stack size (adjust as needed)
-        NULL,                      // Task parameters
-        1,                         // Task priority (1 is low)
-        &motorControlTaskHandle    // Task handle
-    );
-
-    // Create the RC ibus coms task
-    xTaskCreate(
-        ibusTask,          // Task function
-        "ibus task",      // Task name
-        2048,                      // Stack size (adjust as needed)
-        NULL,                      // Task parameters
-        1,                         // Task priority (1 is low)
-        &ibusTaskHandle    // Task handle
-    );
-/*
-    // send updated states UDP
-    xTaskCreate(
-        wifiStatesTask,          // Task function
-        "send updated states UDP",      // Task name
-        8192,                      // Stack size (adjust as needed)
-        NULL,                      // Task parameters
-        1,                         // Task priority (1 is low)
-        &wifiStatesTaskHandle    // Task handle
-    ); */
-
-    // Create the wifi connection check task
-    xTaskCreate(
-        wifiCheckConnectionTask,          // Task function
-        "wifi check connection task",      // Task name
-        8192,                      // Stack size (adjust as needed)
-        NULL,                      // Task parameters
-        1,                         // Task priority (1 is low)
-        &wifiCheckConnectionTaskHandle    // Task handle
-    );
     
-
-    // Create task to read RC state values from switches
-    xTaskCreate(
-        updateStateTask,          // Task function
-        "update State Task",      // Task name
-        1024,                      // Stack size (adjust as needed)
-        NULL,                      // Task parameters
-        1,                         // Task priority (1 is low)
-        &updateStateTaskHandle   // Task handle
-    );
-
-    // Create the displacement estimation task
-    xTaskCreate(
-        displacementCalcTask,          // Task function
-        "displacement estimate",      // Task name
-        8192,                      // Stack size (adjust as needed)
-        NULL,                      // Task parameters
-        1,                         // Task priority (1 is low)
-        &displacementCalcTaskHandle    // Task handle
-    );
-
-    /*
-    // Create the PI coms task to communicate states
-    xTaskCreate(
-        PIComsTask,          // Task function
-        "PI ComsTask",      // Task name
-        1024,                      // Stack size (adjust as needed)
-        NULL,                      // Task parameters
-        1,                         // Task priority (1 is low)
-        &PIComsTaskHandle    // Task handle
-    );*/
-
-    // Create the filter heading task
-    xTaskCreate(
-        filterHeadingTask,          // Task function
-        "filter Heading task",      // Task name
-        2048,                      // Stack size (adjust as needed)
-        NULL,                      // Task parameters
-        1,                         // Task priority (1 is low)
-        &filterHeadingTaskHandle    // Task handle
-    );
-
+    createMotortask();
+    createPipelinetasks();
+    createNavigationTasks();
+    createComsTasks();
 }
 
 

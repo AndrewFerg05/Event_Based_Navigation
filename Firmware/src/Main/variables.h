@@ -14,7 +14,7 @@
 #define PPR 1133
 #define WIRE_PORT Wire1 // desired Wire port.
 #define AD0_VAL 1      // value of the last bit of the I2C address.
-#define WINDOW_SIZE 40
+#define WINDOW_SIZE 25  // gives a delay of 500 ms which lines up with the required delay for the heading calc
 
 
 struct MotorDriver {
@@ -58,9 +58,12 @@ extern volatile int pos_5;
 extern volatile int pos_6;
 
 extern float displacement;
+extern float slip;
 extern float heading;
 extern float headingOffsets[200];
-extern float filteredHeading;
+extern volatile float filteredHeading;
+extern float displacementSum;
+extern volatile int dataReady;
 
 //IMU stuff 
 extern ICM_20948_I2C imu;
@@ -87,6 +90,7 @@ extern SemaphoreHandle_t xHeadingMutex;
 
 extern int prevLeftDirection;
 extern int prevRightDirection;
+extern int pointTurn;
 
 // WiFi credentials
 extern const char* ssid;
@@ -106,11 +110,21 @@ extern TaskHandle_t updateStateTaskHandle;
 extern TaskHandle_t displacementCalcTaskHandle;
 extern TaskHandle_t PIComsTaskHandle;
 extern TaskHandle_t filterHeadingTaskHandle;
+extern TaskHandle_t calcPathTaskHandle;
+extern TaskHandle_t navigateTaskHandle;
 
 // state variables
+
 extern int32_t controlState;
 extern int32_t runningState;
 extern int32_t startState;
+extern int stateChanged;
+extern int desiredState;
+extern int piState;
+extern bool FLAG_PI_STARTED;
+extern String receivedMessage;
+
+extern int suspend;
 
 // debugging varaibles
 extern int32_t connectedRC;

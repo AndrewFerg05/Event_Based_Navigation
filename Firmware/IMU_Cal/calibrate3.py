@@ -27,7 +27,7 @@ class Magnetometer(object):
         
     def run(self):
 
-        data = np.loadtxt("C:\\Users\\dougl\\OneDrive\\Documents\\year 5\\Project\\Event_Based_Navigation\\Firmware\\IMU_Cal\\accelerometer_data.csv",delimiter=',')
+        data = np.loadtxt("C:\\Users\\dougl\\OneDrive\\Documents\\year 5\\Project\\Event_Based_Navigation\\Firmware\\IMU_Cal\\magnetometer_data.csv",delimiter=',')
         print("shape of data array:",data.shape)
         #print("datatype of data:",data.dtype)
         print("First 5 rows raw:\n", data[:5])

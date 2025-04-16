@@ -32,32 +32,60 @@ volatile int pos_5 = 0;
 volatile int pos_6 = 0;
 
 float displacement = 0;
+float slip = 0.63;
 float heading = 0;
+float displacementSum = 0.0;
 
 float headingOffsets[200] = {0};
+volatile int dataReady = 1;
+
 
 //IMU stuff 
 ICM_20948_I2C imu; // create an ICM_20948_I2C object imu;
 
 //Accel scale: divide by 16604.0 to normalize. These corrections are quite small and probably can be ignored.
 float A_B[3]
-{-219.68 , -230.76 , -200.75};
+{59.47, -36.27, -149.62};
 
 float A_Ainv[3][3]
-{ {  0.0613 , 0.00069 , -0.00015},
-  {  0.00069 , 0.06139 , -0.00065},
-  { -0.00015 , -0.00065 , 0.06022}
+{ {   0.06194 , 0.00054 , 0.00015 },
+  {  0.00054 , 0.05974 , 0.00012},
+  { 0.00015 , 0.00012 , 0.06018}
 };
 
 //Mag scale divide by 369.4 to normalize. These are significant corrections, especially the large offsets.
+/* prev curved
 float M_B[3]
-{ -116.38 , 402.64, 438.74};
+{77.65 , 105.24 , -101.55};
 
 float M_Ainv[3][3]
-{ {  5.32487 , -0.05578 , 0.05095},
-  { -0.05578 , 4.94202 , 0.20426},
-  { 0.05095 , 0.20426 , 5.2663}
+{ { 5.26028 , -0.2175 , 0.2439},
+  { -0.2175 , 4.40278 , 0.0435},
+  { 0.2439 , 0.0435 , 5.31303}
 };
+*/
+
+
+float M_B[3]
+{35.18 , 35.77 , -102.63};
+
+float M_Ainv[3][3]
+{ {  4.85801 , 0.06222 , -0.03067},
+  { 0.06222 , 4.51616 , 0.0659},
+  { -0.03067 , 0.0659 , 5.04455}
+};
+
+
+/* prevoous kinda working 
+float M_B[3]
+{56.06 , 37.22 , -121.82};
+
+float M_Ainv[3][3]
+{ {  4.77272 , 0.09642 , -0.01464 },
+  {  0.09642 , 4.43183 , 0.04999},
+  { -0.01464 , 0.04999 , 4.89426}
+};
+*/
 
 // local magnetic declination in degrees
 float declination = -1.06;
@@ -71,7 +99,7 @@ float headingBufferSin[WINDOW_SIZE] = {0};
 int headingBufferIdx = 0;
 float headingSumSin = 0;
 float headingSumCos = 0;
-float filteredHeading = 0;
+float volatile filteredHeading = 0;
 float filteredHeading1 = 0;
 
 SemaphoreHandle_t xHeadingMutex;
@@ -79,14 +107,15 @@ SemaphoreHandle_t xHeadingMutex;
 // previous direction pins for deciding if the motors need to stop
 int prevRightDirection = 1;
 int prevLeftDirection = 1;
+int pointTurn = 0;
 
 // WiFi credentials
-const char* ssid = "PI-SARK";
+const char* ssid = "SARK";
 const char* password = "samsamsam802";
 
 // UDP configuration
 WiFiUDP udp;
-const char* udpAddress = "10.42.0.79";  // Doug's laptop
+const char* udpAddress = "192.168.43.245";  
 const int udpPort = 5005;  // Receiver port
 
 // Task handles
@@ -98,11 +127,21 @@ TaskHandle_t updateStateTaskHandle = NULL;
 TaskHandle_t displacementCalcTaskHandle = NULL;
 TaskHandle_t PIComsTaskHandle = NULL;
 TaskHandle_t filterHeadingTaskHandle = NULL;
+TaskHandle_t calcPathTaskHandle = NULL;
+TaskHandle_t navigateTaskHandle = NULL;
 
 //states
-int32_t controlState = 0;
-int32_t runningState = 0;
-int32_t startState = 0;
+int32_t controlState = -1;
+int32_t runningState = -1;
+int32_t startState = -1;
+int stateChanged = 0;
+// idle = 0, run =1, stop = 2
+int desiredState = -1;
+int piState = -1;
+bool FLAG_PI_STARTED = false;
+String receivedMessage = "";  // Variable to store the complete message
+
+int suspend = 0;
 
 //debugging values
 int32_t connectedRC = 0;

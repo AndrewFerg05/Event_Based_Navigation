@@ -4,15 +4,49 @@ import numpy as np
 import time
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QImage, QPixmap, QFont
-from PyQt5.QtWidgets import QApplication, QLabel, QVBoxLayout, QWidget, QGridLayout, QGroupBox
+from PyQt5.QtWidgets import QApplication, QLabel, QVBoxLayout, QWidget, QGridLayout, QGroupBox, QPushButton
 import socket
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 import matplotlib.pyplot as plt
 
+import csv
+
 running = True
 
-graphSizeX = [-1000, 5000]
-graphSizeY = [-1000, 5000]
+orig_graphSizeX = [-100, 500]
+orig_graphSizeY = [-100, 500]
+graphSizeX = orig_graphSizeX
+graphSizeY = orig_graphSizeY
+
+def append_data_to_csv(x1, y1, x2, y2):
+    results = "log_UI.csv"
+
+    max_size = max(len(x1), len(y1), len(x2), len(y2))
+    fill_value = 0
+
+    print(max_size)
+    if max_size == 0:
+        max_size = 1
+
+    x1.extend([fill_value] * (max_size - len(x1)))
+    y1.extend([fill_value] * (max_size - len(y1)))
+    x2.extend([fill_value] * (max_size - len(x2)))
+    y2.extend([fill_value] * (max_size - len(y2)))
+
+    print("Opening file...")
+    with open(results, 'a', newline='') as file:
+        print("File opened")
+        writer = csv.writer(file)
+
+        # Write time of test
+        writer.writerow([time.strftime("%Y-%m-%d %H:%M:%S")])
+
+        # Write the column headers
+        writer.writerow(["x Pi", "y Pi", "x ESP", "y ESP"])
+
+        # Write the data rows
+        for i in range(max_size):
+            writer.writerow([x1[i], y1[i], x2[i], y2[i]])
 
 def receiveData():
     buffer = b""
@@ -51,23 +85,32 @@ def receiveData():
             else:               # Status data type
                 try:
                     if data_id == 4:        #Pi
+                        # This will come together, if not will all be -1 (unlikely that all are -1 at once)
                         x = int.from_bytes(buffer[:4], byteorder='little', signed=True)
                         y = int.from_bytes(buffer[4:8], byteorder='little', signed=True)
                         z = int.from_bytes(buffer[8:12], byteorder='little', signed=True)
                         yaw = int.from_bytes(buffer[12:16], byteorder='little', signed=True)
                         pitch = int.from_bytes(buffer[16:20], byteorder='little', signed=True)
-                        roll = int.from_bytes(buffer[20:], byteorder='little', signed=True)
+                        roll = int.from_bytes(buffer[20:24], byteorder='little', signed=True)
+                        vel = int.from_bytes(buffer[24:28], byteorder='little', signed=True)
 
-                        return data_id, data_size, x, y, z, yaw, pitch, roll
+                        # If not the thing to update will be set to -1
+                        state = int.from_bytes(buffer[28:32], byteorder='little', signed=True)
+
+                        # Features, expected position in x,y,z again set to -1 if not to be updated
+                        feat_x = int.from_bytes(buffer[32:36], byteorder='little', signed=True)
+                        feat_y = int.from_bytes(buffer[36:40], byteorder='little', signed=True)
+                        feat_z = int.from_bytes(buffer[40:], byteorder='little', signed=True)
+
+                        return data_id, data_size, x, y, z, yaw, pitch, roll, vel, state, feat_x, feat_y, feat_z
                     elif data_id == 3:              #ESP Position
                         x = int.from_bytes(buffer[:4], byteorder='little', signed=True)
                         y = int.from_bytes(buffer[4:8], byteorder='little', signed=True)
-                        z = int.from_bytes(buffer[8:12], byteorder='little', signed=True)
-                        yaw = int.from_bytes(buffer[12:16], byteorder='little', signed=True)
-                        pitch = int.from_bytes(buffer[16:20], byteorder='little', signed=True)
-                        roll = int.from_bytes(buffer[20:], byteorder='little', signed=True)
+                        heading = int.from_bytes(buffer[8:12], byteorder='little', signed=True)
+                        vel = int.from_bytes(buffer[12:16], byteorder='little', signed=True)
+                        state = int.from_bytes(buffer[16:], byteorder='little', signed=True)
 
-                        return data_id, data_size, x, y, z, yaw, pitch, roll
+                        return data_id, data_size, x, y, heading, vel, state
                     elif data_id == 4:      #ESP Debug
                         RCConnected = int.from_bytes(buffer[:4], byteorder='little', signed=True)
                     else:
@@ -116,25 +159,22 @@ class userInterface(QWidget):
         title_font = QFont("Arial", 14, QFont.Bold)
         title_font.setUnderline(True)
         self.s1_title.setFont(title_font)
-        self.s1_title.setStyleSheet("color: green;")
+        self.s1_title.setStyleSheet("color: red;")
         self.s1_title.setAlignment(Qt.AlignCenter)  # Center-align the title
 
-        # Event pipeline labels (Green)
+        # Event pipeline labels
         self.label_eventCoord = QLabel("Event Pipeline Position: (0.0, 0.0, 0.0)")
         self.label_eventAngle = QLabel("Event Pipeline Heading: (0.0, 0.0, 0.0)")
         self.label_eventVel = QLabel("Event Pipeline Speed: 0.0")
 
-        self.label_piTime = QLabel("fTime since last receive: 0.0")
-        self.label_frameTime = QLabel("fTime since last camera frame: 0.0")
-        self.label_eventTime = QLabel("fTime since last event frame: 0.0")
-        self.label_augmentedTime = QLabel("fTime since last augmented frame: 0.0")
+        self.label_piState = QLabel("Pi State: Not Started (-1)")
+        self.label_piTime = QLabel("Time since last receive: -1")
+        self.label_frameTime = QLabel("Time since last camera frame: -1")
+        self.label_eventTime = QLabel("Time since last event frame: -1")
+        self.label_augmentedTime = QLabel("Time since last augmented frame: -1")
 
-        # Other labels (Black)
-        self.label_battery = QLabel("Rover Battery: 100%")
-        self.label_connection = QLabel("WiFi Connection: Strong")
-
-        self.label_battery.setStyleSheet("color: black;")
-        self.label_connection.setStyleSheet("color: black;")
+        self.reset_pi_button = QPushButton("Reset Pi Data")
+        self.reset_pi_button.clicked.connect(self.reset_pi_data)
 
         # Set font for all labels
         info_font = QFont("Arial", 10)
@@ -142,13 +182,11 @@ class userInterface(QWidget):
         self.label_eventAngle.setFont(info_font)
         self.label_eventVel.setFont(info_font)
 
+        self.label_piState.setFont(info_font)
         self.label_piTime.setFont(info_font)
         self.label_frameTime.setFont(info_font)
         self.label_eventTime.setFont(info_font)
         self.label_augmentedTime.setFont(info_font)
-
-        self.label_battery.setFont(info_font)
-        self.label_connection.setFont(info_font)
 
         # Create a vertical layout for Quarter 1
         vbox = QVBoxLayout()
@@ -157,35 +195,42 @@ class userInterface(QWidget):
         vbox.addWidget(self.label_eventAngle)
         vbox.addWidget(self.label_eventVel)
 
+        vbox.addWidget(self.label_piState)
         vbox.addWidget(self.label_piTime)
         vbox.addWidget(self.label_frameTime)
         vbox.addWidget(self.label_eventTime)
         vbox.addWidget(self.label_augmentedTime)
 
-        vbox.addWidget(self.label_battery)
-        vbox.addWidget(self.label_connection)
+        vbox.addWidget(self.reset_pi_button)
         vbox.setAlignment(Qt.AlignTop)  # Keep layout aligned to the top
 
         # Set the layout for Quarter 1
         self.s1_border.setLayout(vbox)
 
     def init_s2(self):
-        self.s2_border = QGroupBox("Position Tracker")
+        self.s2_border = QGroupBox()
 
         # Matplotlib Figure & Canvas
         self.figure, self.ax = plt.subplots()
         self.canvas = FigureCanvas(self.figure)
 
-        # Data storage (deque keeps last 20 points)
         self.x_data_pi = []  # Event Pipeline (Pi)
         self.y_data_pi = []
 
         self.x_data_esp = []  # Alt Pipeline (ESP)
         self.y_data_esp = []
 
+        self.x_data_feat = []  # Feature points (Pi)
+        self.y_data_feat = []
+        self.z_data_feat = []
+
+        self.log_button = QPushButton("Log Graph Data")
+        self.log_button.clicked.connect(self.log_graph)
+
         # Graph layout
         vbox = QVBoxLayout()
         vbox.addWidget(self.canvas)
+        vbox.addWidget(self.log_button)
         self.s2_border.setLayout(vbox)
 
         # Initialize graph
@@ -209,18 +254,23 @@ class userInterface(QWidget):
         self.s3_title.setStyleSheet("color: blue;")
         self.s3_title.setAlignment(Qt.AlignCenter)  # Center-align the title
 
-        # Alt pipeline labels (Blue)
+        # Alt pipeline labels
         self.label_altCoord = QLabel("Alt. Pipeline Position: (0.0, 0.0)")
         self.label_altAngle = QLabel("Alt. Pipeline Heading: (0.0)")
         self.label_altVel = QLabel("Alt. Pipeline Speed: 0.0")
+        self.label_altState = QLabel("Alt. Pipeline State: Not Started (-1)")
 
         self.label_espTime = QLabel("fTime since last receive: 0.0")
+
+        self.reset_esp_button = QPushButton("Reset ESP Data")
+        self.reset_esp_button.clicked.connect(self.reset_esp_data)
 
         # Set font for Alt. Pipeline labels
         info_font = QFont("Arial", 10)
         self.label_altCoord.setFont(info_font)
         self.label_altAngle.setFont(info_font)
         self.label_altVel.setFont(info_font)
+        self.label_altState.setFont(info_font)
         self.label_espTime.setFont(info_font)
 
         # Create a vertical layout for Alt. Pipeline
@@ -229,7 +279,9 @@ class userInterface(QWidget):
         vbox.addWidget(self.label_altCoord)
         vbox.addWidget(self.label_altAngle)
         vbox.addWidget(self.label_altVel)
+        vbox.addWidget(self.label_altState)
         vbox.addWidget(self.label_espTime)
+        vbox.addWidget(self.reset_esp_button)
         vbox.setAlignment(Qt.AlignTop)
 
         # Set the layout for Alt. Pipeline
@@ -259,21 +311,32 @@ class userInterface(QWidget):
         vbox.setAlignment(Qt.AlignCenter)
         self.s6_border.setLayout(vbox)
 
-    def update_PiStatus(self, event_coordinates, event_angle, event_velocity):
-        # Update the event pipeline labels (Green)
+    def update_PiState(self, state):
+        if state == 0:
+            self.label_piState.setText(f"Pi State: Idle ({state})")
+        elif state == 1:
+            self.label_piState.setText(f"Pi State: Run ({state})")
+        else:
+            self.label_piState.setText(f"Pi State: Stop ({state})")
+
+    def update_PiPose(self, event_coordinates, event_angle, event_velocity):
+        # Update the event pipeline labels
         self.label_eventCoord.setText(f"Event Pipeline Position: {event_coordinates}")
         self.label_eventAngle.setText(f"Event Pipeline Heading: {event_angle}")
         self.label_eventVel.setText(f"Event Pipeline Speed: {event_velocity}")
 
-    def update_ESPStatus(self, alt_coordinates, alt_angle, alt_velocity, battery, connection):
+    def update_ESPStatus(self, alt_coordinates, alt_head, alt_velocity, alt_state):
         # Update the alt pipeline labels (Blue)
         self.label_altCoord.setText(f"Alt. Pipeline Position: {alt_coordinates}")
-        self.label_altAngle.setText(f"Alt. Pipeline Heading: {alt_angle}")
+        self.label_altAngle.setText(f"Alt. Pipeline Heading: {alt_head}")
         self.label_altVel.setText(f"Alt. Pipeline Speed: {alt_velocity}")
 
-        # Update battery and connection status (Black)
-        self.label_battery.setText(f"Rover Battery: {battery}%")
-        self.label_connection.setText(f"WiFi Connection: {connection}")
+        if alt_state == 0:
+            self.label_altState.setText(f"Alt. Pipeline State: Idle ({alt_state})")
+        elif alt_state == 1:
+            self.label_altState.setText(f"Alt. Pipeline State: Run ({alt_state})")
+        else:
+            self.label_altState.setText(f"Alt. Pipeline State: Stop ({alt_state})")
 
     def update_ESPTime(self, time):
         self.label_espTime.setText(f"Time since last receive: {time:.3f}")
@@ -360,19 +423,77 @@ class userInterface(QWidget):
         # Release video capture on close
         super().closeEvent(event)
 
-    def update_graph(self, x, y, source):
+    def update_graph(self, x, y, z, source):
         if source == "Pi":
             self.x_data_pi.append(x)
             self.y_data_pi.append(y)
         elif source == "ESP":
             self.x_data_esp.append(x)
             self.y_data_esp.append(y)
+        elif source == "Feature":
+            self.x_data_feat.append(x)
+            self.y_data_feat.append(y)
+            self.z_data_feat.append(y)
 
         self.ax.clear()
 
         # Plot both pipelines
-        self.ax.plot(self.x_data_pi, self.y_data_pi, marker="none", linestyle="-", color="green",
+        self.ax.plot(self.x_data_pi, self.y_data_pi, marker="none", linestyle="-", color="red",
                      label="Event Pipeline (Pi)")
+        self.ax.plot(self.x_data_esp, self.y_data_esp, marker="none", linestyle="--", color="blue",
+                     label="Alt Pipeline (ESP)")
+
+        # Redraw the graph
+        self.ax.set_title("Live Position Tracking")
+        self.ax.set_xlabel("X Position")
+        self.ax.set_ylabel("Y Position")
+
+        if source == "ESP" or source == "Pi":
+            if graphSizeX[0] > x:
+                graphSizeX[0] = x - 10
+            if graphSizeX[1] < x:
+                graphSizeX[1] = x + 10
+            if graphSizeY[0] > y:
+                graphSizeY[0] = y - 10
+            if graphSizeY[1] < y:
+                graphSizeY[1] = y + 10
+
+        self.ax.set_xlim(graphSizeX)
+        self.ax.set_ylim(graphSizeY)
+        self.ax.grid(True)
+        self.ax.legend()
+
+        self.canvas.draw()
+
+    def reset_pi_data(self):
+        self.x_data_pi.clear()
+        self.y_data_pi.clear()
+
+        # Plot both pipelines
+        self.ax.plot(self.x_data_pi, self.y_data_pi, marker="none", linestyle="-", color="red",
+                     label="Event Pipeline (Pi)")
+
+        # Also reclear all feature points
+
+        # Redraw the graph
+        self.ax.set_title("Live Position Tracking")
+        self.ax.set_xlabel("X Position")
+        self.ax.set_ylabel("Y Position")
+
+        graphSizeX = orig_graphSizeX
+        graphSizeY = orig_graphSizeY
+
+        self.ax.set_xlim(graphSizeX)
+        self.ax.set_ylim(graphSizeY)
+        self.ax.grid(True)
+        self.ax.legend()
+
+        self.canvas.draw()
+
+    def reset_esp_data(self):
+        self.x_data_esp.clear()
+        self.y_data_esp.clear()
+
         self.ax.plot(self.x_data_esp, self.y_data_esp, marker="none", linestyle="-", color="blue",
                      label="Alt Pipeline (ESP)")
 
@@ -381,21 +502,18 @@ class userInterface(QWidget):
         self.ax.set_xlabel("X Position")
         self.ax.set_ylabel("Y Position")
 
-        if graphSizeX[0] > x:
-            graphSizeX[0] = x - 10
-        if graphSizeX[1] < x:
-            graphSizeX[1] = x + 10
-        if graphSizeY[0] > y:
-            graphSizeY[0] = y - 10
-        if graphSizeY[1] < y:
-            graphSizeY[1] = y + 10
+        graphSizeX = orig_graphSizeX
+        graphSizeY = orig_graphSizeY
 
         self.ax.set_xlim(graphSizeX)
         self.ax.set_ylim(graphSizeY)
         self.ax.grid(True)
         self.ax.legend()
 
-        self.canvas.draw()
+    def log_graph(self):
+        print("logging")
+        append_data_to_csv(self.x_data_pi, self.y_data_pi, self.x_data_esp, self.y_data_esp)
+        print("logging done")
 
 class timingTracker():
     def __init__(self):
@@ -447,46 +565,64 @@ if __name__ == "__main__":
                 updateGUITimings.startTime = time.time()
 
             try:
-                frame_data = receiveData()
+                received_data = receiveData()
 
                 # Extract data ID and size
-                data_id = frame_data[0]
-                data_size = frame_data[1]
+                data_id = received_data[0]
+                data_size = received_data[1]
 
                 # Display the frame with its video ID in a different window for each ID
                 if data_id == 0:
-                    frame = frame_data[2]
+                    frame = received_data[2]
                     window.display_frame(window.s4_label, frame)
                     cv2.waitKey(1)
                     frameStream.startTime = time.time()
                 elif data_id == 1:
-                    frame = frame_data[2]
+                    frame = received_data[2]
                     window.display_frame(window.s5_label, frame)
                     cv2.waitKey(1)
                     eventStream.startTime = time.time()
                 elif data_id == 2:
-                    frame = frame_data[2]
+                    frame = received_data[2]
                     window.display_frame(window.s6_label, frame)
                     cv2.waitKey(1)
                     augmentedStream.startTime = time.time()
                 elif data_id == 4:
-                    x = frame_data[2]
-                    y = frame_data[3]
-                    z = frame_data[4]
-                    yaw = frame_data[5]
-                    pitch = frame_data[6]
-                    roll = frame_data[7]
-                    window.update_PiStatus(f"({x}, {y}, {z})", f"({yaw}, {pitch}, {roll})", str(0))
-                    window.update_graph(x, y, "Pi")  # Update the graph with new position
-                    cv2.waitKey(1)
+                    x = received_data[2]
+                    y = received_data[3]
+                    z = received_data[4]
+                    yaw = received_data[5]
+                    pitch = received_data[6]
+                    roll = received_data[7]
+                    vel = received_data[8]
+                    if (x == -1) and (y == -1) and (z == -1) and (yaw == -1) and (pitch == -1) and (roll == -1) and (vel == -1):  # Not a pose update
+                        state = received_data[9]
+                        if state != -1: # A state update
+                            window.update_PiState(state)
+                            # print("State Update")
+                            cv2.waitKey(1)
+                        else:           # A new feature location update
+                            feat_x = received_data[10]
+                            feat_y = received_data[11]
+                            feat_z = received_data[12]
+                            window.update_graph(feat_x, feat_y, 0, "Feature")
+                            # print("Feature Update")
+                            cv2.waitKey(1)
+                    else:   # A pose update
+                        window.update_PiPose(f"({x}, {y}, {z})", f"({yaw}, {pitch}, {roll})", f"{vel}")
+                        window.update_graph(x, y, z, "Pi")  # Update the graph with new position
+                        cv2.waitKey(1)
+
+
                     statusPiStream.startTime = time.time()
                 elif data_id == 3:
-                    x = frame_data[2]
-                    y = frame_data[3]
-                    a = frame_data[4]
-                    b = frame_data[5]
-                    window.update_ESPStatus(f"({x}, {y})", str(a), str(b), str(0), str(1))
-                    window.update_graph(x, y, "ESP")
+                    x = received_data[2]
+                    y = received_data[3]
+                    head = received_data[4]
+                    vel = received_data[5]
+                    state = received_data[6]
+                    window.update_ESPStatus(f"({x}, {y})", head, vel, state)
+                    window.update_graph(x, y, 0, "ESP")
                     cv2.waitKey(1)
                     statusESPStream.startTime = time.time()
 

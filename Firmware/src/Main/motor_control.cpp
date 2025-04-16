@@ -34,10 +34,12 @@ void controlMotors(int throttleVal, int steeringVal) {
     // Steering determines direction when throttle is neutral
     leftDirection = (steeringVal >= 0) ? 1 : 0;  // Forward if steering is positive, reverse if negative
     rightDirection = (steeringVal >= 0) ? 0 : 1; // Reverse if steering is positive, forward if negative
+    
   } else {
     // Throttle determines direction for both motors
     leftDirection = (throttleVal >= 0) ? 1 : 0;
     rightDirection = (throttleVal >= 0) ? 1 : 0;
+    
   }
     
   // Skid-steer mixing logic
@@ -63,6 +65,12 @@ void controlMotors(int throttleVal, int steeringVal) {
   move_motor(leftDirection, leftPWM,  motorDrivers[1].pwmb, motorDrivers[1].bin1, motorDrivers[1].bin2, prevLeftDirection);
   move_motor(leftDirection, leftPWM, motorDrivers[2].pwma, motorDrivers[2].ain1, motorDrivers[2].ain2, prevLeftDirection);
   move_motor(leftDirection, leftPWM, motorDrivers[2].pwmb, motorDrivers[2].bin1, motorDrivers[2].bin2, prevLeftDirection);
+
+  if (leftDirection != rightDirection) {
+    pointTurn = 1;
+  } else {
+    pointTurn = 0;
+  }
 }
 
 /*moves a motor given the following parameters
@@ -100,3 +108,27 @@ void stop_motor(int pwm, int direct_2, int direct_1) {
     pcf8575.digitalWrite(direct_1, LOW);
     pcf8575.digitalWrite(direct_2, LOW);
 }
+
+void stopAllMotors() {
+    for (int i = 0; i < NUM_MOTOR_DRIVERS; i++) {
+    // Set PWM to 0
+    digitalWrite(motorDrivers[i].pwma, LOW);  // Set PWMA to LOW
+    digitalWrite(motorDrivers[i].pwmb, LOW);  // Set PWMB to LOW
+
+    // Set AIN1, AIN2, BIN1, BIN2 to LOW (braking mode)
+    pcf8575.digitalWrite(motorDrivers[i].ain1, LOW);
+    pcf8575.digitalWrite(motorDrivers[i].ain2, LOW);
+    pcf8575.digitalWrite(motorDrivers[i].bin1, LOW);
+    pcf8575.digitalWrite(motorDrivers[i].bin2, LOW);
+
+    // Set standby pin to LOW (disables motor)
+    pcf8575.digitalWrite(motorDrivers[i].standby, LOW);
+  }
+}
+
+void enableAllMotors() {
+  for (int i = 0; i < NUM_MOTOR_DRIVERS; i++) {
+    pcf8575.digitalWrite(motorDrivers[i].standby, HIGH);
+  }
+}
+

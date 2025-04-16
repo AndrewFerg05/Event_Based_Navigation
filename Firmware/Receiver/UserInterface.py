@@ -13,8 +13,20 @@ import csv
 
 running = True
 
-orig_graphSizeX = [-100, 500]
-orig_graphSizeY = [-100, 500]
+pathX = [175, 166, 133, 94, 57, 31]
+pathY = [20, 56, 102, 133, 158, 175]
+
+bump1 = [100, 113]
+bump2 = [102, 138]
+
+sq1 = [0,0]
+sq2 = [0, 200]
+sq3 = [200, 200]
+sq4 = [200, 0]
+
+
+orig_graphSizeX = [-50, 250]
+orig_graphSizeY = [-50, 250]
 graphSizeX = orig_graphSizeX
 graphSizeY = orig_graphSizeY
 
@@ -111,7 +123,7 @@ def receiveData():
                         state = int.from_bytes(buffer[16:], byteorder='little', signed=True)
 
                         return data_id, data_size, x, y, heading, vel, state
-                    elif data_id == 4:      #ESP Debug
+                    elif data_id == 5:      #ESP Debug
                         RCConnected = int.from_bytes(buffer[:4], byteorder='little', signed=True)
                     else:
                         return data_id, data_size
@@ -164,8 +176,6 @@ class userInterface(QWidget):
 
         # Event pipeline labels
         self.label_eventCoord = QLabel("Event Pipeline Position: (0.0, 0.0, 0.0)")
-        self.label_eventAngle = QLabel("Event Pipeline Heading: (0.0, 0.0, 0.0)")
-        self.label_eventVel = QLabel("Event Pipeline Speed: 0.0")
 
         self.label_piState = QLabel("Pi State: Not Started (-1)")
         self.label_piTime = QLabel("Time since last receive: -1")
@@ -179,8 +189,6 @@ class userInterface(QWidget):
         # Set font for all labels
         info_font = QFont("Arial", 10)
         self.label_eventCoord.setFont(info_font)
-        self.label_eventAngle.setFont(info_font)
-        self.label_eventVel.setFont(info_font)
 
         self.label_piState.setFont(info_font)
         self.label_piTime.setFont(info_font)
@@ -192,8 +200,6 @@ class userInterface(QWidget):
         vbox = QVBoxLayout()
         vbox.addWidget(self.s1_title)  # Add title at the top
         vbox.addWidget(self.label_eventCoord)
-        vbox.addWidget(self.label_eventAngle)
-        vbox.addWidget(self.label_eventVel)
 
         vbox.addWidget(self.label_piState)
         vbox.addWidget(self.label_piTime)
@@ -233,14 +239,30 @@ class userInterface(QWidget):
         vbox.addWidget(self.log_button)
         self.s2_border.setLayout(vbox)
 
+        # Permanent Reference Points
+        self.ax.plot([sq1[0], sq2[0]], [sq1[1], sq2[1]], marker="none", linestyle="-", color="black",
+                     label="")
+        self.ax.plot([sq2[0], sq3[0]], [sq2[1], sq3[1]], marker="none", linestyle="-", color="black",
+                     label="")
+        self.ax.plot([sq3[0], sq4[0]], [sq3[1], sq4[1]], marker="none", linestyle="-", color="black",
+                     label="")
+        self.ax.plot([sq4[0], sq1[0]], [sq4[1], sq1[1]], marker="none", linestyle="-", color="black",
+                     label="")
+        self.ax.plot(pathX, pathY, marker="none", linestyle="--", color="black",
+                     label="Ground Truth")
+        self.ax.plot(bump1[0], bump1[1], marker="o", linestyle="none", color="black",
+                     label="")
+        self.ax.plot(bump2[0], bump2[1], marker="o", linestyle="none", color="black",
+                     label="")
+
         # Initialize graph
-        self.ax.set_title("Live Position Tracking")
-        self.ax.set_xlabel("X Position")
-        self.ax.set_ylabel("Y Position")
+        self.ax.set_title("Position Tracking")
+        self.ax.set_xlabel("X Position (cm)")
+        self.ax.set_ylabel("Y Position (cm)")
         self.ax.set_xlim(graphSizeX)
         self.ax.set_ylim(graphSizeY)
         self.ax.grid(True)
-        self.ax.legend(["Event Pipeline (Pi)", "Alt Pipeline (ESP)"])
+        self.ax.legend()
 
     def init_s3(self):
         # Create a group box for Alt. Pipeline
@@ -256,8 +278,6 @@ class userInterface(QWidget):
 
         # Alt pipeline labels
         self.label_altCoord = QLabel("Alt. Pipeline Position: (0.0, 0.0)")
-        self.label_altAngle = QLabel("Alt. Pipeline Heading: (0.0)")
-        self.label_altVel = QLabel("Alt. Pipeline Speed: 0.0")
         self.label_altState = QLabel("Alt. Pipeline State: Not Started (-1)")
 
         self.label_espTime = QLabel("fTime since last receive: 0.0")
@@ -268,8 +288,6 @@ class userInterface(QWidget):
         # Set font for Alt. Pipeline labels
         info_font = QFont("Arial", 10)
         self.label_altCoord.setFont(info_font)
-        self.label_altAngle.setFont(info_font)
-        self.label_altVel.setFont(info_font)
         self.label_altState.setFont(info_font)
         self.label_espTime.setFont(info_font)
 
@@ -277,8 +295,6 @@ class userInterface(QWidget):
         vbox = QVBoxLayout()
         vbox.addWidget(self.s3_title)  # Add title at the top
         vbox.addWidget(self.label_altCoord)
-        vbox.addWidget(self.label_altAngle)
-        vbox.addWidget(self.label_altVel)
         vbox.addWidget(self.label_altState)
         vbox.addWidget(self.label_espTime)
         vbox.addWidget(self.reset_esp_button)
@@ -319,17 +335,13 @@ class userInterface(QWidget):
         else:
             self.label_piState.setText(f"Pi State: Stop ({state})")
 
-    def update_PiPose(self, event_coordinates, event_angle, event_velocity):
+    def update_PiPose(self, event_coordinates):
         # Update the event pipeline labels
         self.label_eventCoord.setText(f"Event Pipeline Position: {event_coordinates}")
-        self.label_eventAngle.setText(f"Event Pipeline Heading: {event_angle}")
-        self.label_eventVel.setText(f"Event Pipeline Speed: {event_velocity}")
 
-    def update_ESPStatus(self, alt_coordinates, alt_head, alt_velocity, alt_state):
+    def update_ESPStatus(self, alt_coordinates, alt_state):
         # Update the alt pipeline labels (Blue)
         self.label_altCoord.setText(f"Alt. Pipeline Position: {alt_coordinates}")
-        self.label_altAngle.setText(f"Alt. Pipeline Heading: {alt_head}")
-        self.label_altVel.setText(f"Alt. Pipeline Speed: {alt_velocity}")
 
         if alt_state == 0:
             self.label_altState.setText(f"Alt. Pipeline State: Idle ({alt_state})")
@@ -424,6 +436,10 @@ class userInterface(QWidget):
         super().closeEvent(event)
 
     def update_graph(self, x, y, z, source):
+
+        x = x + pathX[0]
+        y = y + pathY[0]
+
         if source == "Pi":
             self.x_data_pi.append(x)
             self.y_data_pi.append(y)
@@ -443,20 +459,36 @@ class userInterface(QWidget):
         self.ax.plot(self.x_data_esp, self.y_data_esp, marker="none", linestyle="--", color="blue",
                      label="Alt Pipeline (ESP)")
 
-        # Redraw the graph
-        self.ax.set_title("Live Position Tracking")
-        self.ax.set_xlabel("X Position")
-        self.ax.set_ylabel("Y Position")
+        # Permanent Reference Points
+        self.ax.plot([sq1[0], sq2[0]], [sq1[1], sq2[1]], marker="none", linestyle="-", color="black",
+                     label="")
+        self.ax.plot([sq2[0], sq3[0]], [sq2[1], sq3[1]], marker="none", linestyle="-", color="black",
+                     label="")
+        self.ax.plot([sq3[0], sq4[0]], [sq3[1], sq4[1]], marker="none", linestyle="-", color="black",
+                     label="")
+        self.ax.plot([sq4[0], sq1[0]], [sq4[1], sq1[1]], marker="none", linestyle="-", color="black",
+                     label="")
+        self.ax.plot(pathX, pathY, marker="none", linestyle="--", color="black",
+                     label="Ground Truth")
+        self.ax.plot(bump1[0], bump1[1], marker="o", linestyle="none", color="black",
+                     label="")
+        self.ax.plot(bump2[0], bump2[1], marker="o", linestyle="none", color="black",
+                     label="")
 
-        if source == "ESP" or source == "Pi":
-            if graphSizeX[0] > x:
-                graphSizeX[0] = x - 10
-            if graphSizeX[1] < x:
-                graphSizeX[1] = x + 10
-            if graphSizeY[0] > y:
-                graphSizeY[0] = y - 10
-            if graphSizeY[1] < y:
-                graphSizeY[1] = y + 10
+        # Redraw the graph
+        self.ax.set_title("Position Tracking")
+        self.ax.set_xlabel("X Position (cm)")
+        self.ax.set_ylabel("Y Position (cm)")
+
+        # if source == "ESP" or source == "Pi":
+        #     if graphSizeX[0] > x:
+        #         graphSizeX[0] = x - 10
+        #     if graphSizeX[1] < x:
+        #         graphSizeX[1] = x + 10
+        #     if graphSizeY[0] > y:
+        #         graphSizeY[0] = y - 10
+        #     if graphSizeY[1] < y:
+        #         graphSizeY[1] = y + 10
 
         self.ax.set_xlim(graphSizeX)
         self.ax.set_ylim(graphSizeY)
@@ -476,9 +508,9 @@ class userInterface(QWidget):
         # Also reclear all feature points
 
         # Redraw the graph
-        self.ax.set_title("Live Position Tracking")
-        self.ax.set_xlabel("X Position")
-        self.ax.set_ylabel("Y Position")
+        self.ax.set_title("Position Tracking")
+        self.ax.set_xlabel("X Position (cm)")
+        self.ax.set_ylabel("Y Position (cm)")
 
         graphSizeX = orig_graphSizeX
         graphSizeY = orig_graphSizeY
@@ -498,7 +530,7 @@ class userInterface(QWidget):
                      label="Alt Pipeline (ESP)")
 
         # Redraw the graph
-        self.ax.set_title("Live Position Tracking")
+        self.ax.set_title("Position Tracking")
         self.ax.set_xlabel("X Position")
         self.ax.set_ylabel("Y Position")
 
@@ -609,7 +641,7 @@ if __name__ == "__main__":
                             # print("Feature Update")
                             cv2.waitKey(1)
                     else:   # A pose update
-                        window.update_PiPose(f"({x}, {y}, {z})", f"({yaw}, {pitch}, {roll})", f"{vel}")
+                        window.update_PiPose(f"({x + pathX[0]}, {y + pathY[0]}, {z})")
                         window.update_graph(x, y, z, "Pi")  # Update the graph with new position
                         cv2.waitKey(1)
 
@@ -621,7 +653,7 @@ if __name__ == "__main__":
                     head = received_data[4]
                     vel = received_data[5]
                     state = received_data[6]
-                    window.update_ESPStatus(f"({x}, {y})", head, vel, state)
+                    window.update_ESPStatus(f"({x + pathX[0]}, {y + pathY[0]})", state)
                     window.update_graph(x, y, 0, "ESP")
                     cv2.waitKey(1)
                     statusESPStream.startTime = time.time()

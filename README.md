@@ -20,6 +20,11 @@ Contains a CMake project used to program a Raspberry Pi 5.
 Includes all camera processing to obtain data from the Davis346 camera, synchronise that data, build frame representations, and integrate it with the open source openVINS system.
 ![image](https://github.com/user-attachments/assets/7403e51c-b248-40a2-b9f0-bc262eceb490)
 
+Related work:
+- https://github.com/uzh-rpg/rpg_dvs_ros
+- https://github.com/uzh-rpg/rpg_ultimate_slam_open
+- https://github.com/rpng/open_vins
+
 ## Testing
 Scripts to obtain and plot data from the raspberry Pi 5 logs
 

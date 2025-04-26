@@ -339,7 +339,7 @@ void updateStateTask(void *pvParameters) {
           suspend = 1;
           vTaskDelay(20 / portTICK_PERIOD_MS);  // delay 20 ms
           stopAllMotors();
-          resetVariables();
+          
         }
       }
 

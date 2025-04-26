@@ -65,7 +65,7 @@ float M_Ainv[3][3]
 };
 */
 
-
+/* prev working in gym
 float M_B[3]
 {35.18 , 35.77 , -102.63};
 
@@ -73,6 +73,29 @@ float M_Ainv[3][3]
 { {  4.85801 , 0.06222 , -0.03067},
   { 0.06222 , 4.51616 , 0.0659},
   { -0.03067 , 0.0659 , 5.04455}
+};
+*/
+/*
+// first calibration in macance
+float M_B[3]
+{37.12, 27.76 , -105.89};
+
+float M_Ainv[3][3]
+{ {  3.93136 , 0.03118 , -0.035},
+  { 0.03118 , 3.66419 , 0.03024},
+  { -0.035 , 0.03024 , 4.02858}
+};
+*/
+
+
+// second calibration in macance
+float M_B[3]
+{37.11 , 24.64 , -105.02};
+
+float M_Ainv[3][3]
+{ {3.75655 , 0.02971 , -0.02765},
+  { 0.02971 , 3.4591 , 0.02072},
+  { -0.02765 , 0.02072 , 3.81214}
 };
 
 
@@ -110,8 +133,8 @@ int prevLeftDirection = 1;
 int pointTurn = 0;
 
 // WiFi credentials
-const char* ssid = "SARK";
-const char* password = "samsamsam802";
+const char* ssid = "EBRover";
+const char* password = "ebrover2025";
 
 // UDP configuration
 WiFiUDP udp;
